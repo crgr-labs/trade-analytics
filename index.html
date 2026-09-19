@@ -96,11 +96,23 @@
           class="font-metric-sm text-metric-sm text-secondary uppercase tracking-wider">Operational Mode:</span><span
           class="font-metric-sm text-metric-sm px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed font-semibold">Paper
           Retrospective</span></div>
-      <div class="flex items-center gap-4"><button
-          class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span
-            class="material-symbols-outlined text-[20px]">search</span></button><button
-          class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span
-            class="material-symbols-outlined text-[20px]">notifications</span></button>
+      <div class="flex items-center gap-4">
+        <div class="relative">
+          <button type="button" id="header-search-toggle" aria-expanded="false" aria-haspopup="true"
+            aria-controls="header-search-panel" aria-label="Search trades and positions"
+            class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[20px]">search</span>
+          </button>
+          <div id="header-search-panel" hidden
+            class="absolute right-0 top-full mt-2 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-3">
+            <div class="relative flex items-center">
+              <span class="material-symbols-outlined absolute left-3 text-secondary text-[16px]">search</span>
+              <input id="header-search-input" type="text" autocomplete="off" placeholder="Search pair or notes..."
+                class="pl-9 pr-3 py-1.5 h-9 w-full bg-surface-container-low rounded-lg font-metric-sm text-metric-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container transition-colors" />
+            </div>
+            <div id="header-search-results" class="mt-2 max-h-80 overflow-y-auto"></div>
+          </div>
+        </div>
         <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span
             class="material-symbols-outlined text-on-primary text-[18px]">person</span></div>
       </div>
@@ -1492,28 +1504,6 @@
                   </tbody>
                 </table>
               </div>
-              <!-- Table Footer / Pagination Metadata -->
-              <div
-                class="px-6 py-3.5 bg-surface-container-lowest flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div class="flex items-center gap-2 font-metric-sm text-metric-sm text-secondary">
-                  <span class="w-2 h-2 rounded-full bg-tertiary"></span>
-                  <span>Verified cryptographic timestamp verification enabled</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button
-                    class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface font-metric-sm text-metric-sm disabled:opacity-40"
-                    disabled="">
-                    Previous
-                  </button>
-                  <span
-                    class="px-3 py-1 rounded bg-on-surface text-surface font-metric-sm text-metric-sm font-semibold">1</span>
-                  <button
-                    class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface font-metric-sm text-metric-sm disabled:opacity-40"
-                    disabled="">
-                    Next
-                  </button>
-                </div>
-              </div>
             </div>
             <!-- Per-pair breakdown (documented setups) -->
             <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
@@ -1892,6 +1882,25 @@
                       </thead>
                       <tbody class="divide-y divide-surface-container-low" id="ph-body"></tbody>
                     </table>
+                  </div>
+                  <!-- Table Footer / Pagination -->
+                  <div
+                    class="px-6 py-3.5 bg-surface-container-lowest flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span id="ph-page-summary" class="font-metric-sm text-metric-sm text-secondary">Showing 0 of 0</span>
+                    <div class="flex items-center gap-2">
+                      <button type="button" id="ph-page-prev"
+                        class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface font-metric-sm text-metric-sm disabled:opacity-40"
+                        disabled>
+                        Previous
+                      </button>
+                      <span id="ph-page-indicator"
+                        class="px-3 py-1 rounded bg-on-surface text-surface font-metric-sm text-metric-sm font-semibold">Page 1 of 1</span>
+                      <button type="button" id="ph-page-next"
+                        class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface font-metric-sm text-metric-sm disabled:opacity-40"
+                        disabled>
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </div>
 

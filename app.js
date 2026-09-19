@@ -1371,10 +1371,13 @@
       pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes());
   }
 
+  var PH_PAGE_SIZE = 25;
+
   var phState = {
     search: '', direction: 'all', outcome: 'all', from: '', to: '',
     sortKey: 'date', sortDir: 'desc',
-    pairSortKey: 'net', pairSortDir: 'asc'
+    pairSortKey: 'net', pairSortDir: 'asc',
+    page: 1
   };
 
   function filteredPositions() {
@@ -1648,11 +1651,31 @@
       }).join('');
     }
 
+    var totalPages = Math.max(1, Math.ceil(visible.length / PH_PAGE_SIZE));
+    if (phState.page > totalPages) phState.page = totalPages;
+    if (phState.page < 1) phState.page = 1;
+    var pageStart = (phState.page - 1) * PH_PAGE_SIZE;
+    var pageItems = visible.slice(pageStart, pageStart + PH_PAGE_SIZE);
+
     var body = section.querySelector('#ph-body');
-    body.innerHTML = visible.length
-      ? visible.map(positionRowHtml).join('')
+    body.innerHTML = pageItems.length
+      ? pageItems.map(positionRowHtml).join('')
       : '<tr><td class="px-5 py-8 text-center font-body-sm text-body-sm text-secondary" colspan="10">No positions match these filters.</td></tr>';
     section.querySelector('#ph-visible-count').textContent = visible.length;
+
+    var pageSummaryEl = section.querySelector('#ph-page-summary');
+    if (pageSummaryEl) {
+      pageSummaryEl.textContent = visible.length
+        ? 'Showing ' + (pageStart + 1) + '–' + Math.min(pageStart + PH_PAGE_SIZE, visible.length) + ' of ' + visible.length
+        : 'Showing 0 of 0';
+    }
+    var pageIndicatorEl = section.querySelector('#ph-page-indicator');
+    if (pageIndicatorEl) pageIndicatorEl.textContent = 'Page ' + phState.page + ' of ' + totalPages;
+    var prevBtn = section.querySelector('#ph-page-prev');
+    var nextBtn = section.querySelector('#ph-page-next');
+    if (prevBtn) prevBtn.disabled = phState.page <= 1;
+    if (nextBtn) nextBtn.disabled = phState.page >= totalPages;
+
     syncPositionSelectionUi();
 
     var pairBody = section.querySelector('#ph-pair-body');
@@ -1739,6 +1762,7 @@
     // longer be on screen.
     function applyFilterChange(mutate) {
       mutate();
+      phState.page = 1;
       clearSelection(phSelection);
       renderPositionHistory();
     }
@@ -1811,6 +1835,7 @@
     if (phSortSelect) {
       phSortSelect.addEventListener('change', function () {
         applyPositionSortSelectValue(phSortSelect.value);
+        phState.page = 1;
         renderPositionHistory();
       });
     }
@@ -1820,6 +1845,7 @@
       clearBtn.addEventListener('click', function () {
         clearSelection(phSelection);
         phState.search = ''; phState.direction = 'all'; phState.outcome = 'all'; phState.from = ''; phState.to = '';
+        phState.page = 1;
         if (searchInput) searchInput.value = '';
         if (directionSelect) directionSelect.value = 'all';
         if (outcomeSelect) outcomeSelect.value = 'all';
@@ -1839,6 +1865,7 @@
           phState.sortKey = key;
           phState.sortDir = key === 'pair' ? 'asc' : 'desc';
         }
+        phState.page = 1;
         renderPositionHistory();
         return;
       }
@@ -1860,6 +1887,21 @@
         if (id) window.AppRouter.navigate('new-trade-entry', 'promote:' + id);
       }
     });
+
+    var pagePrevBtn = section.querySelector('#ph-page-prev');
+    var pageNextBtn = section.querySelector('#ph-page-next');
+    if (pagePrevBtn) {
+      pagePrevBtn.addEventListener('click', function () {
+        phState.page--;
+        renderPositionHistory();
+      });
+    }
+    if (pageNextBtn) {
+      pageNextBtn.addEventListener('click', function () {
+        phState.page++;
+        renderPositionHistory();
+      });
+    }
   }
 
   function downloadFile(filename, content, mimeType) {
@@ -4367,6 +4409,149 @@
   }
 
   // ---------------------------------------------------------------------
+  // Header quick search
+  // ---------------------------------------------------------------------
+
+  var HEADER_SEARCH_MIN_CHARS = 2;
+  var HEADER_SEARCH_MAX_RESULTS = 8;
+  var HEADER_SEARCH_DEBOUNCE_MS = 150;
+
+  function headerSearchResults(rawQuery) {
+    var query = rawQuery.trim().toLowerCase();
+    if (query.length < HEADER_SEARCH_MIN_CHARS) return [];
+
+    var results = [];
+
+    TradeStore.getAll().forEach(function (t) {
+      var haystack = ((t.pair || '') + ' ' + (t.notes || '')).toLowerCase();
+      if (haystack.indexOf(query) === -1) return;
+      var ret = computeTradeReturn(t);
+      results.push({
+        type: 'trade', id: t.id, pair: t.pair, date: t.date,
+        pnl: ret ? ret.dollarPnl : null
+      });
+    });
+
+    PositionStore.getAll().forEach(function (p) {
+      if ((p.pair || '').toLowerCase().indexOf(query) === -1) return;
+      results.push({ type: 'position', id: p.id, pair: p.pair, date: p.openTime, pnl: p.pnl });
+    });
+
+    results.sort(function (a, b) {
+      if (a.type !== b.type) return a.type === 'trade' ? -1 : 1;
+      return (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0);
+    });
+
+    return results.slice(0, HEADER_SEARCH_MAX_RESULTS);
+  }
+
+  function headerSearchResultHtml(r) {
+    var badgeClass = r.type === 'trade' ? 'bg-secondary-container text-on-secondary-fixed' : 'bg-primary/10 text-primary';
+    var badgeLabel = r.type === 'trade' ? 'Journal entry' : 'Position';
+    var pnlHtml = (r.pnl === null || r.pnl === undefined)
+      ? '<span class="text-secondary">—</span>'
+      : '<span class="' + (r.pnl > 0 ? 'text-tertiary' : (r.pnl < 0 ? 'text-error' : 'text-secondary')) + ' font-semibold">' + formatSignedMoney(r.pnl) + '</span>';
+    var dateLabel = r.type === 'trade' ? formatDateLabel(r.date) : formatIsoDateTime(r.date);
+    return (
+      '<button type="button" class="header-search-result w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-surface-container-low transition-colors text-left" ' +
+        'data-result-type="' + r.type + '" data-result-id="' + escapeHtml(r.id) + '" data-result-pair="' + escapeHtml(r.pair) + '">' +
+        '<div class="flex flex-col min-w-0">' +
+          '<span class="font-metric-md text-metric-md font-bold text-on-surface truncate">' + escapeHtml(r.pair) + '</span>' +
+          '<span class="font-metric-sm text-metric-sm text-secondary">' + escapeHtml(dateLabel) + '</span>' +
+        '</div>' +
+        '<div class="flex items-center gap-2 shrink-0">' + pnlHtml +
+          '<span class="' + badgeClass + ' font-metric-sm text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide">' + badgeLabel + '</span>' +
+        '</div>' +
+      '</button>'
+    );
+  }
+
+  function initHeaderSearch() {
+    var toggle = document.getElementById('header-search-toggle');
+    var panel = document.getElementById('header-search-panel');
+    var input = document.getElementById('header-search-input');
+    var resultsEl = document.getElementById('header-search-results');
+    if (!toggle || !panel || !input || !resultsEl) return;
+
+    var debounceTimer = null;
+
+    function renderResults() {
+      var trimmed = (input.value || '').trim();
+      if (!trimmed.length) {
+        resultsEl.innerHTML = '<div class="px-3 py-4 text-center font-body-sm text-body-sm text-secondary">Search your journal trades and imported positions.</div>';
+        return;
+      }
+      if (trimmed.length < HEADER_SEARCH_MIN_CHARS) {
+        resultsEl.innerHTML = '<div class="px-3 py-4 text-center font-body-sm text-body-sm text-secondary">Keep typing to search…</div>';
+        return;
+      }
+      var results = headerSearchResults(input.value);
+      resultsEl.innerHTML = results.length
+        ? results.map(headerSearchResultHtml).join('')
+        : '<div class="px-3 py-4 text-center font-body-sm text-body-sm text-secondary">No trades or positions match "' + escapeHtml(trimmed) + '".</div>';
+    }
+
+    function openPanel() {
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      renderResults();
+      input.focus();
+    }
+
+    function closePanel() {
+      panel.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    toggle.addEventListener('click', function () {
+      if (panel.hidden) openPanel(); else closePanel();
+    });
+
+    input.addEventListener('input', function () {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(renderResults, HEADER_SEARCH_DEBOUNCE_MS);
+    });
+
+    resultsEl.addEventListener('click', function (e) {
+      var btn = e.target.closest('.header-search-result');
+      if (!btn) return;
+      var type = btn.getAttribute('data-result-type');
+      var id = btn.getAttribute('data-result-id');
+      var pair = btn.getAttribute('data-result-pair');
+      closePanel();
+      input.value = '';
+
+      if (type === 'trade') {
+        window.AppRouter.navigate('case-studies', id);
+      } else {
+        phState.search = pair;
+        phState.page = 1;
+        var phSection = sections['position-history'];
+        var phSearchInput = phSection && phSection.querySelector('#ph-search');
+        if (phSearchInput) phSearchInput.value = pair;
+        // Setting the hash to the screen it's already on won't fire
+        // hashchange, so the filtered results wouldn't otherwise apply
+        // without leaving and returning to the screen.
+        if (phSection && !phSection.hidden) renderPositionHistory();
+        window.AppRouter.navigate('position-history');
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (panel.hidden) return;
+      if (toggle.contains(e.target) || panel.contains(e.target)) return;
+      closePanel();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (panel.hidden) return;
+      if (e.key === 'Escape') { closePanel(); toggle.focus(); }
+    });
+
+    document.addEventListener('screenchange', closePanel);
+  }
+
+  // ---------------------------------------------------------------------
   // Wiring + boot
   // ---------------------------------------------------------------------
 
@@ -4379,6 +4564,7 @@
   initCaseStudyListControls();
   initChartPreviewModal();
   initTimingHeatmapControls(sections['timing-and-heatmap']);
+  initHeaderSearch();
 
   document.addEventListener('screenchange', function (e) {
     // Leaving a table drops its selection rather than carrying a stale one
