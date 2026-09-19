@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-surface":"#0b1c30","surface-container-low":"#eff4ff","on-primary":"#ffffff","on-primary-fixed-variant":"#3323cc","on-secondary-container":"#5c647a","on-secondary":"#ffffff","primary-container":"#4f46e5","tertiary-fixed":"#6ffbbe","surface-tint":"#4d44e3","secondary":"#565e74","outline-variant":"#c7c4d8","error":"#ba1a1a","surface-dim":"#cbdbf5","on-tertiary-fixed-variant":"#005236","on-surface-variant":"#464555","on-secondary-fixed-variant":"#3f465c","surface-variant":"#d3e4fe","on-error":"#ffffff","on-background":"#0b1c30","secondary-fixed":"#dae2fd","error-container":"#ffdad6","secondary-fixed-dim":"#bec6e0","on-tertiary-fixed":"#002113","primary-fixed-dim":"#c3c0ff","inverse-on-surface":"#eaf1ff","primary-fixed":"#e2dfff","surface-container-lowest":"#ffffff","tertiary-container":"#006e4b","surface":"#f8f9ff","on-secondary-fixed":"#131b2e","surface-container-high":"#dce9ff","surface-container-highest":"#d3e4fe","on-tertiary-container":"#67f4b7","secondary-container":"#dae2fd","outline":"#777587","tertiary":"#005338","on-primary-fixed":"#0f0069","surface-container":"#e5eeff","tertiary-fixed-dim":"#4edea3","surface-bright":"#f8f9ff","background":"#f8f9ff","primary":"#3525cd","on-primary-container":"#dad7ff","on-tertiary":"#ffffff","inverse-primary":"#c3c0ff","inverse-surface":"#213145","on-error-container":"#93000a"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"gutter-desktop":"1.5rem","margin-tablet":"1.5rem","space-xl":"2rem","space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem","gutter":"1.25rem","margin-desktop":"2rem","space-lg":"1.25rem","margin":"1rem"},fontFamily:{"body-sm":["Inter"],"headline-xl":["Inter"],"metric-display":["JetBrains Mono"],"headline-lg":["Inter"],"headline-sm":["Inter"],"metric-sm":["JetBrains Mono"],"body-md":["Inter"],"headline-md":["Inter"],"headline-lg-mobile":["Inter"],"metric-lg":["JetBrains Mono"],"body-lg":["Inter"],"metric-md":["JetBrains Mono"],"label-eyebrow":["Inter"]},fontSize:{"body-sm":["13px",{"lineHeight":"18px","fontWeight":"400"}],"headline-xl":["30px",{"lineHeight":"38px","letterSpacing":"-0.02em","fontWeight":"700"}],"metric-display":["28px",{"lineHeight":"34px","letterSpacing":"-0.03em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-sm":["15px",{"lineHeight":"22px","letterSpacing":"-0.005em","fontWeight":"600"}],"metric-sm":["11px",{"lineHeight":"16px","fontWeight":"500"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-md":["18px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-lg-mobile":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"metric-lg":["18px",{"lineHeight":"24px","letterSpacing":"-0.02em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"metric-md":["13px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"500"}],"label-eyebrow":["11px",{"lineHeight":"16px","letterSpacing":"0.08em","fontWeight":"600"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface"><aside class="fixed left-0 top-0 h-screen w-[260px] bg-surface-container-lowest z-50 flex flex-col justify-between p-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col gap-6"><div class="flex items-center gap-3 px-2 pt-1"><div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary"><span class="material-symbols-outlined text-[20px]">stacked_bar_chart</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface font-semibold leading-tight">Crypto Journal</span><span class="font-metric-sm text-metric-sm text-on-surface-variant font-medium">Trade Log v1.0</span></div></div><nav class="flex flex-col gap-1" data-active-classes="bg-surface-container-high text-primary font-semibold"><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="insights-dashboard" href="#"><span class="material-symbols-outlined text-[20px]">insights</span>Insights Dashboard</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="trade-journal" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span>Trade Journal</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="case-studies" href="#"><span class="material-symbols-outlined text-[20px]">analytics</span>Case Studies</a><a aria-current="page" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors bg-surface-container-high text-primary font-semibold" data-path="confluence-matrix" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span>Confluence Matrix</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="timing-and-heatmap" href="#"><span class="material-symbols-outlined text-[20px]">schedule</span>Timing and Heatmap</a><div class="my-2 h-px bg-surface-container"></div><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-primary bg-surface-container-low hover:bg-surface-container hover:text-on-surface transition-colors" data-path="new-trade-entry" href="#"><span class="material-symbols-outlined text-[20px]">add_circle</span>New Trade Entry</a></nav></div><div class="p-3 rounded-xl bg-surface-container-low"><div class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">MANUAL ENTRY MODE</div><div class="font-metric-sm text-metric-sm text-secondary mt-0.5">11 trades logged, updated Sep 3</div></div></aside><div class="pl-[260px]"><header class="fixed top-0 left-[260px] right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-xl"><div class="flex items-center gap-2"><span class="font-metric-sm text-metric-sm text-secondary uppercase tracking-wider">Operational Mode:</span><span class="font-metric-sm text-metric-sm px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed font-semibold">Paper Retrospective</span></div><div class="flex items-center gap-4"><button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">search</span></button><button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">notifications</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="pt-16 bg-surface min-h-screen"><div class="w-full max-w-7xl mx-auto p-space-xl"><div class="flex flex-col w-full">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<div class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-secondary uppercase">
+<span>Journal</span>
+<span class="text-outline-variant">/</span>
+<span class="text-primary font-semibold">Confluence Matrix</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface mt-1">Confluence Matrix</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Which parameter combinations actually win, narrowed down from every logged setup</p>
+</div>
+<!-- Active Filter/Tag Indicators -->
+<div class="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-xl shadow-sm">
+<span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
+<span class="font-metric-sm text-metric-sm text-secondary">Cohort:</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-on-surface">11 Logged Executions (100% Retrospective)</span>
+</div>
+</header>
+<!-- Dark Highlight Banner (Visual Anchor) -->
+<section class="mt-6 rounded-xl p-6 bg-on-surface text-surface-container-lowest shadow-md relative overflow-hidden">
+<!-- Subtle architectural background glow -->
+<div class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-primary-container/20 blur-3xl pointer-events-none"></div>
+<div class="absolute left-1/3 bottom-0 w-64 h-24 bg-tertiary-container/10 blur-2xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div class="flex flex-col max-w-2xl">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed"></span>
+<span class="font-label-eyebrow text-label-eyebrow text-primary-fixed uppercase">Best Validated Core Stack</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-surface-container-lowest mt-1">
+          Daily Uptrend &amp; Momentum continuation + 4H BOS
+        </h2>
+<p class="font-body-sm text-body-sm text-surface-variant mt-1">
+          The two-parameter foundation every winning stack below builds upon. Zero invalidations across historical sample.
+        </p>
+</div>
+<!-- Stat Blocks -->
+<div class="flex items-center gap-8 self-start md:self-auto bg-inverse-surface/60 px-6 py-3.5 rounded-xl backdrop-blur-sm">
+<div class="flex flex-col items-center">
+<span class="font-metric-display text-metric-display font-bold text-surface-container-lowest tracking-tight">5/5</span>
+<span class="font-metric-sm text-metric-sm text-surface-variant uppercase tracking-wider mt-0.5">Trades</span>
+</div>
+<div class="w-px h-10 bg-on-surface-variant/30"></div>
+<div class="flex flex-col items-center">
+<span class="font-metric-display text-metric-display font-bold text-tertiary-fixed tracking-tight">100%</span>
+<span class="font-metric-sm text-metric-sm text-surface-variant uppercase tracking-wider mt-0.5">Win Rate</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Two-Column Row of Cards -->
+<div class="grid grid-cols-12 gap-6 mt-6">
+<!-- Left Card: Notable Parameter Stacks (7 Cols) -->
+<section class="col-span-12 lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between">
+<div>
+<span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">Notable Parameter Stacks</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Winning sub-combinations added to base setup.</p>
+</div>
+<span class="material-symbols-outlined text-secondary text-[20px]">layers</span>
+</div>
+<!-- Table Structure without harsh borders -->
+<div class="mt-5 w-full overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low text-secondary font-label-eyebrow text-label-eyebrow uppercase">
+<th class="py-2.5 px-3 rounded-l-lg">Stacked Setup</th>
+<th class="py-2.5 px-3 text-center">Trades</th>
+<th class="py-2.5 px-3 text-right rounded-r-lg">Win Rate</th>
+</tr>
+</thead>
+<tbody class="divide-y-0 text-on-surface">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors group">
+<td class="py-3 px-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="font-body-md text-body-md font-medium text-on-surface">+ M15 30% Fib Pullback</span>
+</div>
+</td>
+<td class="py-3 px-3 text-center font-metric-md text-metric-md text-secondary">3 trades</td>
+<td class="py-3 px-3 text-right">
+<span class="font-metric-md text-metric-md font-semibold text-tertiary bg-tertiary-fixed/30 px-2 py-0.5 rounded-full">3/3 (100%)</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="font-body-md text-body-md font-medium text-on-surface">+ M15 50% Fib Pullback</span>
+</div>
+</td>
+<td class="py-3 px-3 text-center font-metric-md text-metric-md text-secondary">2 trades</td>
+<td class="py-3 px-3 text-right">
+<span class="font-metric-md text-metric-md font-semibold text-tertiary bg-tertiary-fixed/30 px-2 py-0.5 rounded-full">2/2 (100%)</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="font-body-md text-body-md font-medium text-on-surface">+ 4H Pullback</span>
+</div>
+</td>
+<td class="py-3 px-3 text-center font-metric-md text-metric-md text-secondary">2 trades</td>
+<td class="py-3 px-3 text-right">
+<span class="font-metric-md text-metric-md font-semibold text-tertiary bg-tertiary-fixed/30 px-2 py-0.5 rounded-full">2/2 (100%)</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-3 px-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="font-body-md text-body-md font-medium text-on-surface">+ both RSI above 70 signals</span>
+</div>
+</td>
+<td class="py-3 px-3 text-center font-metric-md text-metric-md text-secondary">3 trades</td>
+<td class="py-3 px-3 text-right">
+<span class="font-metric-md text-metric-md font-semibold text-tertiary bg-tertiary-fixed/30 px-2 py-0.5 rounded-full">3/3 (100%)</span>
+</td>
+</tr>
+<!-- Row 5 (Loss Profile) -->
+<tr class="bg-error-container/20 rounded-lg group">
+<td class="py-3 px-3 rounded-l-lg">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Daily Sideways + 4H LS (loss profile)</span>
+</div>
+</td>
+<td class="py-3 px-3 text-center font-metric-md text-metric-md text-secondary">1 trade</td>
+<td class="py-3 px-3 text-right rounded-r-lg">
+<span class="font-metric-md text-metric-md font-semibold text-error bg-error-container/60 px-2 py-0.5 rounded-full">0/1 (0%)</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="mt-4 pt-3 flex items-center justify-between text-secondary font-metric-sm text-metric-sm bg-surface-container-low p-2.5 rounded-lg">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">verified</span>
+          Base sample isolated from 10 winning setups + 1 controlled loss
+        </span>
+<span class="font-semibold text-on-surface">P-value &lt; 0.05 Target</span>
+</div>
+</section>
+<!-- Right Card: Filled Slots vs Win Rate (5 Cols) -->
+<section class="col-span-12 lg:col-span-5 bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between">
+<div>
+<span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">Filled Slots vs Win Rate</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Win rate by number of confluence parameters filled.</p>
+</div>
+<span class="material-symbols-outlined text-secondary text-[20px]">tune</span>
+</div>
+<div class="mt-6 flex flex-col gap-4">
+<!-- 4 parameters -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-baseline font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">4 parameters</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">2/2 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container-low rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- 5 parameters (Loss) -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-baseline font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">5 parameters</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-error">0/1 (0%)</span>
+</div>
+<div class="h-2 w-full bg-error-container/40 rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 0%"></div>
+</div>
+</div>
+<!-- 6 parameters -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-baseline font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">6 parameters</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-on-secondary-fixed-variant">2/3 (67%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container-low rounded-full overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 67%"></div>
+</div>
+</div>
+<!-- 7 parameters -->
+<div class="flex flex-col gap-1.5">
+<div class="flex justify-between items-baseline font-body-sm text-body-sm">
+<span class="font-medium text-on-surface">7 parameters</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">1/1 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container-low rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+</div>
+<!-- Subtle tonal divider -->
+<div class="my-5 h-px bg-surface-container"></div>
+<!-- Summary Metric Row: High Confluence -->
+<div class="p-3.5 bg-surface-container-low rounded-xl flex items-center justify-between gap-4">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">High confl. (6+)</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Aggregated Deep Alignment</span>
+</div>
+<div class="flex flex-col items-end gap-1.5 flex-1 max-w-[160px]">
+<span class="font-metric-md text-metric-md font-semibold text-primary">3/4 (75%)</span>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 75%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-4 text-center">
+<span class="font-metric-sm text-metric-sm text-secondary">Empirical takeaway: Higher density != guaranteed alpha</span>
+</div>
+</section>
+</div>
+<!-- Full-Width Card: Individual Parameter Win Rate -->
+<section class="bg-surface-container-lowest rounded-xl p-6 shadow-sm mt-6">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-6">
+<div>
+<span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">Individual Parameter Win Rate</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Isolated standalone probability breakdown by technical factor</p>
+</div>
+<div class="flex items-center gap-3">
+<span class="flex items-center gap-1 font-metric-sm text-metric-sm text-secondary">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span> ≥80% Target
+        </span>
+<span class="flex items-center gap-1 font-metric-sm text-metric-sm text-secondary">
+<span class="w-2 h-2 rounded-full bg-secondary"></span> 60-79% Moderate
+        </span>
+<span class="flex items-center gap-1 font-metric-sm text-metric-sm text-secondary">
+<span class="w-2 h-2 rounded-full bg-error"></span> &lt;50% Critical
+        </span>
+</div>
+</div>
+<!-- 3-Column Layout -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Column 1: Structural & Trend -->
+<div class="flex flex-col gap-4 bg-surface-container-low/40 p-4 rounded-xl">
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Trend &amp; Structure</span>
+<!-- 4H Parabolic -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">4H Parabolic</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">6/6 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- 4H Break of Structure -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">4H Break of Structure</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">11/11 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- 4H Pullback -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">4H Pullback</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">3/3 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+</div>
+<!-- Column 2: Execution & Retracement -->
+<div class="flex flex-col gap-4 bg-surface-container-low/40 p-4 rounded-xl">
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Retracements &amp; Ranges</span>
+<!-- M15 30% Fib Pullback -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">M15 30% Fib Pullback</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">5/5 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- M15 50% Fib Pullback -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">M15 50% Fib Pullback</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">5/5 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- 4H LS (range) -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">4H LS (range)</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-error">0/1 (0%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 0%"></div>
+</div>
+</div>
+</div>
+<!-- Column 3: Oscillators & Momentum -->
+<div class="flex flex-col gap-4 bg-surface-container-low/40 p-4 rounded-xl">
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Momentum Gauges (RSI)</span>
+<!-- Daily RSI above 70 -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">Daily RSI above 70</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">5/5 (100%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 100%"></div>
+</div>
+</div>
+<!-- 4H RSI above 70 -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">4H RSI above 70</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-tertiary">8/9 (89%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 89%"></div>
+</div>
+</div>
+<!-- Daily RSI below 70 -->
+<div class="flex flex-col gap-1">
+<div class="flex justify-between items-center text-body-sm font-body-sm">
+<span class="text-on-surface font-medium">Daily RSI below 70</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-on-secondary-fixed-variant">3/4 (75%)</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 75%"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Closing Key Findings Card -->
+<section class="bg-surface-container-low rounded-xl p-6 mt-6 shadow-sm">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary text-[20px]">lightbulb</span>
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Key Findings</span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Item 1 -->
+<div class="flex items-start gap-3 py-1">
+<div class="w-5 h-5 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0 mt-0.5">
+          1
+        </div>
+<p class="font-body-md text-body-md text-on-surface">
+<span class="font-semibold">Best validated base stack:</span> Daily Uptrend and Momentum continuation + 4H BOS, 5 wins from 5 trades.
+        </p>
+</div>
+<!-- Item 2 -->
+<div class="flex items-start gap-3 py-1">
+<div class="w-5 h-5 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0 mt-0.5">
+          2
+        </div>
+<p class="font-body-md text-body-md text-on-surface">
+<span class="font-semibold">Pullback synergies:</span> Adding M15 30% Fibonacci Pullback, or both RSI-above-70 signals, kept every trade a winner, 3/3 either way.
+        </p>
+</div>
+<!-- Item 3 -->
+<div class="flex items-start gap-3 py-1">
+<div class="w-5 h-5 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0 mt-0.5">
+          3
+        </div>
+<p class="font-body-md text-body-md text-on-surface">
+<span class="font-semibold">High-confluence cluster:</span> Setups with 6+ filled parameter slots are 3/4, strong, but the smallest bucket.
+        </p>
+</div>
+<!-- Item 4 -->
+<div class="flex items-start gap-3 py-1">
+<div class="w-5 h-5 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0 mt-0.5">
+          4
+        </div>
+<p class="font-body-md text-body-md text-on-surface">
+<span class="font-semibold">Over-optimization trap:</span> More parameters did not automatically mean a better trade: the only 5-parameter setup logged was the loss.
+        </p>
+</div>
+<!-- Item 5 -->
+<div class="flex items-start gap-3 py-1">
+<div class="w-5 h-5 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0 mt-0.5">
+          5
+        </div>
+<p class="font-body-md text-body-md text-on-surface">
+<span class="font-semibold">Sample size caveat:</span> Every result here is preliminary, the journal holds 11 trades and no monetary P&amp;L yet.
+        </p>
+</div>
+</div>
+</section>
+</div></div></main></div></body></html>

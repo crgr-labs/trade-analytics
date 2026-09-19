@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-surface":"#0b1c30","surface-container-low":"#eff4ff","on-primary":"#ffffff","on-primary-fixed-variant":"#3323cc","on-secondary-container":"#5c647a","on-secondary":"#ffffff","primary-container":"#4f46e5","tertiary-fixed":"#6ffbbe","surface-tint":"#4d44e3","secondary":"#565e74","outline-variant":"#c7c4d8","error":"#ba1a1a","surface-dim":"#cbdbf5","on-tertiary-fixed-variant":"#005236","on-surface-variant":"#464555","on-secondary-fixed-variant":"#3f465c","surface-variant":"#d3e4fe","on-error":"#ffffff","on-background":"#0b1c30","secondary-fixed":"#dae2fd","error-container":"#ffdad6","secondary-fixed-dim":"#bec6e0","on-tertiary-fixed":"#002113","primary-fixed-dim":"#c3c0ff","inverse-on-surface":"#eaf1ff","primary-fixed":"#e2dfff","surface-container-lowest":"#ffffff","tertiary-container":"#006e4b","surface":"#f8f9ff","on-secondary-fixed":"#131b2e","surface-container-high":"#dce9ff","surface-container-highest":"#d3e4fe","on-tertiary-container":"#67f4b7","secondary-container":"#dae2fd","outline":"#777587","tertiary":"#005338","on-primary-fixed":"#0f0069","surface-container":"#e5eeff","tertiary-fixed-dim":"#4edea3","surface-bright":"#f8f9ff","background":"#f8f9ff","primary":"#3525cd","on-primary-container":"#dad7ff","on-tertiary":"#ffffff","inverse-primary":"#c3c0ff","inverse-surface":"#213145","on-error-container":"#93000a"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"gutter-desktop":"1.5rem","margin-tablet":"1.5rem","space-xl":"2rem","space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem","gutter":"1.25rem","margin-desktop":"2rem","space-lg":"1.25rem","margin":"1rem"},fontFamily:{"body-sm":["Inter"],"headline-xl":["Inter"],"metric-display":["JetBrains Mono"],"headline-lg":["Inter"],"headline-sm":["Inter"],"metric-sm":["JetBrains Mono"],"body-md":["Inter"],"headline-md":["Inter"],"headline-lg-mobile":["Inter"],"metric-lg":["JetBrains Mono"],"body-lg":["Inter"],"metric-md":["JetBrains Mono"],"label-eyebrow":["Inter"]},fontSize:{"body-sm":["13px",{"lineHeight":"18px","fontWeight":"400"}],"headline-xl":["30px",{"lineHeight":"38px","letterSpacing":"-0.02em","fontWeight":"700"}],"metric-display":["28px",{"lineHeight":"34px","letterSpacing":"-0.03em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-sm":["15px",{"lineHeight":"22px","letterSpacing":"-0.005em","fontWeight":"600"}],"metric-sm":["11px",{"lineHeight":"16px","fontWeight":"500"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-md":["18px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-lg-mobile":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"metric-lg":["18px",{"lineHeight":"24px","letterSpacing":"-0.02em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"metric-md":["13px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"500"}],"label-eyebrow":["11px",{"lineHeight":"16px","letterSpacing":"0.08em","fontWeight":"600"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface"><aside class="fixed left-0 top-0 h-screen w-[260px] bg-surface-container-lowest z-50 flex flex-col justify-between p-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col gap-6"><div class="flex items-center gap-3 px-2 pt-1"><div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary"><span class="material-symbols-outlined text-[20px]">stacked_bar_chart</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface font-semibold leading-tight">Crypto Journal</span><span class="font-metric-sm text-metric-sm text-on-surface-variant font-medium">Trade Log v1.0</span></div></div><nav class="flex flex-col gap-1" data-active-classes="bg-surface-container-high text-primary font-semibold"><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="insights-dashboard" href="#"><span class="material-symbols-outlined text-[20px]">insights</span>Insights Dashboard</a><a aria-current="page" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors bg-surface-container-high text-primary font-semibold" data-path="trade-journal" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span>Trade Journal</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="case-studies" href="#"><span class="material-symbols-outlined text-[20px]">analytics</span>Case Studies</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="confluence-matrix" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span>Confluence Matrix</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="timing-and-heatmap" href="#"><span class="material-symbols-outlined text-[20px]">schedule</span>Timing and Heatmap</a><div class="my-2 h-px bg-surface-container"></div><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-primary bg-surface-container-low hover:bg-surface-container hover:text-on-surface transition-colors" data-path="new-trade-entry" href="#"><span class="material-symbols-outlined text-[20px]">add_circle</span>New Trade Entry</a></nav></div><div class="p-3 rounded-xl bg-surface-container-low"><div class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">MANUAL ENTRY MODE</div><div class="font-metric-sm text-metric-sm text-secondary mt-0.5">11 trades logged, updated Sep 3</div></div></aside><div class="pl-[260px]"><header class="fixed top-0 left-[260px] right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-xl"><div class="flex items-center gap-2"><span class="font-metric-sm text-metric-sm text-secondary uppercase tracking-wider">Operational Mode:</span><span class="font-metric-sm text-metric-sm px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed font-semibold">Paper Retrospective</span></div><div class="flex items-center gap-4"><button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">search</span></button><button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">notifications</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="pt-16 bg-surface min-h-screen"><div class="w-full max-w-7xl mx-auto p-space-xl"><div class="flex flex-col w-full gap-6">
+<!-- Header Section with Breadcrumbs and Quick Action -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex flex-col">
+<div class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">
+<span>Journal</span>
+<span class="text-outline-variant">/</span>
+<span class="text-primary font-semibold">Trade Log</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight mt-1">Trade Journal</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">Every manually logged setup, chart, and outcome across cycles</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="hidden xl:flex items-center gap-4 px-4 py-2 bg-surface-container-lowest rounded-xl shadow-sm">
+<div class="flex flex-col text-right">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Sample Size</span>
+<span class="font-metric-md text-metric-md text-on-surface">11 Logged</span>
+</div>
+<div class="w-px h-7 bg-surface-container"></div>
+<div class="flex flex-col text-right">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Win Rate</span>
+<span class="font-metric-md text-metric-md text-tertiary">88.9%</span>
+</div>
+</div>
+<button class="bg-primary hover:bg-primary-container text-on-primary px-4 py-2.5 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 shadow-sm transition-all duration-150">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>New Trade</span>
+</button>
+</div>
+</div>
+<!-- Filter & Analytics Control Strip -->
+<div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+<div class="flex items-center gap-2" id="filter-pill-group">
+<button class="filter-pill bg-on-surface text-surface-container-lowest font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all" data-filter="all">
+<span>All</span>
+<span class="opacity-75 text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full">11</span>
+</button>
+<button class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all" data-filter="win">
+<span>Wins</span>
+<span class="text-tertiary font-semibold">8</span>
+</button>
+<button class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all" data-filter="loss">
+<span>Losses</span>
+<span class="text-error font-semibold">1</span>
+</button>
+<button class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all" data-filter="open">
+<span>Open</span>
+<span class="text-secondary font-semibold">2</span>
+</button>
+</div>
+<!-- Quick Ledger Meta / Search View -->
+<div class="flex items-center gap-3">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-secondary text-[16px]">filter_list</span>
+<input class="pl-9 pr-3 py-1.5 h-8 w-48 lg:w-60 bg-surface-container-lowest rounded-lg font-metric-sm text-metric-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-low transition-colors shadow-sm" id="pairSearchInput" placeholder="Filter pair (e.g. HNT, 0G)..." type="text"/>
+</div>
+<div class="flex items-center gap-1 bg-surface-container-lowest px-2.5 py-1.5 rounded-lg shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[16px]">tune</span>
+<span class="font-metric-sm text-metric-sm text-on-surface-variant">Default Sort</span>
+</div>
+</div>
+</div>
+<!-- Main Ledger Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+<!-- Sub-header context bar -->
+<div class="px-6 py-2.5 bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-eyebrow text-label-eyebrow uppercase text-on-surface-variant tracking-wider">Live Systematic Ledger</span>
+</div>
+<div class="flex items-center gap-4 text-secondary font-metric-sm text-metric-sm">
+<span>Showing <strong class="text-on-surface font-semibold" id="visible-count">11</strong> entries</span>
+<span class="hidden sm:inline">•</span>
+<span class="hidden sm:inline">Updated Today 14:32 UTC</span>
+</div>
+</div>
+<!-- Data Table Container -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse" id="tradesTable">
+<thead>
+<tr class="bg-surface-container text-secondary font-label-eyebrow text-label-eyebrow tracking-wider uppercase">
+<th class="px-6 py-3 font-semibold">Date</th>
+<th class="px-6 py-3 font-semibold">Pair</th>
+<th class="px-6 py-3 font-semibold">Side</th>
+<th class="px-6 py-3 font-semibold">Parameters</th>
+<th class="px-6 py-3 font-semibold text-center">Chart</th>
+<th class="px-6 py-3 font-semibold">Outcome</th>
+<th class="px-6 py-3 font-semibold text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low" id="tradesBody">
+<!-- Row 1: Aug 22 (Sat) | TRUMPUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="open" data-pair="TRUMPUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Aug 22</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Saturday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">TRUMPUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Pullback</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="1 additional parameter">+1 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-surface-container text-on-surface-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                OPEN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 2: Aug 26 (Wed) | BTRUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="open" data-pair="BTRUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Aug 26</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Wednesday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">BTRUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Parabolic</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="1 additional parameter">+1 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-surface-container text-on-surface-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                OPEN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 3: Aug 29 (Sat) | HNTUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="HNTUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Aug 29</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Saturday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">HNTUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Pause</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 4: Aug 30 (Sun) | HNTUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="HNTUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Aug 30</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Sunday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">HNTUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Parabolic</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 5: Aug 31 (Mon) | UPROBINHOODUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="UPROBINHOODUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Aug 31</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Monday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">UPROBINHOODUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Pullback</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="3 additional parameters">+3 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 6: Sep 1 (Tue) | 0GUSDT.P (LOSS) -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="loss" data-pair="0GUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Sep 1</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Tuesday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">0GUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Sideways</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H LS</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-error-container text-on-error-container font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                LOSS
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 7: Sep 1 (Tue) | UAIUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="UAIUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Sep 1</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Tuesday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">UAIUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Sideways</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Parabolic</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 8: Sep 2 (Wed) | EGLUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="EGLUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Sep 2</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Wednesday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">EGLUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Parabolic</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 9: Sep 2 (Wed) | PYTHUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="PYTHUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Sep 2</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Wednesday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">PYTHUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Sideways</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Parabolic</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 10: Sep 3 (Thu) | USELESSUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="USELESSUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Sep 3</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Thursday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">USELESSUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Parabolic</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+<!-- Row 11: Sep 3 (Thu) | BULLAUSDT.P -->
+<tr class="trade-row hover:bg-surface-container-low/60 transition-colors" data-outcome="win" data-pair="BULLAUSDT.P">
+<td class="px-6 py-3">
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Sep 3</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Thursday</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-metric-md text-metric-md font-bold text-on-surface">BULLAUSDT.P</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex flex-col items-start gap-0.5">
+<span class="bg-primary/10 text-primary font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">LONG</span>
+<span class="font-metric-sm text-metric-sm text-secondary">10x isolated</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex items-center flex-wrap gap-1">
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">Daily Uptrend &amp; Momentum</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H BOS</span>
+<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">4H Pullback</span>
+<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="2 additional parameters">+2 more</span>
+</div>
+</td>
+<td class="px-6 py-3">
+<div class="flex justify-center">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-secondary hover:text-primary transition-colors cursor-pointer" title="Preview chart breakdown">
+<span class="material-symbols-outlined text-[18px]">image</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-3">
+<span class="bg-tertiary-fixed/30 text-on-tertiary-fixed-variant font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                WIN
+              </span>
+</td>
+<td class="px-6 py-3 text-right">
+<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#">
+<span>Case study</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination Metadata -->
+<div class="px-6 py-3.5 bg-surface-container-lowest flex flex-col sm:flex-row items-center justify-between gap-3">
+<div class="flex items-center gap-2 font-metric-sm text-metric-sm text-secondary">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span>Verified cryptographic timestamp verification enabled</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface font-metric-sm text-metric-sm disabled:opacity-40" disabled="">
+          Previous
+        </button>
+<span class="px-3 py-1 rounded bg-on-surface text-surface font-metric-sm text-metric-sm font-semibold">1</span>
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface font-metric-sm text-metric-sm disabled:opacity-40" disabled="">
+          Next
+        </button>
+</div>
+</div>
+</div>
+<!-- Systematic Confluence Snapshot Panel -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Setup Distribution Breakdown -->
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-3">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Setup Confluence Density</span>
+<span class="font-metric-sm text-metric-sm text-primary font-semibold">100% Long Execution</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mb-4">Dominant directional bias favoring 4H Break of Structure during high-momentum runs.</p>
+<div class="space-y-2.5">
+<div>
+<div class="flex justify-between font-metric-sm text-metric-sm mb-1">
+<span class="text-on-surface">Daily Uptrend + 4H BOS</span>
+<span class="text-on-surface font-semibold">8 trades (72.7%)</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 72.7%;"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between font-metric-sm text-metric-sm mb-1">
+<span class="text-on-surface">Daily Sideways + 4H BOS</span>
+<span class="text-on-surface font-semibold">3 trades (27.3%)</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 27.3%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 flex items-center justify-between text-secondary font-metric-sm text-metric-sm">
+<span>Average leverage</span>
+<span class="font-bold text-on-surface font-metric-md text-metric-md">10.0x Isolated</span>
+</div>
+</div>
+<!-- Active Validation Notice Card (Dark Slate emphasis) -->
+<div class="bg-on-surface text-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span>
+<span class="font-label-eyebrow text-label-eyebrow text-inverse-on-surface/70 uppercase">Backtest Validation</span>
+</div>
+<span class="font-metric-sm text-metric-sm bg-white/10 px-2 py-0.5 rounded text-surface">SERIES #08</span>
+</div>
+<h4 class="font-headline-md text-headline-md font-semibold text-white tracking-tight">Systematic Edge Confirmation</h4>
+<p class="font-body-sm text-body-sm text-inverse-on-surface/80 mt-2">
+          The 4H Parabolic setup displays a 100% win conversion rate across 7 iterations. 0GUSDT failure occurred exclusively during [4H LS] confluence.
+        </p>
+</div>
+<div class="pt-4 mt-4 flex items-center justify-between">
+<span class="font-metric-sm text-metric-sm text-inverse-on-surface/60">Profit Factor (Est)</span>
+<span class="font-metric-display text-metric-lg font-bold text-tertiary-fixed">8.24 PF</span>
+</div>
+</div>
+<!-- Fast Retrospective Dropzone / Export View -->
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Export &amp; Ingestion</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">cloud_sync</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mb-4">Export ledger for quantitative R-multiple review or attach new chart sets.</p>
+<div class="p-4 rounded-xl bg-surface-container-low flex flex-col items-center justify-center text-center group cursor-pointer hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary text-[28px] mb-1 group-hover:scale-110 transition-transform">upload_file</span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-medium">Drop Exchange CSV or Log File</span>
+<span class="font-metric-sm text-metric-sm text-secondary mt-0.5">Binance, Bybit, Hyperliquid formats supported</span>
+</div>
+</div>
+<div class="pt-4 mt-2 flex items-center gap-2">
+<button class="flex-1 py-1.5 px-3 bg-surface-container-low hover:bg-surface-container text-on-surface font-metric-sm text-metric-sm rounded-lg transition-colors flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">download</span>
+<span>Download CSV</span>
+</button>
+<button class="flex-1 py-1.5 px-3 bg-surface-container-low hover:bg-surface-container text-on-surface font-metric-sm text-metric-sm rounded-lg transition-colors flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[15px]">share</span>
+<span>Share Ledger</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const filterPills = document.querySelectorAll('.filter-pill');
+    const tableRows = document.querySelectorAll('.trade-row');
+    const countDisplay = document.getElementById('visible-count');
+    const searchInput = document.getElementById('pairSearchInput');
+
+    let currentFilter = 'all';
+    let searchQuery = '';
+
+    function applyFilters() {
+      let visible = 0;
+      tableRows.forEach(row => {
+        const outcome = row.getAttribute('data-outcome');
+        const pair = (row.getAttribute('data-pair') || '').toLowerCase();
+
+        const matchesFilter = (currentFilter === 'all') || (outcome === currentFilter);
+        const matchesSearch = !searchQuery || pair.includes(searchQuery);
+
+        if (matchesFilter && matchesSearch) {
+          row.style.display = '';
+          visible++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      if (countDisplay) {
+        countDisplay.textContent = visible;
+      }
+    }
+
+    filterPills.forEach(pill => {
+      pill.addEventListener('click', function() {
+        currentFilter = this.getAttribute('data-filter');
+
+        // Toggle pill visual states
+        filterPills.forEach(p => {
+          p.classList.remove('bg-on-surface', 'text-surface-container-lowest');
+          p.classList.add('bg-surface-container-lowest', 'text-on-surface-variant');
+        });
+
+        this.classList.remove('bg-surface-container-lowest', 'text-on-surface-variant');
+        this.classList.add('bg-on-surface', 'text-surface-container-lowest');
+
+        applyFilters();
+      });
+    });
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function(e) {
+        searchQuery = (e.target.value || '').trim().toLowerCase();
+        applyFilters();
+      });
+    }
+  })();
+</script></div></main></div></body></html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-surface":"#0b1c30","surface-container-low":"#eff4ff","on-primary":"#ffffff","on-primary-fixed-variant":"#3323cc","on-secondary-container":"#5c647a","on-secondary":"#ffffff","primary-container":"#4f46e5","tertiary-fixed":"#6ffbbe","surface-tint":"#4d44e3","secondary":"#565e74","outline-variant":"#c7c4d8","error":"#ba1a1a","surface-dim":"#cbdbf5","on-tertiary-fixed-variant":"#005236","on-surface-variant":"#464555","on-secondary-fixed-variant":"#3f465c","surface-variant":"#d3e4fe","on-error":"#ffffff","on-background":"#0b1c30","secondary-fixed":"#dae2fd","error-container":"#ffdad6","secondary-fixed-dim":"#bec6e0","on-tertiary-fixed":"#002113","primary-fixed-dim":"#c3c0ff","inverse-on-surface":"#eaf1ff","primary-fixed":"#e2dfff","surface-container-lowest":"#ffffff","tertiary-container":"#006e4b","surface":"#f8f9ff","on-secondary-fixed":"#131b2e","surface-container-high":"#dce9ff","surface-container-highest":"#d3e4fe","on-tertiary-container":"#67f4b7","secondary-container":"#dae2fd","outline":"#777587","tertiary":"#005338","on-primary-fixed":"#0f0069","surface-container":"#e5eeff","tertiary-fixed-dim":"#4edea3","surface-bright":"#f8f9ff","background":"#f8f9ff","primary":"#3525cd","on-primary-container":"#dad7ff","on-tertiary":"#ffffff","inverse-primary":"#c3c0ff","inverse-surface":"#213145","on-error-container":"#93000a"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"gutter-desktop":"1.5rem","margin-tablet":"1.5rem","space-xl":"2rem","space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem","gutter":"1.25rem","margin-desktop":"2rem","space-lg":"1.25rem","margin":"1rem"},fontFamily:{"body-sm":["Inter"],"headline-xl":["Inter"],"metric-display":["JetBrains Mono"],"headline-lg":["Inter"],"headline-sm":["Inter"],"metric-sm":["JetBrains Mono"],"body-md":["Inter"],"headline-md":["Inter"],"headline-lg-mobile":["Inter"],"metric-lg":["JetBrains Mono"],"body-lg":["Inter"],"metric-md":["JetBrains Mono"],"label-eyebrow":["Inter"]},fontSize:{"body-sm":["13px",{"lineHeight":"18px","fontWeight":"400"}],"headline-xl":["30px",{"lineHeight":"38px","letterSpacing":"-0.02em","fontWeight":"700"}],"metric-display":["28px",{"lineHeight":"34px","letterSpacing":"-0.03em","fontWeight":"600"}],"headline-lg":["24px",{"lineHeight":"32px","letterSpacing":"-0.02em","fontWeight":"600"}],"headline-sm":["15px",{"lineHeight":"22px","letterSpacing":"-0.005em","fontWeight":"600"}],"metric-sm":["11px",{"lineHeight":"16px","fontWeight":"500"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-md":["18px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-lg-mobile":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"metric-lg":["18px",{"lineHeight":"24px","letterSpacing":"-0.02em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"metric-md":["13px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"500"}],"label-eyebrow":["11px",{"lineHeight":"16px","letterSpacing":"0.08em","fontWeight":"600"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface"><aside class="fixed left-0 top-0 h-screen w-[260px] bg-surface-container-lowest z-50 flex flex-col justify-between p-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col gap-6"><div class="flex items-center gap-3 px-2 pt-1"><div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary"><span class="material-symbols-outlined text-[20px]">stacked_bar_chart</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface font-semibold leading-tight">Crypto Journal</span><span class="font-metric-sm text-metric-sm text-on-surface-variant font-medium">Trade Log v1.0</span></div></div><nav class="flex flex-col gap-1" data-active-classes="bg-surface-container-high text-primary font-semibold"><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="insights-dashboard" href="#"><span class="material-symbols-outlined text-[20px]">insights</span>Insights Dashboard</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="trade-journal" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span>Trade Journal</a><a aria-current="page" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors bg-surface-container-high text-primary font-semibold" data-path="case-studies" href="#"><span class="material-symbols-outlined text-[20px]">analytics</span>Case Studies</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="confluence-matrix" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span>Confluence Matrix</a><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" data-path="timing-and-heatmap" href="#"><span class="material-symbols-outlined text-[20px]">schedule</span>Timing and Heatmap</a><div class="my-2 h-px bg-surface-container"></div><a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-body-md text-body-md text-primary bg-surface-container-low hover:bg-surface-container hover:text-on-surface transition-colors" data-path="new-trade-entry" href="#"><span class="material-symbols-outlined text-[20px]">add_circle</span>New Trade Entry</a></nav></div><div class="p-3 rounded-xl bg-surface-container-low"><div class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">MANUAL ENTRY MODE</div><div class="font-metric-sm text-metric-sm text-secondary mt-0.5">11 trades logged, updated Sep 3</div></div></aside><div class="pl-[260px]"><header class="fixed top-0 left-[260px] right-0 h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-xl"><div class="flex items-center gap-2"><span class="font-metric-sm text-metric-sm text-secondary uppercase tracking-wider">Operational Mode:</span><span class="font-metric-sm text-metric-sm px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed font-semibold">Paper Retrospective</span></div><div class="flex items-center gap-4"><button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">search</span></button><button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">notifications</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="pt-16 bg-surface min-h-screen"><div class="w-full max-w-7xl mx-auto p-space-xl"><div class="flex flex-col w-full">
+<!-- Breadcrumb and Quick Metadata -->
+<div class="flex items-center justify-between gap-4 pb-4">
+<a class="inline-flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#">
+<span class="material-symbols-outlined text-[14px]">arrow_back</span>
+<span>JOURNAL / TRADE JOURNAL / HNTUSDT.P</span>
+</a>
+<div class="inline-flex items-center gap-2">
+<span class="font-metric-sm text-metric-sm text-secondary">ARCHIVE ID:</span>
+<span class="font-metric-sm text-metric-sm px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">#CS-2026-0829</span>
+</div>
+</div>
+<!-- Header Card with Ticker, Tags, Actions -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex flex-col gap-2">
+<div class="flex flex-wrap items-center gap-3">
+<h1 class="font-metric-display text-metric-display text-on-surface font-semibold tracking-tight">HNTUSDT.P</h1>
+<span class="bg-surface-container-low text-primary px-2.5 py-0.5 rounded text-[11px] font-headline-sm font-bold uppercase tracking-wider">
+          LONG
+        </span>
+<span class="bg-surface-container text-secondary px-2.5 py-0.5 rounded font-metric-sm text-metric-sm font-medium">
+          10x ISOLATED
+        </span>
+<span class="bg-surface-container-low text-tertiary px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+          WIN
+        </span>
+</div>
+<div class="flex items-center gap-2 text-secondary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">calendar_today</span>
+<span>Logged Saturday, 29 August 2026</span>
+<span class="text-outline-variant">·</span>
+<span class="flex items-center gap-1">
+<span>Previous daily candle:</span>
+<span class="font-semibold text-tertiary">Bullish Continuation</span>
+</span>
+</div>
+</div>
+<div class="flex items-center gap-2 self-start md:self-center">
+<button class="bg-surface-container-low text-on-surface hover:bg-surface-container px-3 py-1.5 rounded-lg font-headline-sm text-[12px] font-medium flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px] text-secondary">edit_note</span>
+        Edit Entry
+      </button>
+<button class="bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container px-2.5 py-1.5 rounded-lg font-headline-sm text-[12px] font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[16px]">share</span>
+</button>
+<a class="text-secondary hover:text-on-surface font-body-sm text-body-sm px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-[18px]">close</span>
+        Close
+      </a>
+</div>
+</div>
+<!-- Metric Strip KPI Overview -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
+<span>Realized Return</span>
+<span class="material-symbols-outlined text-tertiary text-[18px]">trending_up</span>
+</div>
+<div class="mt-2 flex items-baseline gap-2">
+<span class="font-metric-display text-metric-display text-tertiary font-bold">+10.14%</span>
+<span class="font-metric-sm text-metric-sm text-secondary">(+101.4% ROE)</span>
+</div>
+<div class="mt-2 w-full bg-surface-container rounded-full h-1.5 overflow-hidden">
+<div class="bg-tertiary h-full rounded-full w-full"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
+<span>Execution Delta</span>
+<span class="material-symbols-outlined text-primary text-[18px]">swap_vert</span>
+</div>
+<div class="mt-2 flex items-baseline gap-2">
+<span class="font-metric-lg text-metric-lg text-on-surface font-semibold">+$0.0590</span>
+<span class="font-metric-sm text-metric-sm text-secondary">per token</span>
+</div>
+<div class="mt-2 font-metric-sm text-metric-sm text-secondary flex items-center justify-between">
+<span>0.5820</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+<span>0.6410</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
+<span>Confluence Score</span>
+<span class="material-symbols-outlined text-primary text-[18px]">fact_check</span>
+</div>
+<div class="mt-2 flex items-baseline gap-2">
+<span class="font-metric-display text-metric-display text-on-surface font-semibold">5 <span class="text-secondary text-metric-lg font-normal">/ 7</span></span>
+<span class="font-metric-sm text-metric-sm text-primary font-medium">71.4% aligned</span>
+</div>
+<div class="mt-2 w-full bg-surface-container rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-full rounded-full w-[71.4%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
+<span>Execution Efficiency</span>
+<span class="material-symbols-outlined text-secondary text-[18px]">timelapse</span>
+</div>
+<div class="mt-2 flex items-baseline gap-2">
+<span class="font-metric-display text-metric-display text-on-surface font-semibold">18h 40m</span>
+<span class="font-metric-sm text-metric-sm text-secondary">Hold Time</span>
+</div>
+<div class="mt-2 font-metric-sm text-metric-sm text-secondary">
+        HTF Swing Continuation Mode
+      </div>
+</div>
+</div>
+<!-- Two-Column Main Layout: 7 cols (Left) / 5 cols (Right) -->
+<div class="grid grid-cols-12 gap-6 mt-6">
+<!-- Left Column: Chart Artifact, High-Res Inspection, Trade Synthesis Notes -->
+<div class="col-span-12 lg:col-span-7 space-y-6">
+<!-- Entry Chart Screenshot Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">show_chart</span>
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Entry Chart Screenshot</h2>
+</div>
+<div class="flex items-center gap-3">
+<button class="font-headline-sm text-body-sm text-primary hover:text-on-primary-fixed-variant transition-colors font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">file_upload</span>
+              Replace image
+            </button>
+<span class="text-outline-variant">·</span>
+<button class="font-headline-sm text-body-sm text-secondary hover:text-on-surface transition-colors font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+              Full screen
+            </button>
+</div>
+</div>
+<!-- Visual Chart Box with Structured Mocked Candle Graphic and Indicators -->
+<div class="relative bg-surface-container-low rounded-xl overflow-hidden p-4 shadow-sm flex flex-col gap-3">
+<!-- Chart Top Toolbar Overlay -->
+<div class="flex items-center justify-between bg-surface-container-lowest/90 backdrop-blur rounded-lg px-3 py-2 text-on-surface">
+<div class="flex items-center gap-2">
+<span class="font-metric-sm text-metric-sm font-semibold text-primary">BINANCE:HNTUSDT.P</span>
+<span class="text-outline-variant">|</span>
+<span class="font-metric-sm text-metric-sm text-secondary">4h</span>
+<span class="text-outline-variant">|</span>
+<span class="font-metric-sm text-metric-sm text-tertiary">O: 0.5790 H: 0.6480 L: 0.5720 C: 0.6410</span>
+</div>
+<div class="flex items-center gap-2 text-secondary font-metric-sm text-metric-sm">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface">RSI(14): 64.2</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface">EMA(21): 0.5640</span>
+</div>
+</div>
+<!-- Synthetic High-Fidelity Technical Vector Chart -->
+<div class="relative w-full h-[320px] bg-surface-container-lowest rounded-lg overflow-hidden flex items-center justify-center">
+<!-- Technical Grid Lines -->
+<svg class="absolute inset-0 w-full h-full text-surface-container" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="40" id="chart-grid" patternunits="userSpaceOnUse" width="60">
+<path d="M 60 0 L 0 0 0 40" fill="none" opacity="0.4" stroke="currentColor" stroke-width="0.8"></path>
+</pattern>
+</defs>
+<rect fill="url(#chart-grid)" height="100%" width="100%"></rect>
+</svg>
+<!-- Inline SVG Technical Drawing -->
+<svg class="w-full h-full p-6 relative z-10" fill="none" viewbox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+<!-- Fib 50% Level Guide -->
+<line opacity="0.6" stroke="#4f46e5" stroke-dasharray="4 4" stroke-width="1.2" x1="40" x2="660" y1="160" y2="160"></line>
+<text fill="#4f46e5" font-family="JetBrains Mono" font-size="10" font-weight="600" x="600" y="154">50% FIB (0.5820)</text>
+<!-- Prior Resistance / Breakout Level -->
+<line opacity="0.5" stroke="#777587" stroke-dasharray="2 2" stroke-width="1" x1="40" x2="660" y1="110" y2="110"></line>
+<text fill="#565e74" font-family="JetBrains Mono" font-size="10" x="50" y="104">4H BOS RECLAIM (0.6010)</text>
+<!-- Target Shelf Zone -->
+<rect fill="#4edea3" fill-opacity="0.12" height="24" rx="4" width="620" x="40" y="42"></rect>
+<text fill="#005338" font-family="JetBrains Mono" font-size="10" font-weight="600" x="50" y="58">DAILY RESISTANCE TARGET SHELF (0.6410)</text>
+<!-- Price Action Path (Bullish Swing & Expansion) -->
+<path d="M 50 220 L 110 190 L 150 205 L 230 110 L 300 135 L 340 160 L 380 140 L 460 80 L 520 95 L 630 50" fill="none" stroke="#005338" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+<!-- Price Area Gradient -->
+<path d="M 50 220 L 110 190 L 150 205 L 230 110 L 300 135 L 340 160 L 380 140 L 460 80 L 520 95 L 630 50 L 630 260 L 50 260 Z" fill="url(#trend-gradient)" opacity="0.15"></path>
+<defs>
+<lineargradient id="trend-gradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#005338"></stop>
+<stop offset="100%" stop-color="#f8f9ff" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Entry Pin -->
+<g transform="translate(340, 160)">
+<circle fill="#4f46e5" r="7"></circle>
+<circle fill="#4f46e5" fill-opacity="0.25" r="14"></circle>
+<text fill="#4f46e5" font-family="JetBrains Mono" font-size="11" font-weight="700" x="18" y="4">LONG ENTRY: $0.5820</text>
+</g>
+<!-- Take Profit Exit Pin -->
+<g transform="translate(630, 50)">
+<circle fill="#005338" r="7"></circle>
+<circle fill="#005338" fill-opacity="0.25" r="14"></circle>
+<text fill="#005338" font-family="JetBrains Mono" font-size="11" font-weight="700" x="-140" y="-10">EXIT: $0.6410 (+10.1%)</text>
+</g>
+<!-- EMA 21 Dynamic Wave -->
+<path d="M 50 235 Q 200 180 340 170 T 630 75" fill="none" opacity="0.75" stroke="#3525cd" stroke-dasharray="6 3" stroke-width="1.5"></path>
+</svg>
+<!-- Bottom Chart Footer Meta -->
+<div class="absolute bottom-2 left-3 right-3 flex items-center justify-between text-secondary font-metric-sm text-[10px]">
+<span>M15 Pullback Confirmation tagging 0.50 retracement level</span>
+<span>Bar Scale: 4-Hour UTC</span>
+</div>
+</div>
+<!-- Caption & Artifact Details -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 pt-1">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[18px]">image</span>
+<span class="font-metric-sm text-metric-sm font-semibold text-on-surface">HNT_USDT_4H_20260829.png</span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">
+              Attached manually, TradingView export · 1920×1080 · 4H Timeframe
+            </span>
+</div>
+</div>
+</div>
+<!-- Trade Notes Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-3">
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Trade Notes</h2>
+<span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">RETROSPECTIVE ANALYSIS</span>
+</div>
+<div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-3">
+<p class="font-body-md text-body-md text-on-surface leading-relaxed">
+            Clean continuation setup, daily structure still trending after Wed pullback. Waited for the 4H break of structure to reclaim the prior swing high, then a shallow pause gave a low-risk add zone before the M15 pullback tagged the 50% level. RSI on both HTFs still under 70 at entry, confirming room left to run before exhaustion. Exit trimmed into the next daily resistance shelf.
+          </p>
+<div class="flex flex-wrap items-center gap-2 pt-2">
+<span class="px-2.5 py-1 rounded-md bg-surface-container-lowest font-metric-sm text-metric-sm text-on-surface font-medium">
+              #continuation
+            </span>
+<span class="px-2.5 py-1 rounded-md bg-surface-container-lowest font-metric-sm text-metric-sm text-on-surface font-medium">
+              #4h-bos
+            </span>
+<span class="px-2.5 py-1 rounded-md bg-surface-container-lowest font-metric-sm text-metric-sm text-on-surface font-medium">
+              #fib-pullback
+            </span>
+<span class="px-2.5 py-1 rounded-md bg-surface-container-lowest font-metric-sm text-metric-sm text-on-surface font-medium">
+              #swing-trade
+            </span>
+</div>
+</div>
+<!-- Post-Mortem Psychological Review Box -->
+<div class="mt-4 bg-surface-container rounded-xl p-4 flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">psychology</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">Execution Discipline Audit</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-normal">
+              Patience strictly observed during the Wednesday fakeout. Zero premature entry triggers fired until 4H candle close reclaimed $0.6010. Target take-profit orders filled via limit ladders with zero execution slippage.
+            </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Quantitative Spec Sheet & Confluence Checklist -->
+<div class="col-span-12 lg:col-span-5 space-y-6">
+<!-- Trade Detail Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between pb-3 mb-1">
+<h3 class="font-label-eyebrow text-label-eyebrow uppercase text-secondary tracking-wider font-semibold">Trade Detail</h3>
+<span class="font-metric-sm text-metric-sm text-secondary">PAIR: HNT / USDT</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center justify-between py-2.5">
+<span class="font-body-md text-body-md text-secondary">Date</span>
+<span class="font-metric-md text-metric-md text-on-surface font-medium">Aug 29, 2026</span>
+</div>
+<div class="flex items-center justify-between py-2.5 bg-surface-container-low px-3 rounded-lg my-1">
+<span class="font-body-md text-body-md text-on-surface font-medium">Entry Price</span>
+<span class="font-metric-md text-metric-md font-semibold text-primary">$0.5820</span>
+</div>
+<div class="flex items-center justify-between py-2.5 bg-surface-container-low px-3 rounded-lg my-1">
+<span class="font-body-md text-body-md text-on-surface font-medium">Exit Price</span>
+<span class="font-metric-md text-metric-md font-semibold text-tertiary">$0.6410</span>
+</div>
+<div class="flex items-center justify-between py-2.5">
+<span class="font-body-md text-body-md text-secondary">Price Change</span>
+<span class="font-metric-lg text-metric-lg font-bold text-tertiary">+10.14%</span>
+</div>
+<div class="my-2 h-px bg-surface-container"></div>
+<div class="flex items-center justify-between py-2.5">
+<span class="font-body-md text-body-md text-secondary">Leverage</span>
+<span class="font-metric-md text-metric-md text-on-surface font-medium">10x isolated</span>
+</div>
+<div class="flex items-center justify-between py-2.5">
+<span class="font-body-md text-body-md text-secondary">Prev. Daily Candle</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+              Bullish
+            </span>
+</div>
+<div class="flex items-center justify-between py-2.5">
+<span class="font-body-md text-body-md text-secondary">R-Multiple</span>
+<span class="font-metric-sm text-metric-sm font-medium text-secondary bg-surface-container px-2.5 py-0.5 rounded">
+              Not recorded
+            </span>
+</div>
+<div class="flex items-center justify-between py-2.5">
+<span class="font-body-md text-body-md text-secondary">Order Execution</span>
+<span class="font-metric-sm text-metric-sm text-on-surface font-medium">Post-Only Limit</span>
+</div>
+<div class="flex items-center justify-between py-2.5">
+<span class="font-body-md text-body-md text-secondary">Fees (In / Out)</span>
+<span class="font-metric-sm text-metric-sm text-secondary">0.02% / 0.04% (Maker)</span>
+</div>
+</div>
+</div>
+<!-- Confluence Checklist Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Confluence Checklist</h3>
+</div>
+<span class="bg-surface-container-low text-primary font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full">
+            5 of 7 filled
+          </span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mb-4">
+          Parameters logged at trade execution time.
+        </p>
+<!-- Confluence Parameters List -->
+<div class="flex flex-col gap-2">
+<!-- Slot 1: Checked -->
+<div class="flex items-start p-2.5 rounded-lg bg-surface-container-low/50 transition-colors">
+<div class="w-5 h-5 rounded bg-tertiary flex items-center justify-center text-on-tertiary flex-shrink-0 mt-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[15px] font-bold">check</span>
+</div>
+<div class="ml-3 min-w-0 flex-1">
+<div class="font-headline-sm text-body-md font-semibold text-on-surface">Parameter 1 · Daily Context</div>
+<div class="font-body-sm text-body-sm text-secondary">Daily Uptrend and Momentum continuation</div>
+</div>
+</div>
+<!-- Slot 2: Checked -->
+<div class="flex items-start p-2.5 rounded-lg bg-surface-container-low/50 transition-colors">
+<div class="w-5 h-5 rounded bg-tertiary flex items-center justify-center text-on-tertiary flex-shrink-0 mt-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[15px] font-bold">check</span>
+</div>
+<div class="ml-3 min-w-0 flex-1">
+<div class="font-headline-sm text-body-md font-semibold text-on-surface">Parameter 2 · 4H Structure</div>
+<div class="font-body-sm text-body-sm text-secondary">4H Break of Structure (BOS)</div>
+</div>
+</div>
+<!-- Slot 3: Checked -->
+<div class="flex items-start p-2.5 rounded-lg bg-surface-container-low/50 transition-colors">
+<div class="w-5 h-5 rounded bg-tertiary flex items-center justify-center text-on-tertiary flex-shrink-0 mt-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[15px] font-bold">check</span>
+</div>
+<div class="ml-3 min-w-0 flex-1">
+<div class="font-headline-sm text-body-md font-semibold text-on-surface">Parameter 3 · 4H Pattern</div>
+<div class="font-body-sm text-body-sm text-secondary">4H Pause consolidation above swing high</div>
+</div>
+</div>
+<!-- Slot 4: Checked -->
+<div class="flex items-start p-2.5 rounded-lg bg-surface-container-low/50 transition-colors">
+<div class="w-5 h-5 rounded bg-tertiary flex items-center justify-center text-on-tertiary flex-shrink-0 mt-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[15px] font-bold">check</span>
+</div>
+<div class="ml-3 min-w-0 flex-1">
+<div class="font-headline-sm text-body-md font-semibold text-on-surface">Parameter 4 · M15 Entry Trigger</div>
+<div class="font-body-sm text-body-sm text-secondary">M15 50% Fibonacci Pullback tap</div>
+</div>
+</div>
+<!-- Slot 5: Empty -->
+<div class="flex items-start p-2.5 rounded-lg bg-surface-container/40 opacity-60">
+<div class="w-5 h-5 rounded bg-surface-container-highest flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-secondary text-[14px]">remove</span>
+</div>
+<div class="ml-3 min-w-0 flex-1">
+<div class="font-headline-sm text-body-md font-medium text-secondary">Parameter 5 · Fib Retracement %</div>
+<div class="font-body-sm text-body-sm text-secondary italic">Not used this trade</div>
+</div>
+</div>
+<!-- Slot 6: Empty -->
+<div class="flex items-start p-2.5 rounded-lg bg-surface-container/40 opacity-60">
+<div class="w-5 h-5 rounded bg-surface-container-highest flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-secondary text-[14px]">remove</span>
+</div>
+<div class="ml-3 min-w-0 flex-1">
+<div class="font-headline-sm text-body-md font-medium text-secondary">Parameter 6 · Volume Confirmation</div>
+<div class="font-body-sm text-body-sm text-secondary italic">Not used this trade</div>
+</div>
+</div>
+<!-- Slot 7: Checked -->
+<div class="flex items-start p-2.5 rounded-lg bg-surface-container-low/50 transition-colors">
+<div class="w-5 h-5 rounded bg-tertiary flex items-center justify-center text-on-tertiary flex-shrink-0 mt-0.5 shadow-sm">
+<span class="material-symbols-outlined text-[15px] font-bold">check</span>
+</div>
+<div class="ml-3 min-w-0 flex-1">
+<div class="font-headline-sm text-body-md font-semibold text-on-surface">Parameter 7 · Momentum Filter</div>
+<div class="font-body-sm text-body-sm text-secondary">4H RSI under 70 (Healthy runway at 64.2)</div>
+</div>
+</div>
+</div>
+<!-- Confluence Integrity Footnote -->
+<div class="mt-4 pt-3 border-t border-surface-container flex items-center justify-between text-secondary">
+<span class="font-metric-sm text-metric-sm">Trade Grade:</span>
+<span class="font-metric-sm text-metric-sm font-semibold px-2 py-0.5 rounded bg-surface-container-low text-primary">
+            TIER-A VALIDATED
+          </span>
+</div>
+</div>
+<!-- Action Footer Strip -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-between">
+<button class="font-headline-sm text-body-sm text-error hover:bg-error-container hover:text-on-error-container px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">delete_outline</span>
+          Delete Log
+        </button>
+<div class="flex items-center gap-2">
+<button class="bg-surface-container-low text-on-surface hover:bg-surface-container px-3 py-1.5 rounded-lg font-headline-sm text-[12px] font-medium transition-colors">
+            Duplicate
+          </button>
+<button class="bg-primary text-on-primary hover:bg-primary-container px-4 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[16px]">download</span>
+            Export PDF Study
+          </button>
+</div>
+</div>
+</div>
+</div>
+</div></div></main></div></body></html>

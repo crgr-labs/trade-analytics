@@ -1,0 +1,74 @@
+# 1. Environment & Secrets
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+src/environments/environment.development.ts
+src/environments/environment.*.local.ts
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
+credentials.json
+client_secret*.json
+
+# 2. Local Data & Personal Workbooks (Exchange Exports, Trade Data)
+data/
+data/*
+*.xlsx
+*.xls
+*.csv
+*.tsv
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.backup
+
+# 3. AI Assistant & Transcript Data
+.claude/
+.gemini/
+.antigravity/
+*conversation_history*
+conversation_history.*
+recent_conversation_history.*
+*.system_generated/
+scratch/
+brain/
+
+# 4. Logs & NPM Cache
+.npm/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 5. IDEs & Local Execution Preferences
+.vscode/*
+!.vscode/extensions.json
+.history/
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# 6. Build Output & Dependencies
+/dist
+/tmp
+/out-tsc
+/bazel-out
+/node_modules
+/.angular/cache
+.sass-cache/
+/coverage
+
+# 7. OS Metadata
+.DS_Store
+Thumbs.db
+
