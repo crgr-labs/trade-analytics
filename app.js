@@ -163,6 +163,7 @@
     setAll: function (trades) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+        scheduleGithubSync();
         return true;
       } catch (e) {
         return false;
@@ -1208,6 +1209,7 @@
     setAll: function (positions) {
       try {
         localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(positions));
+        scheduleGithubSync();
         return true;
       } catch (e) {
         return false;
@@ -4552,6 +4554,531 @@
   }
 
   // ---------------------------------------------------------------------
+  // GitHub Sync — backs trades/positions/chart images up to a private
+  // GitHub repo the user configures in the header panel. Every entry point
+  // below no-ops immediately when ghConfigGet() returns null, so the app
+  // behaves exactly as it does with sync never set up.
+  // ---------------------------------------------------------------------
+
+  var GITHUB_API_BASE = 'https://api.github.com';
+  var GITHUB_PUSH_DEBOUNCE_MS = 4000;
+  var GITHUB_SYNC_CONFIG_KEY = 'tj_github_sync_config';
+  var GITHUB_SYNC_META_KEY = 'tj_github_sync_meta';
+  var GITHUB_IMAGE_STATE_KEY = 'tj_github_image_state';
+
+  // Suppresses scheduleGithubSync() while a just-pulled remote snapshot is
+  // being written back into TradeStore/PositionStore, so pulling doesn't
+  // immediately schedule a redundant push of the data we just received.
+  var githubSyncApplyingRemote = false;
+  var githubPushDebounceTimer = null;
+
+  function ghConfigGet() {
+    try {
+      var raw = localStorage.getItem(GITHUB_SYNC_CONFIG_KEY);
+      if (!raw) return null;
+      var cfg = JSON.parse(raw);
+      if (!cfg || !cfg.owner || !cfg.repo || !cfg.token) return null;
+      cfg.branch = cfg.branch || 'main';
+      return cfg;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function ghConfigSet(cfg) {
+    try {
+      localStorage.setItem(GITHUB_SYNC_CONFIG_KEY, JSON.stringify(cfg));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function ghConfigClear() {
+    try {
+      localStorage.removeItem(GITHUB_SYNC_CONFIG_KEY);
+      localStorage.removeItem(GITHUB_SYNC_META_KEY);
+      localStorage.removeItem(GITHUB_IMAGE_STATE_KEY);
+    } catch (e) {}
+  }
+
+  function ghMetaGet() {
+    try {
+      var raw = localStorage.getItem(GITHUB_SYNC_META_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function ghMetaSet(patch) {
+    try {
+      var current = ghMetaGet();
+      Object.keys(patch).forEach(function (k) { current[k] = patch[k]; });
+      localStorage.setItem(GITHUB_SYNC_META_KEY, JSON.stringify(current));
+    } catch (e) {}
+  }
+
+  function ghImageStateGet() {
+    try {
+      var raw = localStorage.getItem(GITHUB_IMAGE_STATE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function ghImageStateSet(map) {
+    try {
+      localStorage.setItem(GITHUB_IMAGE_STATE_KEY, JSON.stringify(map));
+    } catch (e) {}
+  }
+
+  // btoa/atob only handle Latin1 - trade notes can contain emoji/curly
+  // quotes/etc, so JSON text is routed through TextEncoder/TextDecoder
+  // first to stay correct for arbitrary UTF-8. Image bytes never go
+  // through these - they're handled as raw bytes end to end (see
+  // bytesToBase64) so binary data is never at risk of text-decoding
+  // corruption.
+  function utf8ToBase64(str) {
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  function base64ToUtf8(b64) {
+    var binary = atob(b64.replace(/\n/g, ''));
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  function bytesToBase64(bytes) {
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  function ghAuthError(status) {
+    var err = new Error('request failed (' + status + ') - check the repo owner/name and that the token has Contents: Read and write access');
+    err.ghStatus = status;
+    return err;
+  }
+
+  // opts.raw fetches the raw-media-type response as bytes (ArrayBuffer)
+  // instead of the default JSON-wrapped response.
+  function ghRequest(method, cfg, path, opts) {
+    opts = opts || {};
+    var headers = {
+      'Authorization': 'Bearer ' + cfg.token,
+      'Accept': opts.raw ? 'application/vnd.github.raw' : 'application/vnd.github+json'
+    };
+    var body;
+    if (opts.body) {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(opts.body);
+    }
+    return fetch(GITHUB_API_BASE + '/repos/' + cfg.owner + '/' + cfg.repo + path, {
+      method: method, headers: headers, body: body
+    }).then(function (res) {
+      if (opts.raw) {
+        return res.arrayBuffer().then(function (buf) {
+          return { status: res.status, bytes: new Uint8Array(buf) };
+        });
+      }
+      return res.json().catch(function () { return null; }).then(function (json) {
+        return { status: res.status, json: json };
+      });
+    });
+  }
+
+  // Resolves { exists:false } for a 404 - the expected "nothing pushed
+  // yet" case on a brand-new data repo, not an error. `binary` skips
+  // UTF-8 decoding and keeps `text` as base64, for image files.
+  function ghGetFile(cfg, path, binary) {
+    return ghRequest('GET', cfg, '/contents/' + path + '?ref=' + encodeURIComponent(cfg.branch)).then(function (res) {
+      if (res.status === 404) return { exists: false };
+      if (res.status === 401 || res.status === 403) throw ghAuthError(res.status);
+      if (res.status < 200 || res.status >= 300) throw new Error('unexpected status ' + res.status + ' fetching ' + path);
+      var body = res.json;
+      // Verified against the live API: for files over the Contents API's
+      // ~1MB inline-content ceiling, `content` is present but an EMPTY
+      // string, not omitted - so this must check for non-empty content,
+      // not just its presence, or an oversized chart image would silently
+      // come back blank instead of falling through to the raw fetch below.
+      if (body && typeof body.content === 'string' && body.content.length > 0) {
+        var cleanedB64 = body.content.replace(/\n/g, '');
+        return { exists: true, sha: body.sha, text: binary ? cleanedB64 : base64ToUtf8(cleanedB64) };
+      }
+      // File exceeds the Contents API's inline-content size ceiling (chart
+      // images can) - fetch the raw bytes directly instead.
+      return ghRequest('GET', cfg, '/contents/' + path + '?ref=' + encodeURIComponent(cfg.branch), { raw: true }).then(function (rawRes) {
+        if (rawRes.status < 200 || rawRes.status >= 300) throw new Error('unexpected status ' + rawRes.status + ' fetching raw ' + path);
+        var text = binary ? bytesToBase64(rawRes.bytes) : new TextDecoder().decode(rawRes.bytes);
+        return { exists: true, sha: body ? body.sha : null, text: text };
+      });
+    });
+  }
+
+  // Creates or updates a file. Resolves { ok:false, status } on a sha
+  // conflict (409/422) instead of throwing, so callers can refetch + retry.
+  function ghPutFile(cfg, path, base64Content, sha, message) {
+    var body = { message: message, content: base64Content, branch: cfg.branch };
+    if (sha) body.sha = sha;
+    return ghRequest('PUT', cfg, '/contents/' + path, { body: body }).then(function (res) {
+      if (res.status === 401 || res.status === 403) throw ghAuthError(res.status);
+      if (res.status === 200 || res.status === 201) {
+        return { ok: true, sha: res.json && res.json.content ? res.json.content.sha : null };
+      }
+      return { ok: false, status: res.status };
+    });
+  }
+
+  function simpleHash(str) {
+    var hash = 0x811c9dc5;
+    for (var i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = (hash * 0x01000193) >>> 0;
+    }
+    return hash.toString(16);
+  }
+
+  var IMAGE_EXT_MIME = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp'
+  };
+
+  function mimeForExtension(ext) {
+    return IMAGE_EXT_MIME[(ext || '').toLowerCase()] || 'application/octet-stream';
+  }
+
+  function deriveImageExtension(chart) {
+    if (chart.name) {
+      var m = chart.name.match(/\.([a-zA-Z0-9]+)$/);
+      if (m) return m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase();
+    }
+    if (chart.value) {
+      var mime = chart.value.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,/);
+      if (mime) return mime[1].toLowerCase() === 'jpeg' ? 'jpg' : mime[1].toLowerCase();
+    }
+    return 'png';
+  }
+
+  // The transform that keeps chart images out of the committed JSON - the
+  // local TradeStore copy is never touched, only this outbound payload.
+  function buildRemoteTradesPayload(trades) {
+    return trades.map(function (t) {
+      if (t.chart && t.chart.type === 'upload' && t.chart.value) {
+        var copy = {};
+        Object.keys(t).forEach(function (k) { copy[k] = t[k]; });
+        copy.chart = { type: 'upload-ref', ref: 'images/' + t.id + '.' + deriveImageExtension(t.chart), name: t.chart.name || '' };
+        return copy;
+      }
+      return t;
+    });
+  }
+
+  function computeDataFingerprint(trades, positions) {
+    return simpleHash(JSON.stringify(buildRemoteTradesPayload(trades)) + JSON.stringify(positions));
+  }
+
+  // Skips re-uploading (and re-committing) a chart image whose bytes
+  // haven't changed since the last successful push. A failed upload is
+  // deliberately left out of the cache, not treated as fatal to the whole
+  // push - it's simply retried on the next sync cycle.
+  function uploadChangedImages(cfg, trades) {
+    var cache = ghImageStateGet();
+    var nextCache = {};
+    var tasks = [];
+
+    trades.forEach(function (t) {
+      if (!(t.chart && t.chart.type === 'upload' && t.chart.value)) return;
+      var fingerprint = simpleHash(t.chart.value);
+      var cached = cache[t.id];
+      var ext = deriveImageExtension(t.chart);
+      if (cached && cached.fingerprint === fingerprint) {
+        nextCache[t.id] = cached;
+        return;
+      }
+      var path = 'images/' + t.id + '.' + ext;
+      var base64 = t.chart.value.split(',')[1] || '';
+      var message = 'Update chart for ' + (t.pair || t.id);
+      var task = ghPutFile(cfg, path, base64, cached ? cached.sha : null, message)
+        .then(function (result) {
+          if (result.ok) return result;
+          return ghGetFile(cfg, path, true).then(function (existing) {
+            return ghPutFile(cfg, path, base64, existing.exists ? existing.sha : null, message);
+          });
+        })
+        .then(function (result) {
+          if (result.ok) nextCache[t.id] = { sha: result.sha, fingerprint: fingerprint, ext: ext };
+        });
+      tasks.push(task);
+    });
+
+    return Promise.all(tasks).then(function () {
+      ghImageStateSet(nextCache);
+    });
+  }
+
+  function pushToGitHub() {
+    var cfg = ghConfigGet();
+    if (!cfg) return;
+
+    setSyncStatus('syncing');
+
+    var trades = TradeStore.getAll();
+    var positions = PositionStore.getAll();
+    var meta = ghMetaGet();
+
+    function putJsonFile(path, json, shaField, message) {
+      return ghPutFile(cfg, path, utf8ToBase64(json), meta[shaField], message).then(function (result) {
+        if (result.ok) { meta[shaField] = result.sha; return result; }
+        return ghGetFile(cfg, path).then(function (existing) {
+          return ghPutFile(cfg, path, utf8ToBase64(json), existing.exists ? existing.sha : null, message);
+        }).then(function (retryResult) {
+          if (retryResult.ok) meta[shaField] = retryResult.sha;
+          return retryResult;
+        });
+      });
+    }
+
+    uploadChangedImages(cfg, trades).then(function () {
+      var tradesJson = JSON.stringify(buildRemoteTradesPayload(trades), null, 2);
+      var positionsJson = JSON.stringify(positions, null, 2);
+      return Promise.all([
+        putJsonFile('data/trades.json', tradesJson, 'tradesSha', 'Sync trades'),
+        putJsonFile('data/positions.json', positionsJson, 'positionsSha', 'Sync positions')
+      ]);
+    }).then(function (results) {
+      if (!results.every(function (r) { return r.ok; })) {
+        throw new Error('failed to write one or more data files');
+      }
+      ghMetaSet({
+        tradesSha: meta.tradesSha,
+        positionsSha: meta.positionsSha,
+        lastPushedFingerprint: computeDataFingerprint(trades, positions),
+        lastPushAt: Date.now(),
+        lastSyncAt: Date.now()
+      });
+      setSyncStatus('synced');
+    }).catch(function (err) {
+      setSyncStatus('error', err && err.message ? err.message : String(err));
+    });
+  }
+
+  function scheduleGithubSync() {
+    if (githubSyncApplyingRemote) return;
+    if (!ghConfigGet()) return;
+    clearTimeout(githubPushDebounceTimer);
+    githubPushDebounceTimer = setTimeout(pushToGitHub, GITHUB_PUSH_DEBOUNCE_MS);
+  }
+
+  // Rebuilds the full data-URI chart shape every render call site already
+  // expects. A missing/unreachable image degrades to an unrecognized
+  // chart.type (renders as "no chart") rather than failing the whole pull.
+  function hydrateChartRef(cfg, trade) {
+    if (!(trade.chart && trade.chart.type === 'upload-ref' && trade.chart.ref)) {
+      return Promise.resolve(trade);
+    }
+    return ghGetFile(cfg, trade.chart.ref, true).then(function (result) {
+      if (!result.exists) return trade;
+      var ext = (trade.chart.ref.split('.').pop() || 'png').toLowerCase();
+      trade.chart = { type: 'upload', value: 'data:' + mimeForExtension(ext) + ';base64,' + result.text, name: trade.chart.name || '' };
+      return trade;
+    }).catch(function () {
+      return trade;
+    });
+  }
+
+  function pullFromGitHub() {
+    var cfg = ghConfigGet();
+    if (!cfg) { setSyncStatus('unconfigured'); return; }
+
+    setSyncStatus('syncing');
+
+    Promise.all([
+      ghGetFile(cfg, 'data/trades.json'),
+      ghGetFile(cfg, 'data/positions.json')
+    ]).then(function (results) {
+      var tradesFile = results[0];
+      var positionsFile = results[1];
+
+      if (!tradesFile.exists && !positionsFile.exists) {
+        // Brand-new empty data repo - seed it from whatever's local.
+        pushToGitHub();
+        return;
+      }
+
+      var remoteTrades = tradesFile.exists ? JSON.parse(tradesFile.text) : [];
+      var remotePositions = positionsFile.exists ? JSON.parse(positionsFile.text) : [];
+
+      var localFingerprint = computeDataFingerprint(TradeStore.getAll(), PositionStore.getAll());
+      var meta = ghMetaGet();
+
+      if (meta.lastPushedFingerprint && meta.lastPushedFingerprint !== localFingerprint) {
+        // Local has changes GitHub doesn't know about yet (e.g. the tab
+        // closed before the debounced push fired) - local wins.
+        pushToGitHub();
+        return;
+      }
+
+      return Promise.all(remoteTrades.map(function (t) { return hydrateChartRef(cfg, t); })).then(function (hydratedTrades) {
+        githubSyncApplyingRemote = true;
+        TradeStore.setAll(hydratedTrades);
+        PositionStore.setAll(remotePositions);
+        githubSyncApplyingRemote = false;
+
+        ghMetaSet({
+          tradesSha: tradesFile.exists ? tradesFile.sha : null,
+          positionsSha: positionsFile.exists ? positionsFile.sha : null,
+          lastPushedFingerprint: computeDataFingerprint(hydratedTrades, remotePositions),
+          lastSyncAt: Date.now()
+        });
+        setSyncStatus('synced');
+
+        // Refresh whatever's on screen - except an in-progress New Trade
+        // Entry draft, which a render would reset.
+        if (activeSlug && activeSlug !== 'new-trade-entry') renderForScreen(activeSlug, activeParam);
+      });
+    }).catch(function (err) {
+      setSyncStatus('error', err && err.message ? err.message : String(err));
+    });
+  }
+
+  function formatRelativeTime(ms) {
+    if (!ms) return null;
+    var diff = Date.now() - ms;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    return new Date(ms).toLocaleDateString();
+  }
+
+  var SYNC_STATUS_DOT_CLASS = {
+    unconfigured: 'bg-outline-variant',
+    syncing: 'bg-primary animate-pulse',
+    synced: 'bg-tertiary',
+    error: 'bg-error'
+  };
+
+  function renderSyncStatusUI() {
+    var dot = document.getElementById('github-sync-status-dot');
+    var text = document.getElementById('github-sync-status-text');
+    if (!dot || !text) return;
+
+    var cfg = ghConfigGet();
+    var meta = ghMetaGet();
+    var state = cfg ? (meta.status || 'synced') : 'unconfigured';
+
+    dot.className = 'absolute top-1 right-1 w-2 h-2 rounded-full ' + (SYNC_STATUS_DOT_CLASS[state] || SYNC_STATUS_DOT_CLASS.unconfigured);
+
+    if (!cfg) {
+      text.textContent = 'GitHub sync not configured';
+    } else if (state === 'syncing') {
+      text.textContent = 'Syncing…';
+    } else if (state === 'error') {
+      text.textContent = 'Sync error' + (meta.lastError ? ': ' + meta.lastError : '');
+    } else {
+      var rel = formatRelativeTime(meta.lastSyncAt);
+      text.textContent = rel ? 'Synced ' + rel : 'Synced';
+    }
+  }
+
+  function setSyncStatus(state, detail) {
+    ghMetaSet({ status: state, lastError: detail || null });
+    renderSyncStatusUI();
+  }
+
+  function initGithubSyncSettings() {
+    var toggle = document.getElementById('github-sync-toggle');
+    var panel = document.getElementById('github-sync-panel');
+    var ownerInput = document.getElementById('gh-sync-owner');
+    var repoInput = document.getElementById('gh-sync-repo');
+    var branchInput = document.getElementById('gh-sync-branch');
+    var tokenInput = document.getElementById('gh-sync-token');
+    var saveBtn = document.getElementById('gh-sync-save');
+    var syncNowBtn = document.getElementById('gh-sync-now');
+    var disconnectBtn = document.getElementById('gh-sync-disconnect');
+    if (!toggle || !panel) return;
+
+    function fillFromConfig() {
+      var cfg = ghConfigGet();
+      ownerInput.value = cfg ? cfg.owner : '';
+      repoInput.value = cfg ? cfg.repo : '';
+      branchInput.value = cfg ? cfg.branch : '';
+      tokenInput.value = cfg ? cfg.token : '';
+    }
+
+    function openPanel() {
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      fillFromConfig();
+      renderSyncStatusUI();
+    }
+
+    function closePanel() {
+      panel.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    toggle.addEventListener('click', function () {
+      if (panel.hidden) openPanel(); else closePanel();
+    });
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function () {
+        var owner = ownerInput.value.trim();
+        var repo = repoInput.value.trim();
+        var branch = branchInput.value.trim() || 'main';
+        var token = tokenInput.value.trim();
+        if (!owner || !repo || !token) {
+          window.alert('Repo owner, repo name, and a personal access token are all required.');
+          return;
+        }
+        ghConfigSet({ owner: owner, repo: repo, branch: branch, token: token });
+        pullFromGitHub();
+      });
+    }
+
+    if (syncNowBtn) {
+      syncNowBtn.addEventListener('click', function () { pushToGitHub(); });
+    }
+
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', function () {
+        ghConfigClear();
+        fillFromConfig();
+        renderSyncStatusUI();
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      if (panel.hidden) return;
+      if (toggle.contains(e.target) || panel.contains(e.target)) return;
+      closePanel();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (panel.hidden) return;
+      if (e.key === 'Escape') { closePanel(); toggle.focus(); }
+    });
+
+    document.addEventListener('screenchange', closePanel);
+  }
+
+  function renderForScreen(slug, param) {
+    if (slug === 'insights-dashboard') renderInsightsDashboard();
+    if (slug === 'trade-journal') renderTradeJournal();
+    if (slug === 'position-history') renderPositionHistory();
+    if (slug === 'confluence-matrix') renderConfluenceMatrix();
+    if (slug === 'timing-and-heatmap') renderTimingHeatmap();
+    if (slug === 'case-studies') renderCaseStudy(param);
+    if (slug === 'new-trade-entry') enterNewTradeEntry(param);
+  }
+
+  // ---------------------------------------------------------------------
   // Wiring + boot
   // ---------------------------------------------------------------------
 
@@ -4565,19 +5092,14 @@
   initChartPreviewModal();
   initTimingHeatmapControls(sections['timing-and-heatmap']);
   initHeaderSearch();
+  initGithubSyncSettings();
 
   document.addEventListener('screenchange', function (e) {
     // Leaving a table drops its selection rather than carrying a stale one
     // back on return.
     clearSelection(tjSelection);
     clearSelection(phSelection);
-    if (e.detail.screen === 'insights-dashboard') renderInsightsDashboard();
-    if (e.detail.screen === 'trade-journal') renderTradeJournal();
-    if (e.detail.screen === 'position-history') renderPositionHistory();
-    if (e.detail.screen === 'confluence-matrix') renderConfluenceMatrix();
-    if (e.detail.screen === 'timing-and-heatmap') renderTimingHeatmap();
-    if (e.detail.screen === 'case-studies') renderCaseStudy(e.detail.param);
-    if (e.detail.screen === 'new-trade-entry') enterNewTradeEntry(e.detail.param);
+    renderForScreen(e.detail.screen, e.detail.param);
   });
 
   window.addEventListener('hashchange', function () {
@@ -4589,6 +5111,9 @@
     var parsed = parseHash();
     activate(parsed.slug || DEFAULT_SCREEN, parsed.param);
   })();
+
+  renderSyncStatusUI();
+  pullFromGitHub();
 
   window.AppRouter = {
     navigate: function (slug, param) {

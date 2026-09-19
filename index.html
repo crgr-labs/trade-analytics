@@ -113,6 +113,56 @@
             <div id="header-search-results" class="mt-2 max-h-80 overflow-y-auto"></div>
           </div>
         </div>
+        <div class="relative">
+          <button type="button" id="github-sync-toggle" aria-expanded="false" aria-haspopup="true"
+            aria-controls="github-sync-panel" aria-label="GitHub sync settings"
+            class="relative w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[20px]">cloud_sync</span>
+            <span id="github-sync-status-dot" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-outline-variant"></span>
+          </button>
+          <div id="github-sync-panel" hidden
+            class="absolute right-0 top-full mt-2 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-4">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="font-headline-sm text-headline-sm text-on-surface font-semibold">GitHub Sync</span>
+              <span id="github-sync-status-text" class="font-metric-sm text-metric-sm text-secondary">GitHub sync not configured</span>
+            </div>
+            <p class="font-body-sm text-body-sm text-on-surface-variant mb-3">
+              Backs your journal up to a private GitHub repo. Create the repo and a fine-grained
+              Personal Access Token (Contents: Read and write) yourself, then paste the details below.
+              The token is stored only in this browser's local storage and is never committed to any repo.
+            </p>
+            <div class="flex flex-col gap-2">
+              <label class="flex flex-col gap-1">
+                <span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Repo owner</span>
+                <input id="gh-sync-owner" type="text" autocomplete="off"
+                  class="px-3 py-1.5 h-9 bg-surface-container-low rounded-lg font-metric-sm text-metric-sm text-on-surface focus:outline-none focus:bg-surface-container" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Repo name</span>
+                <input id="gh-sync-repo" type="text" autocomplete="off"
+                  class="px-3 py-1.5 h-9 bg-surface-container-low rounded-lg font-metric-sm text-metric-sm text-on-surface focus:outline-none focus:bg-surface-container" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Branch</span>
+                <input id="gh-sync-branch" type="text" autocomplete="off" placeholder="main"
+                  class="px-3 py-1.5 h-9 bg-surface-container-low rounded-lg font-metric-sm text-metric-sm text-on-surface focus:outline-none focus:bg-surface-container" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Personal access token</span>
+                <input id="gh-sync-token" type="password" autocomplete="off"
+                  class="px-3 py-1.5 h-9 bg-surface-container-low rounded-lg font-metric-sm text-metric-sm text-on-surface focus:outline-none focus:bg-surface-container" />
+              </label>
+            </div>
+            <div class="flex items-center gap-2 mt-3">
+              <button type="button" id="gh-sync-save"
+                class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-on-primary font-body-md text-body-md font-semibold hover:bg-primary-container transition-colors">Save</button>
+              <button type="button" id="gh-sync-now"
+                class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container text-on-surface font-body-md text-body-md font-medium hover:bg-surface-container-high transition-colors">Sync now</button>
+              <button type="button" id="gh-sync-disconnect"
+                class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-error hover:bg-error-container/30 font-body-md text-body-md font-medium transition-colors">Disconnect</button>
+            </div>
+          </div>
+        </div>
         <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span
             class="material-symbols-outlined text-on-primary text-[18px]">person</span></div>
       </div>
