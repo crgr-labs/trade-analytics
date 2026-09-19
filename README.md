@@ -57,3 +57,4 @@ Trade Analytics delivers clinical fintech clarity, Swiss grid discipline, and de
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
+
