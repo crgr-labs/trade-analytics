@@ -46,7 +46,9 @@ Trade Analytics delivers clinical fintech clarity, Swiss grid discipline, and de
    # Using Python
    python -m http.server 8000
 
-   # Or using Node.js / npx
+   # Or using Node.js
+   npm start
+   # or
    npx serve .
    ```
 
