@@ -1,0 +1,180 @@
+TRADE ANALYTICS - CHANGE LIST
+=============================
+Date:    2026-09-21
+Files:   app.js, index.html (no new files, no new dependencies)
+Commits: 9307884  feat (ui) : multi-timeframe chart evidence (daily / 4h / m15)
+         15e8f45  feat (ui) : redesign case study detail into two-column layout
+
+
+=====================================================================
+PART 1 - MULTI-TIMEFRAME CHART EVIDENCE   (commit 9307884)
+=====================================================================
+
+ADDED
+-----
+Data model
+  * trade.charts = { daily, h4, m15 }, each null or { value: dataURL, name }
+  * CHART_TIMEFRAMES table: key / label / short badge (Daily "D", 4H "4H", M15 "15m")
+  * Helpers: tradeCharts(), firstChartKey(), chartTimeframe()
+  * migrateTrade(): a legacy single upload (chart / chartImage) is moved into the
+    Daily slot; a TradingView link stays in trade.chart
+
+Entry form (New Journal Entry / Edit)
+  * "Chart Evidence (Multi-Timeframe)" card, full width under both columns
+  * Three equal upload slots (one row on desktop, stacked below the lg breakpoint)
+      - empty: dashed rounded box, D / 4H / 15m badge, camera icon,
+        "Drop image or click to upload"
+      - filled: thumbnail, Daily / 4H / M15 pill top-left, X remove button top-right
+  * Click, keyboard (Enter/Space) and real drag-and-drop upload
+  * "n / 3 ATTACHED" counter and inline errors (wrong type, larger than 10MB)
+  * Optional TradingView snapshot link field (keeps link-only trades editable)
+  * compressChartImage(): resize to 1600px max, re-encode as JPEG under ~500KB
+    so three images fit in localStorage
+  * renderChartSlots() and delegated slot events
+
+Case Studies list
+  * chartStripHtml(): bottom strip of three mini previews (D / 4H / 15m labels),
+    faded placeholder icon when a timeframe is missing
+
+Case study detail (first version)
+  * chartTabsHtml(), chartEvidenceHtml(), renderCaseStudyChart()
+  * Daily | 4H | M15 tabs using the All / Wins / Losses pill style
+  * Click image to open the existing zoom viewer for that timeframe
+
+GitHub sync
+  * chartImagePath(): images stored as images/<id>-<tf>.<ext>
+  * fetchChartImage(): per-image download used on pull
+
+UPDATED
+-------
+  * tradeChartCellHtml(): TV badge only when a link exists and no image
+  * caseStudyListRowHtml(): row is now a column with the strip at the bottom
+  * openModal() (chart preview): accepts a timeframe, falls back to first image
+  * collectTrade(): saves charts{} plus link-only chart
+  * enterNewTradeEntry(): resets and prefills the three slots
+  * buildRemoteTradesPayload / uploadChangedImages / hydrateChartRef:
+    per-timeframe refs and cache keys "<id>:<tf>"
+  * pullFromGitHub(): hydrated trades pass through migrateTrade before saving
+
+REMOVED
+-------
+  * Old single "Chart Screenshot" card (Upload / Link toggle, single dropzone)
+  * applyChartMode(), chartCardHtml(), ntePendingChartImage / FileName
+  * 3MB raw-image cap (input cap is now 10MB, stored copy is compressed)
+
+
+=====================================================================
+PART 2 - CASE STUDY DETAIL REDESIGN   (commit 15e8f45)
+=====================================================================
+
+ADDED
+-----
+Layout
+  * Header row: pair title, direction pill, outcome pill (Win / Loss /
+    Breakeven / Open), imported badge, date; "All Case Studies" back link
+  * Action row: Edit Entry (filled primary) and Delete Log (outlined red)
+  * Two columns (about 58 / 42):
+      - left:  "Chart Evidence (Multi-Timeframe)" with tabs; D / 4H / 15m badge
+               in the corner of the image
+      - right: "Trade Detail & Confluence Checklist"
+  * Six metadata tiles in the KPI-card style: Entry Price, Exit Price, Result R,
+    Duration, Setup Used, Session (ids cs-meta-*); empty tiles show a dash and
+    the reason ("No stop-loss logged", "No entry time logged", "Not recorded")
+  * Lower row: Trade Notes + Execution Details (now includes Realized Return)
+
+Confluence checklist status
+  * Per-factor Passed (green) / Pending (amber) / Failed (red) tags
+  * Click a tag to cycle Passed -> Pending -> Failed -> Passed; saved immediately
+  * trade.parameterStatus = { "<parameter>": "pending" | "failed" }
+    (missing key = Passed); carried forward when the trade is edited
+  * Badge "N / M passed"; PARAM_STATUS_UI, tradeParamStatus(), nextParamStatus(),
+    renderCaseStudyChecklist()
+
+Derived metadata
+  * tradeSessionLabel(): Asia / London / New York from entry time
+    (overlaps shown as "Asia / London"), otherwise "Off-hours"
+  * tradeDurationLabel(): from the linked Position History record
+  * setMetaTile(): renders one tile
+
+Delete confirmation modal (#cs-delete-modal)
+  * Warning icon, text: "This will permanently delete this journal entry and its
+    attached chart evidence. This cannot be undone."
+  * Cancel (outlined) and Delete (filled red)
+  * Cancel / backdrop / Escape close it; focus starts on Cancel and returns to
+    the trigger; Tab is trapped between the two buttons; closes on screen change
+
+Theme
+  * Tailwind tokens: warning #d97706, warning-container #fef3c7,
+    on-warning-container #92400e (amber, used only for Pending)
+
+UPDATED
+-------
+  * confluenceChecklistHtml(): rows have a checkbox state and a status tag;
+    returns passedCount
+  * computeTradeGrade(): now fed the passed count (Pending/Failed lower the tier)
+  * renderCaseStudy(): rewritten for the new ids; breakeven pill branch
+  * initCaseStudyActions(): status-click handler and delete-modal wiring
+  * collectTrade(): keeps parameterStatus for parameters still selected
+  * migrateTrade(): normalises parameterStatus (only pending / failed kept)
+  * csChartTradeId renamed csCurrentTradeId (now shared by tabs and checklist)
+  * chartEvidenceHtml(): image wrapper is relative and carries the corner badge
+
+REMOVED
+-------
+  * Four-card KPI strip (Realized Return, Execution Delta, Confluence Score,
+    Execution Efficiency) - Realized Return moved into Execution Details
+  * Header leverage badge and "Previous daily candle" line (both still shown in
+    Execution Details)
+  * Unwired share button and the "Close" link
+  * Delete button in the footer strip (moved to the header)
+  * window.confirm() delete prompt (replaced by the modal)
+
+
+=====================================================================
+DECISIONS AND DIFFERENCES FROM THE ORIGINAL BRIEFS
+=====================================================================
+  * Accent colour is blue (#1d4ed8), not purple/indigo, after the earlier
+    colour commits. Only existing tokens are used, plus the amber trio above.
+  * Case Studies are a list of rows, not a card grid, so the thumbnail strip
+    sits at the bottom of each row.
+  * There is no Playbook page or "Pre-Flight Confluence Gate" in this repo, so
+    the checklist reuses the existing case-study checklist rows and the existing
+    win / loss pill classes. There is also no "+ Add New Setup" button, so Edit
+    Entry uses the "New Trade" primary button size.
+  * There is no outlined-destructive button in the app; Delete Log is a new
+    variant built from the existing error tokens.
+  * Setup Used is always "Not recorded" (no setup entity exists). Funding / OI /
+    liquidation factors do not exist in the data.
+  * "Breakeven" is not a form option; it only appears for zero-P&L imports and
+    is now shown neutrally.
+
+
+=====================================================================
+VERIFICATION AND KNOWN LIMITS
+=====================================================================
+Checked
+  * Syntax check of app.js (JavaScriptCore)
+  * 34 + 53 logic checks: migration, tabs, strip, checklist statuses, session /
+    duration helpers, renderCaseStudy output, status-click persistence,
+    delete-modal open / close / focus trap / confirm, GitHub payload shape
+  * Every #cs-* id used by the JS exists exactly once in index.html; the whole
+    document is tag-balanced
+
+NOT checked (no browser could be launched in the working environment)
+  * Visual layout, spacing, column proportions, amber tag contrast
+  * Real file upload, drag-and-drop and canvas compression
+  * Tab clicks and the zoom viewer in a real browser
+  * Live GitHub sync round trip
+
+Known limits
+  * All data still lives in one localStorage key (about 5MB per origin);
+    compression reduces the risk but does not remove the ceiling.
+  * The case-study list decodes three inline images per row, which may be slow
+    with many trades.
+  * Old images/<id>.<ext> files in a GitHub data repo are left as orphans.
+  * GitHub pull now aborts on a network error while fetching an image instead of
+    silently dropping it.
+  * Confluence Matrix and Insights ignore the new Passed / Pending / Failed status.
+  * Duplicate and Export PDF Study buttons remain unwired.
+  * Session is calculated with the current timezone setting, not the one in
+    effect when the trade was logged (same behaviour as Timing & Heatmap).
