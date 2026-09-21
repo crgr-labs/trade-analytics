@@ -2072,7 +2072,7 @@
       <!-- Two-Column Main Layout: chart evidence | trade detail + checklist -->
       <div class="grid grid-cols-12 gap-6 mt-6">
         <!-- Left Column: Chart Evidence -->
-        <div class="col-span-12 xl:col-span-7 flex flex-col gap-4 min-w-0 xl:sticky xl:top-20 xl:self-start">
+        <div class="col-span-12 xl:col-span-7 flex flex-col gap-4 min-w-0">
           <div class="flex items-center gap-2 min-h-[2rem]">
             <span class="material-symbols-outlined text-primary text-[20px]">show_chart</span>
             <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Chart Evidence (Multi-Timeframe)</h2>
@@ -2080,6 +2080,16 @@
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
             <div class="flex items-center gap-2 mb-4" id="cs-chart-tabs"></div>
             <div id="cs-chart-container"></div>
+          </div>
+          <!-- Trade Notes Card -->
+          <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Trade Notes</h2>
+              <span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">RETROSPECTIVE ANALYSIS</span>
+            </div>
+            <div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-3">
+              <p class="font-body-md text-body-md text-on-surface leading-relaxed" id="cs-notes-text">--</p>
+            </div>
           </div>
         </div>
         <!-- Right Column: Trade Detail & Confluence Checklist -->
@@ -2167,77 +2177,60 @@
         </div>
       </div>
 
-      <!-- Lower Row: notes | execution details -->
-      <div class="grid grid-cols-12 gap-6 mt-6">
-        <div class="col-span-12 xl:col-span-7">
-          <!-- Trade Notes Card -->
-          <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-              <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Trade Notes</h2>
-              <span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">RETROSPECTIVE ANALYSIS</span>
-            </div>
-            <div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-3">
-              <p class="font-body-md text-body-md text-on-surface leading-relaxed" id="cs-notes-text">--</p>
-            </div>
+      <!-- Lower Row: execution details (full width) -->
+      <div class="mt-6">
+        <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+          <div class="flex items-center justify-between pb-3 mb-1">
+            <h3 class="font-label-eyebrow text-label-eyebrow uppercase text-secondary tracking-wider font-semibold">Execution Details</h3>
+            <span class="font-metric-sm text-metric-sm text-secondary" id="cs-detail-pair-label">--</span>
           </div>
-        </div>
-        <div class="col-span-12 xl:col-span-5">
-          <!-- Execution Details Card -->
-          <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
-            <div class="flex items-center justify-between pb-3 mb-1">
-              <h3 class="font-label-eyebrow text-label-eyebrow uppercase text-secondary tracking-wider font-semibold">Execution Details</h3>
-              <span class="font-metric-sm text-metric-sm text-secondary" id="cs-detail-pair-label">--</span>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8">
+            <div class="flex items-center justify-between py-2.5 bg-surface-container-low px-3 rounded-lg my-1 md:col-span-2 xl:col-span-1">
+              <span class="font-body-md text-body-md text-on-surface font-medium">Realized Return</span>
+              <span class="flex flex-col items-end">
+                <span class="font-metric-lg text-metric-lg font-bold text-tertiary" id="cs-return-value">--</span>
+                <span class="font-metric-sm text-metric-sm text-secondary" id="cs-return-sub"></span>
+              </span>
             </div>
-            <div class="flex flex-col">
-              <div class="flex items-center justify-between py-2.5 bg-surface-container-low px-3 rounded-lg my-1">
-                <span class="font-body-md text-body-md text-on-surface font-medium">Realized Return</span>
-                <span class="flex flex-col items-end">
-                  <span class="font-metric-lg text-metric-lg font-bold text-tertiary" id="cs-return-value">--</span>
-                  <span class="font-metric-sm text-metric-sm text-secondary" id="cs-return-sub"></span>
-                </span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Date</span>
-                <span class="font-metric-md text-metric-md text-on-surface font-medium" id="cs-detail-date">--</span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Price Change</span>
-                <span class="font-metric-md text-metric-md font-bold text-tertiary" id="cs-detail-change">--</span>
-              </div>
-              <div class="my-2 h-px bg-surface-container"></div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Leverage</span>
-                <span class="font-metric-md text-metric-md text-on-surface font-medium" id="cs-detail-leverage">--</span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Prev. Daily Candle</span>
-                <span class="font-body-md text-body-md text-on-surface font-semibold flex items-center gap-1.5" id="cs-detail-prevcandle">--</span>
-              </div>
-              <div class="my-2 h-px bg-surface-container"></div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Margin (Position Size)</span>
-                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-position-size">Not recorded</span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Notional Exposure</span>
-                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-notional">Not recorded</span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Stop-Loss Price</span>
-                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-stop-loss">Not recorded</span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">P&amp;L ($)</span>
-                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-pnl">Not recorded</span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Order Execution</span>
-                <span class="font-metric-sm text-metric-sm font-medium text-secondary bg-surface-container px-2.5 py-0.5 rounded">Not recorded</span>
-              </div>
-              <div class="flex items-center justify-between py-2.5">
-                <span class="font-body-md text-body-md text-secondary">Fees (In / Out)</span>
-                <span class="font-metric-sm text-metric-sm font-medium text-secondary bg-surface-container px-2.5 py-0.5 rounded">Not recorded</span>
-              </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Date</span>
+              <span class="font-metric-md text-metric-md text-on-surface font-medium" id="cs-detail-date">--</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Price Change</span>
+              <span class="font-metric-md text-metric-md font-bold text-tertiary" id="cs-detail-change">--</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Leverage</span>
+              <span class="font-metric-md text-metric-md text-on-surface font-medium" id="cs-detail-leverage">--</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Prev. Daily Candle</span>
+              <span class="font-body-md text-body-md text-on-surface font-semibold flex items-center gap-1.5" id="cs-detail-prevcandle">--</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Margin (Position Size)</span>
+              <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-position-size">Not recorded</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Notional Exposure</span>
+              <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-notional">Not recorded</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Stop-Loss Price</span>
+              <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-stop-loss">Not recorded</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">P&amp;L ($)</span>
+              <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-pnl">Not recorded</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Order Execution</span>
+              <span class="font-metric-sm text-metric-sm font-medium text-secondary bg-surface-container px-2.5 py-0.5 rounded">Not recorded</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-surface-container">
+              <span class="font-body-md text-body-md text-secondary">Fees (In / Out)</span>
+              <span class="font-metric-sm text-metric-sm font-medium text-secondary bg-surface-container px-2.5 py-0.5 rounded">Not recorded</span>
             </div>
           </div>
         </div>
