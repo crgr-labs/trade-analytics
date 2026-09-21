@@ -170,6 +170,17 @@
     }
     trade.charts = charts;
 
+    // Per-factor checklist status. Only non-default states are stored, so a
+    // missing key means Passed and older trades need no migration beyond this.
+    var statuses = {};
+    if (trade.parameterStatus && typeof trade.parameterStatus === 'object') {
+      Object.keys(trade.parameterStatus).forEach(function (name) {
+        var status = trade.parameterStatus[name];
+        if (status === 'pending' || status === 'failed') statuses[name] = status;
+      });
+    }
+    trade.parameterStatus = statuses;
+
     return trade;
   }
 
@@ -2834,6 +2845,32 @@
     return sign + n.toFixed(2) + 'R';
   }
 
+  // The session windows overlap (e.g. 07:00-08:00 UTC is both Asia and
+  // London), so a trade can sit in more than one. Uses the same UTC
+  // conversion as the Timing & Heatmap stats, mexc-import special case included.
+  function tradeSessionLabel(trade) {
+    var minutes = entryUtcMinutesForTrade(trade, getEntryTzOffsetMinutes());
+    if (minutes === null) return null;
+    var hour = Math.floor(minutes / 60);
+    var names = SESSIONS
+      .filter(function (s) { return hour >= s.start && hour < s.end; })
+      .map(function (s) { return s.name; });
+    return names.length ? names.join(' / ') : 'Off-hours';
+  }
+
+  // Trades carry no exit time, so duration only exists when the trade came
+  // from (or was promoted from) a Position History record.
+  function tradeDurationLabel(trade) {
+    var positions = PositionStore.getAll();
+    for (var i = 0; i < positions.length; i++) {
+      if (positions[i].linkedTradeId === trade.id) {
+        var label = formatDurationMs(positionDurationMs(positions[i]));
+        return label === '—' ? null : label;
+      }
+    }
+    return null;
+  }
+
   function computeTradeGrade(trade, filledCount) {
     if (trade.outcome === 'open') return { label: 'PENDING', color: 'text-secondary' };
     if (trade.outcome === 'loss') return { label: 'REVIEW', color: 'text-error' };
@@ -2894,8 +2931,9 @@
 
     if (image) {
       return (
-        '<div class="chart-preview-btn rounded-xl overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
+        '<div class="chart-preview-btn relative rounded-xl overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
           '<img src="' + image.value + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
+          '<span class="absolute top-3 left-3 bg-surface-container-lowest/90 text-primary font-metric-sm text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">' + tf.short + '</span>' +
         '</div>' +
         '<div class="flex items-center gap-2 px-1 pt-2">' +
           '<span class="material-symbols-outlined text-secondary text-[18px]">image</span>' +
@@ -2973,6 +3011,37 @@
     return 'Other';
   }
 
+  // Click-to-cycle order. A missing key in trade.parameterStatus means Passed.
+  var PARAM_STATUS_UI = {
+    passed: {
+      label: 'Passed',
+      tag: 'bg-tertiary-fixed/30 text-on-tertiary-fixed-variant',
+      box: 'bg-tertiary text-on-tertiary',
+      icon: 'check'
+    },
+    pending: {
+      label: 'Pending',
+      tag: 'bg-warning-container text-on-warning-container',
+      box: 'bg-surface-container-lowest border-2 border-warning',
+      icon: ''
+    },
+    failed: {
+      label: 'Failed',
+      tag: 'bg-error-container text-on-error-container',
+      box: 'bg-error text-on-error',
+      icon: 'close'
+    }
+  };
+
+  function tradeParamStatus(trade, name) {
+    var status = trade.parameterStatus && trade.parameterStatus[name];
+    return status === 'pending' || status === 'failed' ? status : 'passed';
+  }
+
+  function nextParamStatus(status) {
+    return status === 'passed' ? 'pending' : status === 'pending' ? 'failed' : 'passed';
+  }
+
   function confluenceChecklistHtml(trade) {
     // Treated as a flat, variable-length list of whatever parameters are
     // actually logged on this trade - not tied to the 7 fixed entry-form
@@ -2984,7 +3053,8 @@
       return {
         html: '<p class="font-body-sm text-body-sm text-secondary italic px-1 py-2">No confluence parameters logged for this trade.</p>',
         categoriesHtml: '',
-        filledCount: 0
+        filledCount: 0,
+        passedCount: 0
       };
     }
 
@@ -3001,18 +3071,23 @@
         return '<span class="bg-surface-container text-on-surface-variant font-metric-sm text-metric-sm px-2 py-0.5 rounded-full">' + cat + ' · ' + categoryCounts[cat] + '</span>';
       }).join('');
 
-    var html = params.map(function (value) {
+    var passedCount = 0;
+    var html = params.map(function (value, index) {
+      var status = tradeParamStatus(trade, value);
+      if (status === 'passed') passedCount += 1;
+      var ui = PARAM_STATUS_UI[status];
       return (
-        '<div class="flex items-center p-2.5 rounded-lg bg-surface-container-low/50 transition-colors">' +
-          '<div class="w-5 h-5 rounded bg-tertiary flex items-center justify-center text-on-tertiary flex-shrink-0 shadow-sm">' +
-            '<span class="material-symbols-outlined text-[15px] font-bold">check</span>' +
+        '<div class="flex items-center gap-3 p-2.5 rounded-lg bg-surface-container-low/50 transition-colors">' +
+          '<div class="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 shadow-sm ' + ui.box + '">' +
+            (ui.icon ? '<span class="material-symbols-outlined text-[15px] font-bold">' + ui.icon + '</span>' : '') +
           '</div>' +
-          '<div class="ml-3 min-w-0 flex-1 font-headline-sm text-body-md font-semibold text-on-surface">' + escapeHtml(value) + '</div>' +
+          '<div class="min-w-0 flex-1 font-headline-sm text-body-md font-semibold text-on-surface">' + escapeHtml(value) + '</div>' +
+          '<button type="button" class="cs-param-status shrink-0 font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full transition-opacity hover:opacity-80 ' + ui.tag + '" data-index="' + index + '" title="Click to change status">' + ui.label + '</button>' +
         '</div>'
       );
     }).join('');
 
-    return { html: html, categoriesHtml: categoriesHtml, filledCount: params.length };
+    return { html: html, categoriesHtml: categoriesHtml, filledCount: params.length, passedCount: passedCount };
   }
 
   var csListState = { search: '', sort: 'date-desc' };
@@ -3136,7 +3211,7 @@
   // Which trade and timeframe the detail view's chart card is showing. The
   // card's innerHTML is rebuilt on every render, so the tab clicks are
   // delegated from a listener registered once in initCaseStudyActions.
-  var csChartTradeId = null;
+  var csCurrentTradeId = null;
   var csActiveChartTf = 'daily';
 
   function renderCaseStudyChart(section, trade) {
@@ -3174,17 +3249,15 @@
     section.querySelector('#cs-archive-id').textContent = archiveIdFor(trade);
     section.querySelector('#cs-pair').textContent = trade.pair;
     section.querySelector('#cs-direction').textContent = trade.direction.toUpperCase();
-    section.querySelector('#cs-leverage').textContent = (trade.leverage || 'No leverage recorded').toUpperCase();
     section.querySelector('#cs-logged-date').textContent = 'Logged ' + formatLongDate(trade.date);
-    section.querySelector('#cs-prev-candle').textContent = trade.prevCandle
-      ? trade.prevCandle.charAt(0).toUpperCase() + trade.prevCandle.slice(1)
-      : 'Not recorded';
 
     var outcomeDot = section.querySelector('#cs-outcome-dot');
     var outcomeText = section.querySelector('#cs-outcome-text');
     var outcomePill = section.querySelector('#cs-outcome-pill');
     outcomeText.textContent = trade.outcome.toUpperCase();
     outcomeDot.className = 'w-1.5 h-1.5 rounded-full ' + (OUTCOME_DOT_CLASS[trade.outcome] || OUTCOME_DOT_CLASS.open);
+    // 'breakeven' isn't a form option, but zero-P&L imports produce it, so it
+    // gets the same neutral treatment as an open trade rather than looking broken.
     outcomePill.className = 'px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold flex items-center gap-1.5 ' +
       (trade.outcome === 'win' ? 'bg-surface-container-low text-tertiary' : trade.outcome === 'loss' ? 'bg-error-container text-error' : 'bg-surface-container text-on-surface-variant');
 
@@ -3192,69 +3265,49 @@
     if (sourceBadge) sourceBadge.hidden = trade.source !== 'mexc-import';
 
     var ret = computeTradeReturn(trade);
+
+    // Metadata tiles
+    setMetaTile(section, 'entry', trade.entryPrice ? ('$' + trade.entryPrice) : '', '', 'Not recorded');
+    setMetaTile(section, 'exit', trade.exitPrice ? ('$' + trade.exitPrice) : '', '', 'Not recorded');
+    var hasR = ret && ret.rMultiple !== null;
+    setMetaTile(section, 'r', hasR ? formatSignedR(ret.rMultiple) : '', hasR ? (ret.rMultiple >= 0 ? 'text-tertiary' : 'text-error') : '', ret ? 'No stop-loss logged' : 'Not recorded');
+    setMetaTile(section, 'duration', tradeDurationLabel(trade) || '', '', 'Not recorded');
+    // No Playbook / setup entity exists yet, so there is nothing to show.
+    setMetaTile(section, 'setup', '', '', 'Not recorded');
+    setMetaTile(section, 'session', tradeSessionLabel(trade) || '', '', 'No entry time logged');
+
+    csCurrentTradeId = trade.id;
+    csActiveChartTf = firstChartKey(trade) || 'daily';
+    renderCaseStudyChart(section, trade);
+    renderCaseStudyChecklist(section, trade);
+    section.querySelector('#cs-notes-text').textContent = trade.notes && trade.notes.trim() ? trade.notes : 'No notes recorded for this trade.';
+
+    // Execution details
     var returnValueEl = section.querySelector('#cs-return-value');
     var returnSubEl = section.querySelector('#cs-return-sub');
-    var returnBarEl = section.querySelector('#cs-return-bar');
     if (ret) {
       var positive = ret.pctChange >= 0;
       returnValueEl.textContent = (positive ? '+' : '') + ret.pctChange.toFixed(2) + '%';
-      returnValueEl.className = 'font-metric-display text-metric-display font-bold ' + (positive ? 'text-tertiary' : 'text-error');
+      returnValueEl.className = 'font-metric-lg text-metric-lg font-bold ' + (positive ? 'text-tertiary' : 'text-error');
       var returnSubParts = [];
       if (ret.dollarPnl !== null) returnSubParts.push(formatSignedDollars(ret.dollarPnl));
       if (ret.roe !== null) returnSubParts.push((ret.roe >= 0 ? '+' : '') + ret.roe.toFixed(1) + '% ROE');
-      returnSubEl.textContent = returnSubParts.length ? ('(' + returnSubParts.join(' · ') + ')') : '';
-      returnBarEl.className = 'h-full rounded-full ' + (positive ? 'bg-tertiary' : 'bg-error');
-      returnBarEl.style.width = '100%';
+      returnSubEl.textContent = returnSubParts.join(' · ');
     } else {
       returnValueEl.textContent = 'Not recorded';
-      returnValueEl.className = 'font-metric-display text-metric-display font-bold text-secondary';
+      returnValueEl.className = 'font-metric-lg text-metric-lg font-bold text-secondary';
       returnSubEl.textContent = '';
-      returnBarEl.style.width = '0%';
     }
-
-    var deltaValueEl = section.querySelector('#cs-delta-value');
-    var deltaUnitEl = section.querySelector('#cs-delta-unit');
-    var deltaFromEl = section.querySelector('#cs-delta-from');
-    var deltaToEl = section.querySelector('#cs-delta-to');
-    if (ret) {
-      deltaValueEl.textContent = (ret.delta >= 0 ? '+$' : '-$') + Math.abs(ret.delta).toFixed(4);
-      deltaUnitEl.textContent = 'per token';
-      deltaFromEl.textContent = ret.entry;
-      deltaToEl.textContent = ret.exit;
-    } else {
-      deltaValueEl.textContent = 'Not recorded';
-      deltaUnitEl.textContent = '';
-      deltaFromEl.textContent = trade.entryPrice || '--';
-      deltaToEl.textContent = trade.exitPrice || '--';
-    }
-
-    var checklist = confluenceChecklistHtml(trade);
-    var avgConfluence = averageConfluenceCount();
-    var confluenceDiff = checklist.filledCount - avgConfluence;
-    var confluenceComparisonWord = Math.abs(confluenceDiff) < 0.05 ? 'at' : (confluenceDiff > 0 ? 'above' : 'below');
-    var confluenceBarPct = avgConfluence > 0
-      ? Math.min(100, (checklist.filledCount / (avgConfluence * 2)) * 100)
-      : (checklist.filledCount > 0 ? 100 : 0);
-    section.querySelector('#cs-confluence-score').textContent = String(checklist.filledCount);
-    section.querySelector('#cs-confluence-pct').textContent = confluenceComparisonWord + ' your ' + avgConfluence.toFixed(1) + ' average';
-    section.querySelector('#cs-confluence-bar').style.width = confluenceBarPct + '%';
-
-    csChartTradeId = trade.id;
-    csActiveChartTf = firstChartKey(trade) || 'daily';
-    renderCaseStudyChart(section, trade);
-    section.querySelector('#cs-notes-text').textContent = trade.notes && trade.notes.trim() ? trade.notes : 'No notes recorded for this trade.';
 
     section.querySelector('#cs-detail-pair-label').textContent = 'PAIR: ' + splitPairLabel(trade.pair);
     section.querySelector('#cs-detail-date').textContent = formatMediumDate(trade.date);
-    section.querySelector('#cs-detail-entry').textContent = trade.entryPrice ? ('$' + trade.entryPrice) : 'Not recorded';
-    section.querySelector('#cs-detail-exit').textContent = trade.exitPrice ? ('$' + trade.exitPrice) : 'Not recorded';
     var changeEl = section.querySelector('#cs-detail-change');
     if (ret) {
       changeEl.textContent = (ret.pctChange >= 0 ? '+' : '') + ret.pctChange.toFixed(2) + '%';
-      changeEl.className = 'font-metric-lg text-metric-lg font-bold ' + (ret.pctChange >= 0 ? 'text-tertiary' : 'text-error');
+      changeEl.className = 'font-metric-md text-metric-md font-bold ' + (ret.pctChange >= 0 ? 'text-tertiary' : 'text-error');
     } else {
       changeEl.textContent = 'Not recorded';
-      changeEl.className = 'font-metric-lg text-metric-lg font-bold text-secondary';
+      changeEl.className = 'font-metric-md text-metric-md font-bold text-secondary';
     }
     section.querySelector('#cs-detail-leverage').textContent = trade.leverage || 'Not recorded';
     section.querySelector('#cs-detail-prevcandle').innerHTML =
@@ -3298,26 +3351,44 @@
       pnlEl.className = NOT_RECORDED_CLASS;
     }
 
-    var rMultipleEl = section.querySelector('#cs-detail-rmultiple');
-    if (ret && ret.rMultiple !== null) {
-      rMultipleEl.textContent = formatSignedR(ret.rMultiple);
-      rMultipleEl.className = 'font-metric-sm text-metric-sm font-semibold ' + (ret.rMultiple >= 0 ? 'text-tertiary' : 'text-error');
-    } else {
-      rMultipleEl.textContent = 'Not recorded';
-      rMultipleEl.className = NOT_RECORDED_CLASS;
-    }
+    section.querySelector('#cs-btn-edit').setAttribute('data-trade-id', trade.id);
+    section.querySelector('#cs-btn-delete').setAttribute('data-trade-id', trade.id);
+  }
 
-    section.querySelector('#cs-confluence-filled-badge').textContent = checklist.filledCount + ' parameter' + (checklist.filledCount === 1 ? '' : 's') + ' logged';
+  var META_VALUE_CLASS = 'font-metric-lg text-metric-lg font-semibold truncate ';
+
+  // One of the six metadata tiles. An empty value renders as a dash with a
+  // "why it's missing" line instead of a blank card.
+  function setMetaTile(section, key, text, colorClass, missingLabel) {
+    var valueEl = section.querySelector('#cs-meta-' + key);
+    var subEl = section.querySelector('#cs-meta-' + key + '-sub');
+    if (text) {
+      valueEl.textContent = text;
+      valueEl.title = text;
+      valueEl.className = META_VALUE_CLASS + (colorClass || 'text-on-surface');
+      subEl.textContent = '';
+    } else {
+      valueEl.textContent = '—';
+      valueEl.title = '';
+      valueEl.className = META_VALUE_CLASS + 'text-secondary';
+      subEl.textContent = missingLabel || 'Not recorded';
+    }
+  }
+
+  // Grade and badge count only Passed factors, so a Pending or Failed one
+  // lowers the tier. Re-rendered on its own when a status tag is clicked.
+  function renderCaseStudyChecklist(section, trade) {
+    var checklist = confluenceChecklistHtml(trade);
+    section.querySelector('#cs-confluence-filled-badge').textContent = checklist.filledCount
+      ? checklist.passedCount + ' / ' + checklist.filledCount + ' passed'
+      : 'None logged';
     section.querySelector('#cs-confluence-categories').innerHTML = checklist.categoriesHtml || '';
     section.querySelector('#cs-confluence-list').innerHTML = checklist.html;
 
-    var grade = computeTradeGrade(trade, checklist.filledCount);
+    var grade = computeTradeGrade(trade, checklist.passedCount);
     var gradeEl = section.querySelector('#cs-trade-grade');
     gradeEl.textContent = grade.label;
-    gradeEl.className = 'font-metric-sm text-metric-sm font-semibold px-2 py-0.5 rounded bg-surface-container-low ' + grade.color;
-
-    section.querySelector('#cs-btn-edit').setAttribute('data-trade-id', trade.id);
-    section.querySelector('#cs-btn-delete').setAttribute('data-trade-id', trade.id);
+    gradeEl.className = 'font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full bg-surface-container-low ' + grade.color;
   }
 
   function initCaseStudyActions() {
@@ -3328,8 +3399,8 @@
     if (chartTabs) {
       chartTabs.addEventListener('click', function (e) {
         var tab = e.target.closest ? e.target.closest('.cs-chart-tab') : null;
-        if (!tab || !csChartTradeId) return;
-        var trade = TradeStore.getById(csChartTradeId);
+        if (!tab || !csCurrentTradeId) return;
+        var trade = TradeStore.getById(csCurrentTradeId);
         if (!trade) return;
         csActiveChartTf = tab.getAttribute('data-tf') || 'daily';
         renderCaseStudyChart(section, trade);
@@ -3344,21 +3415,87 @@
       });
     }
 
+    // Clicking a status tag cycles Passed -> Pending -> Failed. The entry form
+    // has no status field, so this is the only place a status is set.
+    var checklistList = section.querySelector('#cs-confluence-list');
+    if (checklistList) {
+      checklistList.addEventListener('click', function (e) {
+        var tag = e.target.closest ? e.target.closest('.cs-param-status') : null;
+        if (!tag || !csCurrentTradeId) return;
+        var trade = TradeStore.getById(csCurrentTradeId);
+        if (!trade) return;
+        var name = nonEmptyConfluence(trade)[parseInt(tag.getAttribute('data-index'), 10)];
+        if (name === undefined) return;
+
+        var status = nextParamStatus(tradeParamStatus(trade, name));
+        var statuses = {};
+        Object.keys(trade.parameterStatus || {}).forEach(function (key) { statuses[key] = trade.parameterStatus[key]; });
+        if (status === 'passed') delete statuses[name]; else statuses[name] = status;
+        trade.parameterStatus = statuses;
+
+        if (!TradeStore.update(trade.id, trade)) {
+          window.alert('Could not save — local storage is full. Try exporting or removing some old trades.');
+          return;
+        }
+        renderCaseStudyChecklist(section, trade);
+      });
+    }
+
     var deleteBtn = section.querySelector('#cs-btn-delete');
-    if (deleteBtn) {
+    var deleteModal = document.getElementById('cs-delete-modal');
+    var deleteBackdrop = document.getElementById('cs-delete-backdrop');
+    var deleteCancel = document.getElementById('cs-delete-cancel');
+    var deleteConfirm = document.getElementById('cs-delete-confirm');
+    var deleteTrigger = null;
+    var pendingDeleteId = null;
+
+    function closeDeleteModal(restoreFocus) {
+      if (!deleteModal) return;
+      deleteModal.hidden = true;
+      pendingDeleteId = null;
+      if (restoreFocus && deleteTrigger && deleteTrigger.focus) deleteTrigger.focus();
+      deleteTrigger = null;
+    }
+
+    if (deleteBtn && deleteModal && deleteCancel && deleteConfirm) {
       deleteBtn.addEventListener('click', function () {
         var id = deleteBtn.getAttribute('data-trade-id');
         if (!id) return;
-        var trade = TradeStore.getById(id);
-        var label = trade ? trade.pair : 'this trade';
-        if (window.confirm('Delete the log for ' + label + '? This cannot be undone.')) {
-          TradeStore.remove(id);
-          var removed = {};
-          removed[id] = true;
-          unlinkPositionsForTrades(removed);
-          window.AppRouter.navigate('trade-journal');
+        pendingDeleteId = id;
+        deleteTrigger = deleteBtn;
+        deleteModal.hidden = false;
+        // Cancel is the safe default focus for a destructive prompt.
+        deleteCancel.focus();
+      });
+
+      deleteCancel.addEventListener('click', function () { closeDeleteModal(true); });
+      if (deleteBackdrop) deleteBackdrop.addEventListener('click', function () { closeDeleteModal(true); });
+
+      deleteConfirm.addEventListener('click', function () {
+        var id = pendingDeleteId;
+        if (!id) return;
+        closeDeleteModal(false);
+        TradeStore.remove(id);
+        var removed = {};
+        removed[id] = true;
+        unlinkPositionsForTrades(removed);
+        window.AppRouter.navigate('trade-journal');
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (deleteModal.hidden) return;
+        if (e.key === 'Escape') {
+          closeDeleteModal(true);
+        } else if (e.key === 'Tab') {
+          // Only two focusable controls, so wrapping between them is a full trap.
+          var first = deleteCancel;
+          var last = deleteConfirm;
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
         }
       });
+
+      document.addEventListener('screenchange', function () { closeDeleteModal(false); });
     }
   }
 
@@ -4308,6 +4445,14 @@
       // exact exchange-reported P&L/fee/duplicate-flag data - the form has
       // no fields for these, so carry them forward from the original record.
       if (originalTrade) {
+        // The form has no per-factor status control either; keep the statuses
+        // set from the case study, dropping any for a parameter just removed.
+        var carriedStatuses = {};
+        trade.parameters.forEach(function (name) {
+          var status = originalTrade.parameterStatus && originalTrade.parameterStatus[name];
+          if (status === 'pending' || status === 'failed') carriedStatuses[name] = status;
+        });
+        trade.parameterStatus = carriedStatuses;
         trade.source = originalTrade.source || 'manual';
         if (typeof originalTrade.realizedPnl === 'number') trade.realizedPnl = originalTrade.realizedPnl;
         if (typeof originalTrade.fee === 'number') trade.fee = originalTrade.fee;
