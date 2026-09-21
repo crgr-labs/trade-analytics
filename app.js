@@ -409,7 +409,7 @@
     var moreCount = Math.max(tags.length - 3, 0);
 
     var tagsHtml = visibleTags.map(function (tag) {
-      return '<span class="bg-surface-container-high text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded">' + escapeHtml(tag) + '</span>';
+      return '<span class="bg-surface-container-lowest text-on-surface-variant font-body-sm text-body-sm px-2 py-0.5 rounded-lg shadow-sm">' + escapeHtml(tag) + '</span>';
     }).join('');
     if (moreCount > 0) {
       tagsHtml += '<span class="font-metric-sm text-metric-sm text-secondary ml-1 cursor-default" title="' + moreCount + ' additional parameter' + (moreCount === 1 ? '' : 's') + '">+' + moreCount + ' more</span>';
