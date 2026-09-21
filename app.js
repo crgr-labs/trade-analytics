@@ -2890,9 +2890,11 @@
   function chartTabsHtml(trade, activeKey) {
     var charts = tradeCharts(trade);
     return CHART_TIMEFRAMES.map(function (tf) {
+      // An empty timeframe is dimmed with a lighter text token, not opacity:
+      // opacity-60 dropped the label to 3:1 contrast, secondary keeps 5.9:1.
       var stateClass = tf.key === activeKey
         ? 'bg-on-surface text-surface-container-lowest'
-        : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container' + (charts[tf.key] ? '' : ' opacity-60');
+        : 'bg-surface-container-low hover:bg-surface-container ' + (charts[tf.key] ? 'text-on-surface-variant' : 'text-secondary');
       return (
         '<button type="button" data-tf="' + tf.key + '" class="cs-chart-tab font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all ' + stateClass + '">' +
           tf.label +
@@ -3355,22 +3357,25 @@
     section.querySelector('#cs-btn-delete').setAttribute('data-trade-id', trade.id);
   }
 
-  var META_VALUE_CLASS = 'font-metric-lg text-metric-lg font-semibold truncate ';
+  // Numeric tiles use the large metric size; Setup and Session hold text
+  // (e.g. "London / New York") and would truncate at that size in the narrow column.
+  var META_TEXT_TILES = { setup: true, session: true };
 
   // One of the six metadata tiles. An empty value renders as a dash with a
   // "why it's missing" line instead of a blank card.
   function setMetaTile(section, key, text, colorClass, missingLabel) {
     var valueEl = section.querySelector('#cs-meta-' + key);
     var subEl = section.querySelector('#cs-meta-' + key + '-sub');
+    var valueClass = (META_TEXT_TILES[key] ? 'font-metric-md text-metric-md' : 'font-metric-lg text-metric-lg') + ' font-semibold truncate ';
     if (text) {
       valueEl.textContent = text;
       valueEl.title = text;
-      valueEl.className = META_VALUE_CLASS + (colorClass || 'text-on-surface');
+      valueEl.className = valueClass + (colorClass || 'text-on-surface');
       subEl.textContent = '';
     } else {
       valueEl.textContent = '—';
       valueEl.title = '';
-      valueEl.className = META_VALUE_CLASS + 'text-secondary';
+      valueEl.className = valueClass + 'text-secondary';
       subEl.textContent = missingLabel || 'Not recorded';
     }
   }
@@ -3388,7 +3393,7 @@
     var grade = computeTradeGrade(trade, checklist.passedCount);
     var gradeEl = section.querySelector('#cs-trade-grade');
     gradeEl.textContent = grade.label;
-    gradeEl.className = 'font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full bg-surface-container-low ' + grade.color;
+    gradeEl.className = 'font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full bg-surface-container-low whitespace-nowrap ' + grade.color;
   }
 
   function initCaseStudyActions() {

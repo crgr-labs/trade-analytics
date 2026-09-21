@@ -2062,7 +2062,7 @@
             <span class="material-symbols-outlined text-[18px]">edit_note</span>
             Edit Entry
           </button>
-          <button class="bg-surface-container-lowest border border-error/40 text-error hover:bg-error-container/30 px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 transition-all duration-150" id="cs-btn-delete">
+          <button class="bg-surface-container-lowest border border-error/60 text-error hover:bg-error-container/30 px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 transition-all duration-150" id="cs-btn-delete">
             <span class="material-symbols-outlined text-[18px]">delete_outline</span>
             Delete Log
           </button>
@@ -2072,29 +2072,24 @@
       <!-- Two-Column Main Layout: chart evidence | trade detail + checklist -->
       <div class="grid grid-cols-12 gap-6 mt-6">
         <!-- Left Column: Chart Evidence -->
-        <div class="col-span-12 lg:col-span-7 flex flex-col gap-4 min-w-0">
-          <div class="flex flex-wrap items-center justify-between gap-3 min-h-[2rem]">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-primary text-[20px]">show_chart</span>
-              <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Chart Evidence (Multi-Timeframe)</h2>
-            </div>
-            <div class="flex items-center gap-2" id="cs-chart-tabs"></div>
+        <div class="col-span-12 xl:col-span-7 flex flex-col gap-4 min-w-0 xl:sticky xl:top-20 xl:self-start">
+          <div class="flex items-center gap-2 min-h-[2rem]">
+            <span class="material-symbols-outlined text-primary text-[20px]">show_chart</span>
+            <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Chart Evidence (Multi-Timeframe)</h2>
           </div>
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+            <div class="flex items-center gap-2 mb-4" id="cs-chart-tabs"></div>
             <div id="cs-chart-container"></div>
           </div>
         </div>
         <!-- Right Column: Trade Detail & Confluence Checklist -->
-        <div class="col-span-12 lg:col-span-5 flex flex-col gap-4 min-w-0">
-          <div class="flex flex-wrap items-center justify-between gap-3 min-h-[2rem]">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
-              <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Trade Detail &amp; Confluence Checklist</h2>
-            </div>
-            <span class="font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full bg-surface-container-low" id="cs-trade-grade" title="Trade grade">--</span>
+        <div class="col-span-12 xl:col-span-5 flex flex-col gap-4 min-w-0">
+          <div class="flex items-center gap-2 min-h-[2rem]">
+            <span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
+            <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Trade Detail &amp; Confluence Checklist</h2>
           </div>
           <!-- Metadata tiles -->
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-4">
           <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">
             <div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
               <span>Entry Price</span>
@@ -2141,7 +2136,7 @@
               <span class="material-symbols-outlined text-primary text-[18px]">strategy</span>
             </div>
             <div class="mt-2 min-w-0">
-              <div class="font-metric-lg text-metric-lg font-semibold text-on-surface truncate" id="cs-meta-setup">--</div>
+              <div class="font-metric-md text-metric-md font-semibold text-on-surface truncate" id="cs-meta-setup">--</div>
               <div class="font-metric-sm text-metric-sm text-secondary min-h-[1rem]" id="cs-meta-setup-sub"></div>
             </div>
           </div>
@@ -2151,16 +2146,19 @@
               <span class="material-symbols-outlined text-primary text-[18px]">schedule</span>
             </div>
             <div class="mt-2 min-w-0">
-              <div class="font-metric-lg text-metric-lg font-semibold text-on-surface truncate" id="cs-meta-session">--</div>
+              <div class="font-metric-md text-metric-md font-semibold text-on-surface truncate" id="cs-meta-session">--</div>
               <div class="font-metric-sm text-metric-sm text-secondary min-h-[1rem]" id="cs-meta-session-sub"></div>
             </div>
           </div>
           </div>
           <!-- Confluence Checklist Card -->
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
-            <div class="flex items-center justify-between mb-1">
-              <h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Confluence Checklist</h3>
-              <span class="bg-surface-container-low text-primary font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full" id="cs-confluence-filled-badge">--</span>
+            <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-1">
+              <h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold whitespace-nowrap">Confluence Checklist</h3>
+              <div class="flex items-center gap-2">
+                <span class="font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full bg-surface-container-low whitespace-nowrap" id="cs-trade-grade" title="Trade grade">--</span>
+                <span class="bg-surface-container-low text-primary font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap" id="cs-confluence-filled-badge">--</span>
+              </div>
             </div>
             <p class="font-metric-sm text-metric-sm text-secondary mb-3">Click a tag to mark a factor Passed, Pending or Failed.</p>
             <div class="flex flex-wrap items-center gap-1.5 mb-4" id="cs-confluence-categories"></div>
@@ -2171,7 +2169,7 @@
 
       <!-- Lower Row: notes | execution details -->
       <div class="grid grid-cols-12 gap-6 mt-6">
-        <div class="col-span-12 lg:col-span-7">
+        <div class="col-span-12 xl:col-span-7">
           <!-- Trade Notes Card -->
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
             <div class="flex items-center justify-between mb-3">
@@ -2183,7 +2181,7 @@
             </div>
           </div>
         </div>
-        <div class="col-span-12 lg:col-span-5">
+        <div class="col-span-12 xl:col-span-5">
           <!-- Execution Details Card -->
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
             <div class="flex items-center justify-between pb-3 mb-1">
@@ -3453,7 +3451,7 @@
           </div>
         </div>
         <div class="flex items-center justify-end gap-2">
-          <button type="button" id="cs-delete-cancel" class="bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container px-4 py-2 rounded-xl font-headline-sm text-headline-sm transition-all duration-150 active:scale-95">
+          <button type="button" id="cs-delete-cancel" class="bg-surface-container-lowest border border-outline text-on-surface hover:bg-surface-container px-4 py-2 rounded-xl font-headline-sm text-headline-sm transition-all duration-150 active:scale-95">
             Cancel
           </button>
           <button type="button" id="cs-delete-confirm" class="bg-error text-on-error hover:opacity-90 px-4 py-2 rounded-xl font-headline-sm text-headline-sm shadow-sm transition-opacity active:scale-95 flex items-center gap-2">
