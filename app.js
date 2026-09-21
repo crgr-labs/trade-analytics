@@ -2932,15 +2932,19 @@
       : '';
 
     if (image) {
+      // The image sits on a tinted well (same tone as the Trade Notes well)
+      // rather than straight on the white card padding.
       return (
-        '<div class="chart-preview-btn relative rounded-xl overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
-          '<img src="' + image.value + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
-          '<span class="absolute top-3 left-3 bg-surface-container-lowest/90 text-primary font-metric-sm text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">' + tf.short + '</span>' +
-        '</div>' +
-        '<div class="flex items-center gap-2 px-1 pt-2">' +
-          '<span class="material-symbols-outlined text-secondary text-[18px]">image</span>' +
-          '<span class="font-metric-sm text-metric-sm font-semibold text-on-surface">' + escapeHtml(image.name || 'Attached screenshot') + '</span>' +
-          linkButton +
+        '<div class="bg-surface-container-low rounded-xl p-3">' +
+          '<div class="chart-preview-btn relative rounded-lg overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
+            '<img src="' + image.value + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
+            '<span class="absolute top-3 left-3 bg-surface-container-lowest/90 text-primary font-metric-sm text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">' + tf.short + '</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 px-1 pt-2">' +
+            '<span class="material-symbols-outlined text-secondary text-[18px]">image</span>' +
+            '<span class="font-metric-sm text-metric-sm font-semibold text-on-surface">' + escapeHtml(image.name || 'Attached screenshot') + '</span>' +
+            linkButton +
+          '</div>' +
         '</div>'
       );
     }
