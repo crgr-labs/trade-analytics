@@ -2135,20 +2135,22 @@
         </div>
       </div>
 
+      <!-- Chart Evidence Card (multi-timeframe tabs) -->
+      <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm mt-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">show_chart</span>
+            <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Chart Evidence</h2>
+          </div>
+          <div class="flex items-center gap-2" id="cs-chart-tabs"></div>
+        </div>
+        <div id="cs-chart-container"></div>
+      </div>
+
       <!-- Two-Column Main Layout -->
       <div class="grid grid-cols-12 gap-6 mt-6">
         <!-- Left Column -->
         <div class="col-span-12 lg:col-span-7 space-y-6">
-          <!-- Entry Chart Screenshot Card -->
-          <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-[20px]">show_chart</span>
-                <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Entry Chart Screenshot</h2>
-              </div>
-            </div>
-            <div id="cs-chart-container"></div>
-          </div>
           <!-- Trade Notes Card -->
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
             <div class="flex items-center justify-between mb-3">
@@ -3305,65 +3307,6 @@
                     </div>
                   </div>
                 </div>
-                <!-- Chart Screenshot Card -->
-                <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-primary"></span>
-                      <h2
-                        class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider font-semibold">
-                        Chart Screenshot</h2>
-                    </div>
-                    <span class="font-metric-sm text-metric-sm text-secondary">ATTACHMENT</span>
-                  </div>
-                  <div class="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-surface-container-low mb-3">
-                    <label
-                      class="cursor-pointer flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-center transition-colors has-[:checked]:bg-surface-container-lowest has-[:checked]:text-primary has-[:checked]:shadow-sm font-metric-sm text-metric-sm font-semibold text-secondary">
-                      <input checked="" class="hidden" name="chart_mode" type="radio" value="upload" />
-                      <span class="material-symbols-outlined text-[15px]">image</span>
-                      Upload Image
-                    </label>
-                    <label
-                      class="cursor-pointer flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-center transition-colors has-[:checked]:bg-surface-container-lowest has-[:checked]:text-primary has-[:checked]:shadow-sm font-metric-sm text-metric-sm font-semibold text-secondary">
-                      <input class="hidden" name="chart_mode" type="radio" value="link" />
-                      <span class="material-symbols-outlined text-[15px]">link</span>
-                      Paste TradingView Link
-                    </label>
-                  </div>
-                  <div id="chart-upload-panel">
-                    <div
-                      class="group relative rounded-xl p-7 text-center flex flex-col items-center justify-center cursor-pointer bg-surface-container-low hover:bg-surface-container transition-all"
-                      id="dropzone">
-                      <input accept="image/png, image/jpeg" class="hidden" id="file-input" type="file" />
-                      <div
-                        class="w-12 h-12 rounded-full bg-surface-container-lowest shadow-sm flex items-center justify-center text-secondary group-hover:text-primary transition-colors mb-3">
-                        <span class="material-symbols-outlined text-[24px]">cloud_upload</span>
-                      </div>
-                      <span class="font-headline-sm text-headline-sm text-on-surface font-semibold">Drag a screenshot
-                        here, or click to upload</span>
-                      <span class="font-metric-sm text-metric-sm text-secondary mt-1">PNG or JPG, up to 10MB</span>
-                      <!-- Interactive Preview Container -->
-                      <div
-                        class="hidden mt-3 px-3 py-1 rounded-full bg-surface-container-lowest font-metric-sm text-metric-sm text-primary font-medium shadow-sm"
-                        id="file-name-display"></div>
-                    </div>
-                  </div>
-                  <div id="chart-link-panel" hidden>
-                    <div class="rounded-xl p-5 bg-surface-container-low">
-                      <label
-                        class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider block mb-1.5"
-                        for="input-chart-link">Snapshot URL</label>
-                      <input
-                        class="h-[38px] w-full px-3.5 rounded-lg bg-surface-container-lowest text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                        id="input-chart-link" type="text" placeholder="https://www.tradingview.com/x/XXXXXXXX/"
-                        autocomplete="off" />
-                      <p class="font-metric-sm text-metric-sm text-error mt-1.5" id="chart-link-warning" hidden>This
-                        doesn't look like a TradingView link</p>
-                      <p class="font-metric-sm text-metric-sm text-secondary mt-1.5">In TradingView, press Alt+S or use
-                        the camera icon to generate a shareable snapshot link.</p>
-                    </div>
-                  </div>
-                </div>
               </div>
               <!-- RIGHT COLUMN: Confluence Parameters & Synthesis (col-span-7) -->
               <div class="col-span-12 lg:col-span-7 flex flex-col gap-6">
@@ -3440,6 +3383,37 @@
                       <span class="opacity-60">Auto-saved to local memory</span>
                     </div>
                   </div>
+                </div>
+              </div>
+              <!-- Chart Evidence Card (multi-timeframe) -->
+              <div class="col-span-12 bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-primary"></span>
+                    <h2
+                      class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider font-semibold">
+                      Chart Evidence (Multi-Timeframe)</h2>
+                  </div>
+                  <span class="font-metric-sm text-metric-sm text-secondary" id="chart-attached-count">0 / 3
+                    ATTACHED</span>
+                </div>
+                <input accept="image/png, image/jpeg" class="hidden" id="chart-slot-input" type="file" />
+                <!-- Slots are rendered from the draft state by renderChartSlots(). -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4" id="chart-slots"></div>
+                <p class="font-metric-sm text-metric-sm text-secondary mt-3">PNG or JPG, up to 10MB. Images are resized
+                  to fit local storage.</p>
+                <div class="mt-4 pt-4 border-t border-surface-container">
+                  <label
+                    class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider block mb-1.5"
+                    for="input-chart-link">TradingView Snapshot Link (optional)</label>
+                  <input
+                    class="h-[38px] w-full px-3.5 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    id="input-chart-link" type="text" placeholder="https://www.tradingview.com/x/XXXXXXXX/"
+                    autocomplete="off" />
+                  <p class="font-metric-sm text-metric-sm text-error mt-1.5" id="chart-link-warning" hidden>This
+                    doesn't look like a TradingView link</p>
+                  <p class="font-metric-sm text-metric-sm text-secondary mt-1.5">In TradingView, press Alt+S or use
+                    the camera icon to generate a shareable snapshot link.</p>
                 </div>
               </div>
             </form>

@@ -127,6 +127,14 @@
     { id: 'seed-11', date: '2026-09-03', pair: 'BULLAUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Pullback', 'M15 30% Fibonacci Pullback', '28%', '', '4H RSI above 70'], notes: '' }
   ];
 
+  // The three fixed chart-evidence slots. `short` is the compact badge on
+  // empty slots and list thumbnails; `label` is the name on filled slots and tabs.
+  var CHART_TIMEFRAMES = [
+    { key: 'daily', label: 'Daily', short: 'D' },
+    { key: 'h4', label: '4H', short: '4H' },
+    { key: 'm15', label: 'M15', short: '15m' }
+  ];
+
   // Trades used to store confluence parameters as a fixed 7-slot array
   // (`confluence`). That's now a variable-length `parameters` array picked
   // from a multi-select. This migrates any trade still shaped the old way
@@ -148,7 +156,37 @@
     if ('chartFileName' in trade) delete trade.chartFileName;
     if (!trade.chart) trade.chart = null;
 
+    // Chart evidence is now one screenshot per timeframe (`charts`). `chart`
+    // only keeps a TradingView link; a legacy single upload has no known
+    // timeframe, so it's folded into Daily rather than dropped.
+    var charts = trade.charts && typeof trade.charts === 'object' ? trade.charts : {};
+    CHART_TIMEFRAMES.forEach(function (tf) {
+      var entry = charts[tf.key];
+      charts[tf.key] = entry && entry.value ? entry : null;
+    });
+    if (trade.chart && trade.chart.type === 'upload' && trade.chart.value) {
+      if (!charts.daily) charts.daily = { value: trade.chart.value, name: trade.chart.name || '' };
+      trade.chart = null;
+    }
+    trade.charts = charts;
+
     return trade;
+  }
+
+  function tradeCharts(trade) {
+    return trade && trade.charts ? trade.charts : { daily: null, h4: null, m15: null };
+  }
+
+  function firstChartKey(trade) {
+    var charts = tradeCharts(trade);
+    for (var i = 0; i < CHART_TIMEFRAMES.length; i++) {
+      if (charts[CHART_TIMEFRAMES[i].key]) return CHART_TIMEFRAMES[i].key;
+    }
+    return null;
+  }
+
+  function chartTimeframe(key) {
+    return CHART_TIMEFRAMES.filter(function (tf) { return tf.key === key; })[0] || CHART_TIMEFRAMES[0];
   }
 
   var TradeStore = {
@@ -343,7 +381,7 @@
   // file behind the URL - so it opens TradingView in a new tab instead.
   function tradeChartCellHtml(trade) {
     var chart = trade.chart;
-    if (chart && chart.type === 'link' && chart.value) {
+    if (chart && chart.type === 'link' && chart.value && !firstChartKey(trade)) {
       return '<a href="' + escapeHtml(chart.value) + '" target="_blank" rel="noopener noreferrer" ' +
         'class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors" ' +
         'title="Open TradingView snapshot in a new tab">' +
@@ -2810,41 +2848,70 @@
     return text.slice(0, head) + '…' + text.slice(text.length - (max - 1 - head));
   }
 
-  function chartCardHtml(trade) {
-    var chart = trade.chart;
-    if (chart && chart.type === 'upload' && chart.value) {
+  // Tab pills reuse the All / Wins / Losses pill treatment. Inside a white card
+  // the inactive pill uses surface-container-low so it stays visible.
+  function chartTabsHtml(trade, activeKey) {
+    var charts = tradeCharts(trade);
+    return CHART_TIMEFRAMES.map(function (tf) {
+      var stateClass = tf.key === activeKey
+        ? 'bg-on-surface text-surface-container-lowest'
+        : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container' + (charts[tf.key] ? '' : ' opacity-60');
       return (
-        '<div class="rounded-xl overflow-hidden shadow-sm">' +
-          '<img src="' + chart.value + '" alt="Chart screenshot for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
-        '</div>' +
-        '<div class="flex items-center gap-2 px-1 pt-2">' +
-          '<span class="material-symbols-outlined text-secondary text-[18px]">image</span>' +
-          '<span class="font-metric-sm text-metric-sm font-semibold text-on-surface">' + escapeHtml(chart.name || 'Attached screenshot') + '</span>' +
-        '</div>'
+        '<button type="button" data-tf="' + tf.key + '" class="cs-chart-tab font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all ' + stateClass + '">' +
+          tf.label +
+        '</button>'
       );
-    }
+    }).join('');
+  }
+
+  function chartEvidenceHtml(trade, tfKey) {
+    var tf = chartTimeframe(tfKey);
+    var image = tradeCharts(trade)[tf.key];
+    var link = trade.chart && trade.chart.type === 'link' && trade.chart.value ? trade.chart : null;
+
     // A TradingView snapshot URL is a web page, not an image file, and those
     // pages aren't guaranteed to permit framing - so it's presented as a
-    // link card sized like the placeholder rather than embedded.
-    if (chart && chart.type === 'link' && chart.value) {
+    // link card sized like the placeholder rather than embedded. It only
+    // takes the body when there is no uploaded screenshot to show instead.
+    if (link && !firstChartKey(trade)) {
       return (
         '<div class="rounded-xl bg-surface-container-low p-10 flex flex-col items-center justify-center text-center gap-2">' +
           '<span class="material-symbols-outlined text-primary text-[32px]">candlestick_chart</span>' +
           '<span class="font-headline-sm text-headline-sm text-on-surface font-medium">TradingView snapshot</span>' +
-          '<span class="font-metric-sm text-metric-sm text-secondary break-all max-w-full" title="' + escapeHtml(chart.value) + '">' + escapeHtml(truncateMiddle(chart.value, 52)) + '</span>' +
-          '<a href="' + escapeHtml(chart.value) + '" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-container text-on-primary px-3.5 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold shadow-sm transition-colors">' +
+          '<span class="font-metric-sm text-metric-sm text-secondary break-all max-w-full" title="' + escapeHtml(link.value) + '">' + escapeHtml(truncateMiddle(link.value, 52)) + '</span>' +
+          '<a href="' + escapeHtml(link.value) + '" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-container text-on-primary px-3.5 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold shadow-sm transition-colors">' +
             'View Chart on TradingView' +
             '<span class="material-symbols-outlined text-[15px]">open_in_new</span>' +
           '</a>' +
         '</div>'
       );
     }
+
+    var linkButton = link
+      ? '<a href="' + escapeHtml(link.value) + '" target="_blank" rel="noopener noreferrer" class="ml-auto inline-flex items-center gap-1 text-primary hover:underline font-metric-sm text-metric-sm font-semibold">' +
+          'View on TradingView<span class="material-symbols-outlined text-[14px]">open_in_new</span></a>'
+      : '';
+
+    if (image) {
+      return (
+        '<div class="chart-preview-btn rounded-xl overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
+          '<img src="' + image.value + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
+        '</div>' +
+        '<div class="flex items-center gap-2 px-1 pt-2">' +
+          '<span class="material-symbols-outlined text-secondary text-[18px]">image</span>' +
+          '<span class="font-metric-sm text-metric-sm font-semibold text-on-surface">' + escapeHtml(image.name || 'Attached screenshot') + '</span>' +
+          linkButton +
+        '</div>'
+      );
+    }
+
     return (
       '<div class="rounded-xl bg-surface-container-low p-10 flex flex-col items-center justify-center text-center gap-2">' +
         '<span class="material-symbols-outlined text-secondary text-[32px]">image</span>' +
-        '<span class="font-headline-sm text-headline-sm text-on-surface font-medium">No chart attached</span>' +
+        '<span class="font-headline-sm text-headline-sm text-on-surface font-medium">No ' + tf.label + ' chart attached</span>' +
         '<span class="font-metric-sm text-metric-sm text-secondary">Attach one from Edit Entry</span>' +
-      '</div>'
+      '</div>' +
+      (link ? '<div class="flex items-center px-1 pt-2">' + linkButton + '</div>' : '')
     );
   }
 
@@ -2984,7 +3051,8 @@
     var directionClass = DIRECTION_BADGE_CLASS[trade.direction] || DIRECTION_BADGE_CLASS.long;
     var filledCount = nonEmptyConfluence(trade).length;
     return (
-      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-surface-container-low/60 transition-colors">' +
+      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="block px-5 py-3.5 hover:bg-surface-container-low/60 transition-colors">' +
+      '<div class="flex items-center justify-between gap-4">' +
         '<div class="flex items-center gap-3 min-w-0">' +
           '<div class="flex flex-col shrink-0 w-16">' +
             '<span class="font-headline-sm text-headline-sm text-on-surface">' + formatDateLabel(trade.date) + '</span>' +
@@ -3000,8 +3068,34 @@
           '</span>' +
           '<span class="material-symbols-outlined text-secondary text-[18px]">chevron_right</span>' +
         '</div>' +
+      '</div>' +
+      // Aligned under the pair (date column w-16 + gap-3), so the strip reads
+      // as part of the row's content rather than a separate footer.
+      '<div class="flex items-center gap-2 mt-2 pl-[4.75rem]">' + chartStripHtml(trade) + '</div>' +
       '</a>'
     );
+  }
+
+  // Always three boxes, so a missing timeframe reads as "not logged" rather
+  // than leaving a gap.
+  function chartStripHtml(trade) {
+    var charts = tradeCharts(trade);
+    return CHART_TIMEFRAMES.map(function (tf) {
+      var image = charts[tf.key];
+      var badge = '<span class="absolute top-0.5 left-0.5 bg-surface-container-lowest/90 text-primary font-metric-sm text-[9px] font-semibold leading-none px-1 py-0.5 rounded">' + tf.short + '</span>';
+      if (image) {
+        return (
+          '<div class="relative w-14 h-9 rounded-lg overflow-hidden bg-surface-container-low" title="' + tf.label + ' chart">' +
+            '<img src="' + image.value + '" alt="" class="w-full h-full object-cover" />' + badge +
+          '</div>'
+        );
+      }
+      return (
+        '<div class="relative w-14 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-secondary opacity-40" title="No ' + tf.label + ' chart">' +
+          '<span class="material-symbols-outlined text-[14px]">image</span>' + badge +
+        '</div>'
+      );
+    }).join('');
   }
 
   function renderCaseStudyList() {
@@ -3037,6 +3131,19 @@
         renderCaseStudyList();
       });
     }
+  }
+
+  // Which trade and timeframe the detail view's chart card is showing. The
+  // card's innerHTML is rebuilt on every render, so the tab clicks are
+  // delegated from a listener registered once in initCaseStudyActions.
+  var csChartTradeId = null;
+  var csActiveChartTf = 'daily';
+
+  function renderCaseStudyChart(section, trade) {
+    var tabs = section.querySelector('#cs-chart-tabs');
+    var container = section.querySelector('#cs-chart-container');
+    if (tabs) tabs.innerHTML = chartTabsHtml(trade, csActiveChartTf);
+    if (container) container.innerHTML = chartEvidenceHtml(trade, csActiveChartTf);
   }
 
   function renderCaseStudy(tradeIdParam) {
@@ -3132,7 +3239,9 @@
     section.querySelector('#cs-confluence-pct').textContent = confluenceComparisonWord + ' your ' + avgConfluence.toFixed(1) + ' average';
     section.querySelector('#cs-confluence-bar').style.width = confluenceBarPct + '%';
 
-    section.querySelector('#cs-chart-container').innerHTML = chartCardHtml(trade);
+    csChartTradeId = trade.id;
+    csActiveChartTf = firstChartKey(trade) || 'daily';
+    renderCaseStudyChart(section, trade);
     section.querySelector('#cs-notes-text').textContent = trade.notes && trade.notes.trim() ? trade.notes : 'No notes recorded for this trade.';
 
     section.querySelector('#cs-detail-pair-label').textContent = 'PAIR: ' + splitPairLabel(trade.pair);
@@ -3215,6 +3324,18 @@
     var section = sections['case-studies'];
     if (!section) return;
 
+    var chartTabs = section.querySelector('#cs-chart-tabs');
+    if (chartTabs) {
+      chartTabs.addEventListener('click', function (e) {
+        var tab = e.target.closest ? e.target.closest('.cs-chart-tab') : null;
+        if (!tab || !csChartTradeId) return;
+        var trade = TradeStore.getById(csChartTradeId);
+        if (!trade) return;
+        csActiveChartTf = tab.getAttribute('data-tf') || 'daily';
+        renderCaseStudyChart(section, trade);
+      });
+    }
+
     var editBtn = section.querySelector('#cs-btn-edit');
     if (editBtn) {
       editBtn.addEventListener('click', function () {
@@ -3293,14 +3414,18 @@
       applyZoom();
     }
 
-    function openModal(trade) {
-      title.textContent = trade.pair + ' — Chart Screenshot';
+    // A requested timeframe with no image falls back to the first one that
+    // has one, so the table's single preview button always opens something.
+    function openModal(trade, tfKey) {
+      var charts = tradeCharts(trade);
+      var key = tfKey && charts[tfKey] ? tfKey : firstChartKey(trade);
+      var uploadedChart = key ? charts[key].value : null;
+      title.textContent = trade.pair + ' — ' + (key ? chartTimeframe(key).label + ' Chart' : 'Chart Screenshot');
       zoomLevel = 100;
       isSpaceDown = false;
       isPanning = false;
-      var uploadedChart = trade.chart && trade.chart.type === 'upload' ? trade.chart.value : null;
       if (uploadedChart) {
-        body.innerHTML = '<img src="' + uploadedChart + '" alt="Chart screenshot for ' + escapeHtml(trade.pair) + '" class="rounded-lg" draggable="false" />';
+        body.innerHTML = '<img src="' + uploadedChart + '" alt="' + (key ? chartTimeframe(key).label : 'Chart') + ' chart for ' + escapeHtml(trade.pair) + '" class="rounded-lg" draggable="false" />';
         var img = currentImage();
         img.addEventListener('click', function () {
           if (didPan) { didPan = false; return; }
@@ -3341,7 +3466,7 @@
       if (btn) {
         var id = btn.getAttribute('data-trade-id');
         var trade = id ? TradeStore.getById(id) : null;
-        if (trade) openModal(trade);
+        if (trade) openModal(trade, btn.getAttribute('data-tf'));
       }
     });
 
@@ -3396,11 +3521,87 @@
   // New Trade Entry screen
   // ---------------------------------------------------------------------
 
-  var MAX_CHART_IMAGE_BYTES = 3 * 1024 * 1024; // localStorage-safe cap for an attached screenshot
+  // Three screenshots per trade all live in one localStorage key, so every
+  // upload is resized and re-encoded as JPEG before it's stored. The input cap
+  // only guards against absurdly large files; the stored copy is far smaller.
+  var MAX_CHART_INPUT_BYTES = 10 * 1024 * 1024;
+  var CHART_MAX_EDGE_PX = 1600;
+  var CHART_TARGET_BYTES = 500 * 1024;
+  var CHART_MIN_QUALITY = 0.6;
   var nteEditingTradeId = null;
   var ntePromotingPositionId = null;
-  var ntePendingChartImage = null;
-  var ntePendingChartFileName = null;
+  var nteChartImages = { daily: null, h4: null, m15: null };
+  var nteChartErrors = {};
+  var nteChartTargetTf = null;
+  // Bumped whenever the form is reset, so an image still being compressed
+  // from a previous draft can't land in the next one.
+  var nteChartEpoch = 0;
+
+  function compressChartImage(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var scale = Math.min(1, CHART_MAX_EDGE_PX / Math.max(img.naturalWidth, img.naturalHeight));
+        var width = Math.max(1, Math.round(img.naturalWidth * scale));
+        var height = Math.max(1, Math.round(img.naturalHeight * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        var ctx = canvas.getContext('2d');
+        // JPEG has no alpha, so a transparent PNG would otherwise go black.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        var quality = 0.82;
+        var dataUrl = canvas.toDataURL('image/jpeg', quality);
+        // base64 is ~4/3 the size of the bytes it encodes.
+        while (dataUrl.length * 0.75 > CHART_TARGET_BYTES && quality > CHART_MIN_QUALITY) {
+          quality = Math.round((quality - 0.05) * 100) / 100;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve({ value: dataUrl, name: file.name.replace(/\.[^.]+$/, '') + '.jpg' });
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('unreadable image'));
+      };
+      img.src = url;
+    });
+  }
+
+  function renderChartSlots(section) {
+    var container = section.querySelector('#chart-slots');
+    if (!container) return;
+    var attached = 0;
+    container.innerHTML = CHART_TIMEFRAMES.map(function (tf) {
+      var image = nteChartImages[tf.key];
+      var error = nteChartErrors[tf.key];
+      var slot;
+      if (image) {
+        attached += 1;
+        slot =
+          '<div class="chart-slot relative aspect-[16/10] rounded-xl overflow-hidden bg-surface-container-low cursor-pointer transition-all" data-tf="' + tf.key + '" role="button" tabindex="0" title="Click to replace">' +
+            '<img src="' + image.value + '" alt="' + tf.label + ' chart" class="absolute inset-0 w-full h-full object-cover" />' +
+            '<span class="absolute top-2 left-2 bg-surface-container-lowest/90 text-primary font-metric-sm text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm">' + tf.label + '</span>' +
+            '<button type="button" class="chart-slot-remove absolute top-2 right-2 w-6 h-6 rounded-full bg-surface-container-lowest/90 text-secondary hover:text-error shadow-sm flex items-center justify-center transition-colors" data-tf="' + tf.key + '" aria-label="Remove ' + tf.label + ' chart">' +
+              '<span class="material-symbols-outlined text-[14px]">close</span>' +
+            '</button>' +
+          '</div>';
+      } else {
+        slot =
+          '<div class="chart-slot group relative aspect-[16/10] rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low hover:bg-surface-container hover:border-primary transition-all flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer px-3" data-tf="' + tf.key + '" role="button" tabindex="0">' +
+            '<span class="absolute top-2 left-2 bg-primary/10 text-primary font-metric-sm text-[10px] font-semibold px-1.5 py-0.5 rounded">' + tf.short + '</span>' +
+            '<span class="material-symbols-outlined text-[24px] text-secondary group-hover:text-primary transition-colors">add_a_photo</span>' +
+            '<span class="font-metric-sm text-metric-sm text-secondary">Drop image or click to upload</span>' +
+          '</div>';
+      }
+      return '<div>' + slot + (error ? '<p class="font-metric-sm text-metric-sm text-error mt-1.5">' + escapeHtml(error) + '</p>' : '') + '</div>';
+    }).join('');
+    var counter = section.querySelector('#chart-attached-count');
+    if (counter) counter.textContent = attached + ' / ' + CHART_TIMEFRAMES.length + ' ATTACHED';
+  }
 
   // ---------------------------------------------------------------------
   // Confluence Parameters multi-select (New Trade Entry)
@@ -3941,15 +4142,6 @@
     }
   }
 
-  function applyChartMode(section) {
-    var modeInput = section.querySelector('input[name="chart_mode"]:checked');
-    var mode = modeInput ? modeInput.value : 'upload';
-    var uploadPanel = section.querySelector('#chart-upload-panel');
-    var linkPanel = section.querySelector('#chart-link-panel');
-    if (uploadPanel) uploadPanel.hidden = mode !== 'upload';
-    if (linkPanel) linkPanel.hidden = mode !== 'link';
-  }
-
   // Deliberately advisory only - a snapshot can live on a shortened or
   // regional domain, so an unexpected host is flagged but never blocks a save.
   function validateChartLink(section) {
@@ -3965,9 +4157,6 @@
     if (!section) return;
 
     var form = section.querySelector('#trade-entry-form');
-    var dropzone = section.querySelector('#dropzone');
-    var fileInput = section.querySelector('#file-input');
-    var fileNameDisplay = section.querySelector('#file-name-display');
     var entryInput = section.querySelector('#input-entry');
     var exitInput = section.querySelector('#input-exit');
     var saveBtn = section.querySelector('#btn-save-trade');
@@ -3976,38 +4165,88 @@
 
     initConfluencePicker(section);
 
-    form.querySelectorAll('input[name="chart_mode"]').forEach(function (radio) {
-      radio.addEventListener('change', function () { applyChartMode(section); });
-    });
     var chartLinkInput = section.querySelector('#input-chart-link');
     if (chartLinkInput) {
       chartLinkInput.addEventListener('input', function () { validateChartLink(section); });
     }
 
-    if (dropzone && fileInput) {
-      dropzone.addEventListener('click', function () { fileInput.click(); });
-    }
-    if (fileInput && fileNameDisplay) {
-      fileInput.addEventListener('change', function (e) {
-        var file = e.target.files[0];
-        if (!file) return;
+    var slotsEl = section.querySelector('#chart-slots');
+    var slotInput = section.querySelector('#chart-slot-input');
 
-        if (file.size > MAX_CHART_IMAGE_BYTES) {
-          ntePendingChartImage = null;
-          ntePendingChartFileName = file.name;
-          fileNameDisplay.textContent = file.name + ' is too large to store (max 3MB) — trade will save without the image';
-          fileNameDisplay.classList.remove('hidden');
+    function attachChartFile(tfKey, file) {
+      if (!file) return;
+      if (!/^image\/(png|jpeg)$/.test(file.type)) {
+        nteChartErrors[tfKey] = 'Use a PNG or JPG image';
+        renderChartSlots(section);
+        return;
+      }
+      if (file.size > MAX_CHART_INPUT_BYTES) {
+        nteChartErrors[tfKey] = file.name + ' is larger than 10MB';
+        renderChartSlots(section);
+        return;
+      }
+      delete nteChartErrors[tfKey];
+      var epoch = nteChartEpoch;
+      compressChartImage(file).then(function (result) {
+        if (epoch !== nteChartEpoch) return;
+        nteChartImages[tfKey] = result;
+        renderChartSlots(section);
+      }).catch(function () {
+        if (epoch !== nteChartEpoch) return;
+        nteChartErrors[tfKey] = 'Couldn\u2019t read that image';
+        renderChartSlots(section);
+      });
+    }
+
+    function slotFromEvent(e) {
+      return e.target.closest ? e.target.closest('.chart-slot') : null;
+    }
+
+    function openSlotPicker(slot) {
+      nteChartTargetTf = slot.getAttribute('data-tf');
+      slotInput.value = '';
+      slotInput.click();
+    }
+
+    if (slotsEl && slotInput) {
+      slotsEl.addEventListener('click', function (e) {
+        var removeBtn = e.target.closest ? e.target.closest('.chart-slot-remove') : null;
+        if (removeBtn) {
+          var removeKey = removeBtn.getAttribute('data-tf');
+          nteChartImages[removeKey] = null;
+          delete nteChartErrors[removeKey];
+          renderChartSlots(section);
           return;
         }
-
-        var reader = new FileReader();
-        reader.onload = function () {
-          ntePendingChartImage = reader.result;
-          ntePendingChartFileName = file.name;
-          fileNameDisplay.textContent = 'Selected: ' + file.name;
-          fileNameDisplay.classList.remove('hidden');
-        };
-        reader.readAsDataURL(file);
+        var slot = slotFromEvent(e);
+        if (slot) openSlotPicker(slot);
+      });
+      slotsEl.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var slot = slotFromEvent(e);
+        if (!slot || e.target !== slot) return;
+        e.preventDefault();
+        openSlotPicker(slot);
+      });
+      slotsEl.addEventListener('dragover', function (e) {
+        var slot = slotFromEvent(e);
+        if (!slot) return;
+        e.preventDefault();
+        slot.classList.add('ring-2', 'ring-primary');
+      });
+      slotsEl.addEventListener('dragleave', function (e) {
+        var slot = slotFromEvent(e);
+        if (slot && !slot.contains(e.relatedTarget)) slot.classList.remove('ring-2', 'ring-primary');
+      });
+      slotsEl.addEventListener('drop', function (e) {
+        var slot = slotFromEvent(e);
+        if (!slot) return;
+        e.preventDefault();
+        slot.classList.remove('ring-2', 'ring-primary');
+        attachChartFile(slot.getAttribute('data-tf'), e.dataTransfer && e.dataTransfer.files[0]);
+      });
+      slotInput.addEventListener('change', function (e) {
+        if (nteChartTargetTf) attachChartFile(nteChartTargetTf, e.target.files[0]);
       });
     }
 
@@ -4023,19 +4262,10 @@
     if (leverageMultiplierEl) leverageMultiplierEl.addEventListener('change', updateDelta);
     form.querySelectorAll('input[name="margin_mode"]').forEach(function (r) { r.addEventListener('change', updateDelta); });
 
-    // Whichever mode the toggle is on wins, so switching modes swaps the
-    // attachment rather than keeping both.
-    function collectChart() {
-      var modeInput = form.querySelector('input[name="chart_mode"]:checked');
-      var mode = modeInput ? modeInput.value : 'upload';
-      if (mode === 'link') {
-        var linkInput = section.querySelector('#input-chart-link');
-        var url = linkInput ? linkInput.value.trim() : '';
-        return url ? { type: 'link', value: url } : null;
-      }
-      return ntePendingChartImage
-        ? { type: 'upload', value: ntePendingChartImage, name: ntePendingChartFileName || '' }
-        : null;
+    function collectChartLink() {
+      var linkInput = section.querySelector('#input-chart-link');
+      var url = linkInput ? linkInput.value.trim() : '';
+      return url ? { type: 'link', value: url } : null;
     }
 
     function collectTrade() {
@@ -4069,7 +4299,8 @@
         stopLoss: stopLossInput ? stopLossInput.value.trim() : '',
         outcome: outcomeInput ? outcomeInput.value : 'open',
         parameters: nteSelectedParameters.slice(),
-        chart: collectChart(),
+        charts: CHART_TIMEFRAMES.reduce(function (acc, tf) { acc[tf.key] = nteChartImages[tf.key]; return acc; }, {}),
+        chart: collectChartLink(),
         notes: notesInput ? notesInput.value.trim() : ''
       };
 
@@ -4137,7 +4368,6 @@
     if (!section) return;
 
     var form = section.querySelector('#trade-entry-form');
-    var fileNameDisplay = section.querySelector('#file-name-display');
     var headingEl = section.querySelector('#nte-heading');
     var stageBadgeEl = section.querySelector('#nte-stage-badge');
     var saveBtn = section.querySelector('#btn-save-trade');
@@ -4160,13 +4390,11 @@
     var trade = tradeId ? TradeStore.getById(tradeId) : null;
 
     form.reset();
-    ntePendingChartImage = null;
-    ntePendingChartFileName = null;
+    nteChartEpoch += 1;
+    nteChartImages = { daily: null, h4: null, m15: null };
+    nteChartErrors = {};
+    nteChartTargetTf = null;
     ntePromotingPositionId = null;
-    if (fileNameDisplay) {
-      fileNameDisplay.textContent = '';
-      fileNameDisplay.classList.add('hidden');
-    }
     nteSelectedParameters = trade ? nonEmptyConfluence(trade).slice() : [];
     renderConfluenceGrid(section);
     var confluenceAddInput = section.querySelector('#confluence-add-input');
@@ -4198,19 +4426,11 @@
         var radio = form.querySelector('input[name="' + name + '"][value="' + value + '"]');
         if (radio) radio.checked = true;
       });
-      if (trade.chart && trade.chart.type === 'upload' && trade.chart.value) {
-        ntePendingChartImage = trade.chart.value;
-        ntePendingChartFileName = trade.chart.name || 'Attached screenshot';
-        if (fileNameDisplay) {
-          fileNameDisplay.textContent = 'Current: ' + ntePendingChartFileName;
-          fileNameDisplay.classList.remove('hidden');
-        }
-      } else if (trade.chart && trade.chart.type === 'link') {
-        var linkRadio = form.querySelector('input[name="chart_mode"][value="link"]');
-        if (linkRadio) linkRadio.checked = true;
-        var linkField = section.querySelector('#input-chart-link');
-        if (linkField) linkField.value = trade.chart.value || '';
-      }
+      CHART_TIMEFRAMES.forEach(function (tf) {
+        nteChartImages[tf.key] = tradeCharts(trade)[tf.key];
+      });
+      var linkField = section.querySelector('#input-chart-link');
+      if (linkField) linkField.value = trade.chart && trade.chart.type === 'link' ? (trade.chart.value || '') : '';
       if (headingEl) headingEl.textContent = 'Edit Trade';
       if (stageBadgeEl) { stageBadgeEl.textContent = 'STAGE: EDIT'; }
       if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Changes';
@@ -4240,7 +4460,7 @@
       if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Trade';
     }
 
-    applyChartMode(section);
+    renderChartSlots(section);
     validateChartLink(section);
     updateDeltaDisplay(section);
   }
@@ -4769,14 +4989,24 @@
   // local TradeStore copy is never touched, only this outbound payload.
   function buildRemoteTradesPayload(trades) {
     return trades.map(function (t) {
-      if (t.chart && t.chart.type === 'upload' && t.chart.value) {
-        var copy = {};
-        Object.keys(t).forEach(function (k) { copy[k] = t[k]; });
-        copy.chart = { type: 'upload-ref', ref: 'images/' + t.id + '.' + deriveImageExtension(t.chart), name: t.chart.name || '' };
-        return copy;
-      }
-      return t;
+      var charts = t.charts;
+      var hasUpload = charts && CHART_TIMEFRAMES.some(function (tf) { return charts[tf.key] && charts[tf.key].value; });
+      if (!hasUpload) return t;
+      var copy = {};
+      Object.keys(t).forEach(function (k) { copy[k] = t[k]; });
+      copy.charts = {};
+      CHART_TIMEFRAMES.forEach(function (tf) {
+        var image = charts[tf.key];
+        copy.charts[tf.key] = image && image.value
+          ? { type: 'upload-ref', ref: chartImagePath(t.id, tf.key, image), name: image.name || '' }
+          : null;
+      });
+      return copy;
     });
+  }
+
+  function chartImagePath(tradeId, tfKey, image) {
+    return 'images/' + tradeId + '-' + tfKey + '.' + deriveImageExtension(image);
   }
 
   function computeDataFingerprint(trades, positions) {
@@ -4793,28 +5023,34 @@
     var tasks = [];
 
     trades.forEach(function (t) {
-      if (!(t.chart && t.chart.type === 'upload' && t.chart.value)) return;
-      var fingerprint = simpleHash(t.chart.value);
-      var cached = cache[t.id];
-      var ext = deriveImageExtension(t.chart);
-      if (cached && cached.fingerprint === fingerprint) {
-        nextCache[t.id] = cached;
-        return;
-      }
-      var path = 'images/' + t.id + '.' + ext;
-      var base64 = t.chart.value.split(',')[1] || '';
-      var message = 'Update chart for ' + (t.pair || t.id);
-      var task = ghPutFile(cfg, path, base64, cached ? cached.sha : null, message)
-        .then(function (result) {
-          if (result.ok) return result;
-          return ghGetFile(cfg, path, true).then(function (existing) {
-            return ghPutFile(cfg, path, base64, existing.exists ? existing.sha : null, message);
+      CHART_TIMEFRAMES.forEach(function (tf) {
+        var image = t.charts && t.charts[tf.key];
+        if (!(image && image.value)) return;
+        var cacheKey = t.id + ':' + tf.key;
+        var fingerprint = simpleHash(image.value);
+        var cached = cache[cacheKey];
+        var ext = deriveImageExtension(image);
+        if (cached && cached.fingerprint === fingerprint && cached.ext === ext) {
+          nextCache[cacheKey] = cached;
+          return;
+        }
+        var path = chartImagePath(t.id, tf.key, image);
+        var base64 = image.value.split(',')[1] || '';
+        var message = 'Update ' + tf.label + ' chart for ' + (t.pair || t.id);
+        // A cached sha belongs to the old path if the extension changed.
+        var knownSha = cached && cached.ext === ext ? cached.sha : null;
+        var task = ghPutFile(cfg, path, base64, knownSha, message)
+          .then(function (result) {
+            if (result.ok) return result;
+            return ghGetFile(cfg, path, true).then(function (existing) {
+              return ghPutFile(cfg, path, base64, existing.exists ? existing.sha : null, message);
+            });
+          })
+          .then(function (result) {
+            if (result.ok) nextCache[cacheKey] = { sha: result.sha, fingerprint: fingerprint, ext: ext };
           });
-        })
-        .then(function (result) {
-          if (result.ok) nextCache[t.id] = { sha: result.sha, fingerprint: fingerprint, ext: ext };
-        });
-      tasks.push(task);
+        tasks.push(task);
+      });
     });
 
     return Promise.all(tasks).then(function () {
@@ -4875,21 +5111,36 @@
     githubPushDebounceTimer = setTimeout(pushToGitHub, GITHUB_PUSH_DEBOUNCE_MS);
   }
 
-  // Rebuilds the full data-URI chart shape every render call site already
-  // expects. A missing/unreachable image degrades to an unrecognized
-  // chart.type (renders as "no chart") rather than failing the whole pull.
-  function hydrateChartRef(cfg, trade) {
-    if (!(trade.chart && trade.chart.type === 'upload-ref' && trade.chart.ref)) {
-      return Promise.resolve(trade);
-    }
-    return ghGetFile(cfg, trade.chart.ref, true).then(function (result) {
-      if (!result.exists) return trade;
-      var ext = (trade.chart.ref.split('.').pop() || 'png').toLowerCase();
-      trade.chart = { type: 'upload', value: 'data:' + mimeForExtension(ext) + ';base64,' + result.text, name: trade.chart.name || '' };
-      return trade;
-    }).catch(function () {
-      return trade;
+  // Resolves to the {value, name} image shape every render call site expects,
+  // or null when the file is definitively gone from the repo. A network
+  // failure is not swallowed - it rejects, aborting the pull, so a flaky
+  // fetch can't wipe a local image (a later push would drop the remote ref).
+  function fetchChartImage(cfg, entry) {
+    return ghGetFile(cfg, entry.ref, true).then(function (result) {
+      if (!result.exists) return null;
+      var ext = (entry.ref.split('.').pop() || 'png').toLowerCase();
+      return { value: 'data:' + mimeForExtension(ext) + ';base64,' + result.text, name: entry.name || '' };
     });
+  }
+
+  // Handles both the per-timeframe `charts` refs and the legacy single
+  // `chart` ref (pre-multi-timeframe data), which migrateTrade then folds
+  // into Daily.
+  function hydrateChartRef(cfg, trade) {
+    var tasks = [];
+    if (trade.chart && trade.chart.type === 'upload-ref' && trade.chart.ref) {
+      tasks.push(fetchChartImage(cfg, trade.chart).then(function (image) {
+        trade.chart = image ? { type: 'upload', value: image.value, name: image.name } : null;
+      }));
+    }
+    CHART_TIMEFRAMES.forEach(function (tf) {
+      var entry = trade.charts && trade.charts[tf.key];
+      if (!(entry && entry.type === 'upload-ref' && entry.ref)) return;
+      tasks.push(fetchChartImage(cfg, entry).then(function (image) {
+        trade.charts[tf.key] = image;
+      }));
+    });
+    return Promise.all(tasks).then(function () { return trade; });
   }
 
   function pullFromGitHub() {
@@ -4924,7 +5175,7 @@
         return;
       }
 
-      return Promise.all(remoteTrades.map(function (t) { return hydrateChartRef(cfg, t); })).then(function (hydratedTrades) {
+      return Promise.all(remoteTrades.map(function (t) { return hydrateChartRef(cfg, t).then(migrateTrade); })).then(function (hydratedTrades) {
         githubSyncApplyingRemote = true;
         TradeStore.setAll(hydratedTrades);
         PositionStore.setAll(remotePositions);
