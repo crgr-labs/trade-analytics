@@ -2973,6 +2973,7 @@
 
   function saveParamCategories(categories) {
     try { localStorage.setItem(PARAM_CATEGORY_STORAGE_KEY, JSON.stringify(categories)); } catch (e) {}
+    scheduleGithubSync();
   }
 
   function loadParamCategories() {
@@ -3781,6 +3782,7 @@
 
   function saveConfluenceVocabulary(vocab) {
     try { localStorage.setItem(CUSTOM_PARAMS_STORAGE_KEY, JSON.stringify(vocab)); } catch (e) {}
+    scheduleGithubSync();
   }
 
   // Built-ins missing from storage are normally re-seeded, so that a
@@ -3799,12 +3801,17 @@
     }
   }
 
+  function saveRemovedDefaults(removed) {
+    try { localStorage.setItem(REMOVED_DEFAULTS_STORAGE_KEY, JSON.stringify(removed)); } catch (e) {}
+    scheduleGithubSync();
+  }
+
   function rememberRemovedDefault(name) {
     if (CONFLUENCE_PARAMETER_LIBRARY.indexOf(name) === -1) return;
     var removed = getRemovedDefaults();
     if (removed.indexOf(name.toLowerCase()) !== -1) return;
     removed.push(name.toLowerCase());
-    try { localStorage.setItem(REMOVED_DEFAULTS_STORAGE_KEY, JSON.stringify(removed)); } catch (e) {}
+    saveRemovedDefaults(removed);
   }
 
   // Reads the stored vocabulary, upgrading it in place the first time:
@@ -4928,8 +4935,9 @@
   }
 
   // ---------------------------------------------------------------------
-  // GitHub Sync — backs trades/positions/chart images up to a private
-  // GitHub repo the user configures in the header panel. Every entry point
+  // GitHub Sync — backs trades/positions/chart images/confluence categories
+  // & parameter vocabulary up to a private GitHub repo the user configures
+  // in the header panel. Every entry point
   // below no-ops immediately when ghConfigGet() returns null, so the app
   // behaves exactly as it does with sync never set up.
   // ---------------------------------------------------------------------
@@ -5163,8 +5171,19 @@
     return 'images/' + tradeId + '-' + tfKey + '.' + deriveImageExtension(image);
   }
 
+  // The confluence category list and parameter vocabulary travel alongside
+  // trades/positions so a new device gets the same categories and
+  // sub-categories instead of falling back to the built-in defaults.
+  function buildRemoteParamsPayload() {
+    return {
+      categories: loadParamCategories(),
+      vocabulary: loadConfluenceVocabulary(),
+      removedDefaults: getRemovedDefaults()
+    };
+  }
+
   function computeDataFingerprint(trades, positions) {
-    return simpleHash(JSON.stringify(buildRemoteTradesPayload(trades)) + JSON.stringify(positions));
+    return simpleHash(JSON.stringify(buildRemoteTradesPayload(trades)) + JSON.stringify(positions) + JSON.stringify(buildRemoteParamsPayload()));
   }
 
   // Skips re-uploading (and re-committing) a chart image whose bytes
@@ -5237,9 +5256,11 @@
     uploadChangedImages(cfg, trades).then(function () {
       var tradesJson = JSON.stringify(buildRemoteTradesPayload(trades), null, 2);
       var positionsJson = JSON.stringify(positions, null, 2);
+      var paramsJson = JSON.stringify(buildRemoteParamsPayload(), null, 2);
       return Promise.all([
         putJsonFile('data/trades.json', tradesJson, 'tradesSha', 'Sync trades'),
-        putJsonFile('data/positions.json', positionsJson, 'positionsSha', 'Sync positions')
+        putJsonFile('data/positions.json', positionsJson, 'positionsSha', 'Sync positions'),
+        putJsonFile('data/parameters.json', paramsJson, 'paramsSha', 'Sync confluence categories')
       ]);
     }).then(function (results) {
       if (!results.every(function (r) { return r.ok; })) {
@@ -5248,6 +5269,7 @@
       ghMetaSet({
         tradesSha: meta.tradesSha,
         positionsSha: meta.positionsSha,
+        paramsSha: meta.paramsSha,
         lastPushedFingerprint: computeDataFingerprint(trades, positions),
         lastPushAt: Date.now(),
         lastSyncAt: Date.now()
@@ -5305,12 +5327,14 @@
 
     Promise.all([
       ghGetFile(cfg, 'data/trades.json'),
-      ghGetFile(cfg, 'data/positions.json')
+      ghGetFile(cfg, 'data/positions.json'),
+      ghGetFile(cfg, 'data/parameters.json')
     ]).then(function (results) {
       var tradesFile = results[0];
       var positionsFile = results[1];
+      var paramsFile = results[2];
 
-      if (!tradesFile.exists && !positionsFile.exists) {
+      if (!tradesFile.exists && !positionsFile.exists && !paramsFile.exists) {
         // Brand-new empty data repo - seed it from whatever's local.
         pushToGitHub();
         return;
@@ -5318,6 +5342,7 @@
 
       var remoteTrades = tradesFile.exists ? JSON.parse(tradesFile.text) : [];
       var remotePositions = positionsFile.exists ? JSON.parse(positionsFile.text) : [];
+      var remoteParams = paramsFile.exists ? JSON.parse(paramsFile.text) : null;
 
       var localFingerprint = computeDataFingerprint(TradeStore.getAll(), PositionStore.getAll());
       var meta = ghMetaGet();
@@ -5333,11 +5358,20 @@
         githubSyncApplyingRemote = true;
         TradeStore.setAll(hydratedTrades);
         PositionStore.setAll(remotePositions);
+        if (remoteParams) {
+          // A repo synced before this feature existed won't have this file
+          // yet - keep whatever categories/vocabulary are local until the
+          // next push creates it.
+          if (Array.isArray(remoteParams.categories)) saveParamCategories(remoteParams.categories);
+          if (Array.isArray(remoteParams.vocabulary)) saveConfluenceVocabulary(remoteParams.vocabulary);
+          if (Array.isArray(remoteParams.removedDefaults)) saveRemovedDefaults(remoteParams.removedDefaults);
+        }
         githubSyncApplyingRemote = false;
 
         ghMetaSet({
           tradesSha: tradesFile.exists ? tradesFile.sha : null,
           positionsSha: positionsFile.exists ? positionsFile.sha : null,
+          paramsSha: paramsFile.exists ? paramsFile.sha : null,
           lastPushedFingerprint: computeDataFingerprint(hydratedTrades, remotePositions),
           lastSyncAt: Date.now()
         });
