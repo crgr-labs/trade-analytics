@@ -4886,6 +4886,14 @@
     }
 
     // --- Reliability and Coverage ---
+    var reliabilityTitleEl = section.querySelector('#ins-reliability-title');
+    if (reliabilityTitleEl) {
+      reliabilityTitleEl.textContent = !allTrades.length
+        ? 'No Trades Logged Yet'
+        : closed.length < COMPARISON_MIN_SAMPLE
+          ? 'Sample Is Still Developing'
+          : 'Sample Is Established';
+    }
     var coverageEl = section.querySelector('#ins-reliability-coverage');
     if (coverageEl) {
       coverageEl.textContent = tradeDates.length
