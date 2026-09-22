@@ -2567,6 +2567,7 @@
   function tradeToTimingRecord(trade, offsetMinutes) {
     var ret = computeTradeReturn(trade);
     return {
+      id: trade.id,
       dateStr: trade.date,
       utcMinutes: entryUtcMinutesForTrade(trade, offsetMinutes),
       isWin: trade.outcome === 'win',
@@ -2593,6 +2594,7 @@
       utcMinutes = d.getUTCHours() * 60 + d.getUTCMinutes();
     }
     return {
+      id: position.id,
       dateStr: isoDateOnly(position.openTime),
       utcMinutes: utcMinutes,
       isWin: position.pnl > 0,
@@ -2780,7 +2782,7 @@
     }
     if (d.wins > 0 && d.losses > 0) {
       return (
-        '<div class="group relative rounded-lg bg-secondary-fixed p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">' +
+        '<div class="th-day-cell group relative rounded-lg bg-secondary-fixed p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" data-day="' + d.day + '" role="button" tabindex="0">' +
           '<div class="flex items-center justify-between">' +
             '<span class="font-label-eyebrow text-label-eyebrow text-on-secondary-fixed font-bold">' + d.abbr + '</span>' +
             '<span class="w-2 h-2 rounded-full bg-error"></span>' +
@@ -2792,7 +2794,7 @@
     }
     if (d.losses > 0) {
       return (
-        '<div class="group relative rounded-lg bg-error-container/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">' +
+        '<div class="th-day-cell group relative rounded-lg bg-error-container/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" data-day="' + d.day + '" role="button" tabindex="0">' +
           '<div class="flex items-center justify-between">' +
             '<span class="font-label-eyebrow text-label-eyebrow text-error font-bold">' + d.abbr + '</span>' +
             '<span class="w-2 h-2 rounded-full bg-error"></span>' +
@@ -2803,7 +2805,7 @@
       );
     }
     return (
-      '<div class="group relative rounded-lg bg-tertiary-fixed/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">' +
+      '<div class="th-day-cell group relative rounded-lg bg-tertiary-fixed/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" data-day="' + d.day + '" role="button" tabindex="0">' +
         '<div class="flex items-center justify-between">' +
           '<span class="font-label-eyebrow text-label-eyebrow text-on-tertiary-fixed font-bold">' + d.abbr + '</span>' +
           '<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>' +
@@ -2822,7 +2824,7 @@
       ? '<td class="py-3 px-3 font-metric-md text-metric-md font-semibold text-right ' + (d.net >= 0 ? 'text-tertiary' : 'text-error') + '">' + formatSignedMoney(d.net) + '</td>'
       : '';
     return (
-      '<tr class="hover:bg-surface-container-low/50 transition-colors">' +
+      '<tr class="th-day-row hover:bg-surface-container-low/50 transition-colors cursor-pointer" data-day="' + d.day + '">' +
         '<td class="py-3 px-3 font-medium text-on-surface flex items-center gap-2"><span class="w-2 h-2 rounded-full ' + dotColor + '"></span>' + d.day + '</td>' +
         '<td class="py-3 px-3 font-metric-sm text-metric-sm text-on-surface-variant text-right">' + timingCountLabel(d.total, noun) + '</td>' +
         '<td class="py-3 px-3 font-metric-md text-metric-md font-bold ' + rateColor + ' text-right">' + d.rate + '%</td>' +
@@ -2842,6 +2844,13 @@
     return PositionStore.getAll().length ? 'positions' : 'trades';
   }
 
+  // Bridges render-time data to the day-cell/detail-row click handlers,
+  // which are wired once at boot and have no other way to reach whichever
+  // per-day bucket (and its underlying record ids) the latest render built.
+  var thLastStats = null;
+  var thLastUsingPositions = false;
+  var thLastNoun = 'trade';
+
   function renderTimingHeatmap() {
     var section = sections['timing-and-heatmap'];
     if (!section) return;
@@ -2856,6 +2865,10 @@
     var closed = records.filter(function (r) { return r.isWin || r.isLoss; });
     var totalWins = closed.filter(function (r) { return r.isWin; }).length;
     var totalLosses = closed.length - totalWins;
+
+    thLastStats = stats;
+    thLastUsingPositions = usingPositions;
+    thLastNoun = noun;
 
     syncTimingSourceToggle(section, source);
 
@@ -3011,6 +3024,67 @@
     }
   }
 
+  // Compact list row for a position inside the day-detail modal - not the
+  // Position History table row (positionRowHtml), which carries columns
+  // (checkbox, fees, duration) that don't belong in a short popup list.
+  function dayModalPositionRowHtml(p) {
+    var net = positionNet(p);
+    var netClass = net > 0 ? 'text-tertiary' : (net < 0 ? 'text-error' : 'text-secondary');
+    var directionClass = DIRECTION_BADGE_CLASS[p.direction] || DIRECTION_BADGE_CLASS.long;
+    var action = p.linkedTradeId
+      ? '<a class="text-primary hover:text-primary-container font-metric-sm text-metric-sm font-semibold transition-colors whitespace-nowrap" href="#case-studies/' + encodeURIComponent(p.linkedTradeId) + '">View case study</a>'
+      : '<button type="button" class="th-day-modal-promote px-2.5 py-1 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-metric-sm text-metric-sm font-semibold transition-colors whitespace-nowrap" data-position-id="' + escapeHtml(p.id) + '">Promote</button>';
+    return (
+      '<div class="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-surface-container-low/60 transition-colors">' +
+        '<div class="flex items-center gap-3 min-w-0">' +
+          '<span class="font-metric-sm text-metric-sm text-secondary whitespace-nowrap">' + formatIsoDateTime(p.openTime) + '</span>' +
+          '<span class="font-metric-md text-metric-md font-bold text-on-surface truncate">' + escapeHtml(p.pair) + '</span>' +
+          '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + p.direction.toUpperCase() + '</span>' +
+        '</div>' +
+        '<div class="flex items-center gap-3 shrink-0">' +
+          '<span class="font-metric-md text-metric-md font-semibold ' + netClass + '">' + formatSignedMoney(net) + '</span>' +
+          action +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  // The day-cell/detail-row click handlers only have a weekday name to go
+  // on, so this looks up thLastStats (set by the most recent render) to
+  // find that day's actual record ids, then refetches the full trades or
+  // positions to render - the flattened timing-record shape deliberately
+  // doesn't carry everything a full list row needs.
+  function openDayModal(day) {
+    var modal = document.getElementById('th-day-modal');
+    var body = document.getElementById('th-day-modal-body');
+    var title = document.getElementById('th-day-modal-title');
+    if (!modal || !body || !title || !thLastStats) return;
+
+    var bucket = thLastStats.filter(function (d) { return d.day === day; })[0];
+    if (!bucket || !bucket.records.length) return;
+
+    title.textContent = day + ' — ' + timingCountLabel(bucket.total, thLastNoun);
+
+    if (thLastUsingPositions) {
+      var positions = bucket.records.map(function (r) { return PositionStore.getById(r.id); }).filter(Boolean);
+      body.innerHTML = positions.length
+        ? '<div class="divide-y divide-surface-container-low">' + positions.map(dayModalPositionRowHtml).join('') + '</div>'
+        : '<div class="px-5 py-8 text-center font-body-sm text-body-sm text-secondary">Nothing found.</div>';
+    } else {
+      var trades = bucket.records.map(function (r) { return TradeStore.getById(r.id); }).filter(Boolean);
+      body.innerHTML = trades.length
+        ? '<div class="divide-y divide-surface-container-low">' + trades.map(caseStudyListRowHtml).join('') + '</div>'
+        : '<div class="px-5 py-8 text-center font-body-sm text-body-sm text-secondary">Nothing found.</div>';
+    }
+
+    modal.hidden = false;
+  }
+
+  function closeDayModal() {
+    var modal = document.getElementById('th-day-modal');
+    if (modal) modal.hidden = true;
+  }
+
   function initTimingHeatmapControls(section) {
     if (!section) return;
     var tzSelect = section.querySelector('#th-tz-select');
@@ -3029,6 +3103,53 @@
         thSourceState = btn.getAttribute('data-source');
         renderTimingHeatmap();
       });
+    }
+
+    var dayGrid = section.querySelector('#th-day-grid');
+    if (dayGrid) {
+      dayGrid.addEventListener('click', function (e) {
+        var cell = e.target.closest ? e.target.closest('.th-day-cell') : null;
+        if (cell) openDayModal(cell.getAttribute('data-day'));
+      });
+      dayGrid.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var cell = e.target.closest ? e.target.closest('.th-day-cell') : null;
+        if (!cell || e.target !== cell) return;
+        e.preventDefault();
+        openDayModal(cell.getAttribute('data-day'));
+      });
+    }
+
+    var detailBody = section.querySelector('#th-detail-body');
+    if (detailBody) {
+      detailBody.addEventListener('click', function (e) {
+        var row = e.target.closest ? e.target.closest('.th-day-row') : null;
+        if (row) openDayModal(row.getAttribute('data-day'));
+      });
+    }
+
+    var dayModal = document.getElementById('th-day-modal');
+    if (dayModal) {
+      var dayModalBackdrop = document.getElementById('th-day-modal-backdrop');
+      var dayModalClose = document.getElementById('th-day-modal-close');
+      if (dayModalBackdrop) dayModalBackdrop.addEventListener('click', closeDayModal);
+      if (dayModalClose) dayModalClose.addEventListener('click', closeDayModal);
+      document.addEventListener('keydown', function (e) {
+        if (!dayModal.hidden && e.key === 'Escape') closeDayModal();
+      });
+      // Following a "View case study" link (or any other navigation) should
+      // leave the modal behind rather than have it linger over a new screen.
+      document.addEventListener('screenchange', closeDayModal);
+
+      var dayModalBody = document.getElementById('th-day-modal-body');
+      if (dayModalBody) {
+        dayModalBody.addEventListener('click', function (e) {
+          var promoteBtn = e.target.closest ? e.target.closest('.th-day-modal-promote') : null;
+          if (!promoteBtn) return;
+          var id = promoteBtn.getAttribute('data-position-id');
+          if (id) window.AppRouter.navigate('new-trade-entry', 'promote:' + id);
+        });
+      }
     }
   }
 

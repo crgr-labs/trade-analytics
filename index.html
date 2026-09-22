@@ -3371,6 +3371,22 @@
     </div>
   </div>
 
+  <!-- Timing & Heatmap: trades/positions for a clicked day -->
+  <div id="th-day-modal" hidden class="fixed inset-0 z-50">
+    <div id="th-day-modal-backdrop" class="absolute inset-0 bg-on-surface/60"></div>
+    <div class="relative h-full flex items-center justify-center p-6 pointer-events-none">
+      <div class="relative bg-surface-container-lowest rounded-xl shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col pointer-events-auto">
+        <div class="flex items-center justify-between gap-3 p-5 pb-4 shrink-0 border-b border-surface-container-low">
+          <h3 class="font-headline-md text-headline-md text-on-surface font-semibold" id="th-day-modal-title">Day</h3>
+          <button type="button" id="th-day-modal-close" title="Close" class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container transition-colors">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+        <div id="th-day-modal-body" class="overflow-y-auto flex-1"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="vendor/xlsx.full.min.js" defer></script>
   <script src="app.js" defer></script>
 </body>
