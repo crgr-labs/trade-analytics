@@ -5485,6 +5485,12 @@
   // immediately schedule a redundant push of the data we just received.
   var githubSyncApplyingRemote = false;
   var githubPushDebounceTimer = null;
+  // Guards against two pushToGitHub() calls running at once (e.g. the
+  // debounced auto-push firing while a manual "Push now" click is still
+  // in flight) - concurrent pushes race each other's file SHAs and one
+  // side gets rejected by GitHub with no useful explanation.
+  var githubPushInFlight = false;
+  var githubPushQueued = false;
 
   function ghConfigGet() {
     try {
@@ -5813,6 +5819,20 @@
     var cfg = ghConfigGet();
     if (!cfg) return;
 
+    // A push is running (or about to) right now, so any pending debounced
+    // auto-push would just redo the same work a few seconds later, racing
+    // this one's file writes - cancel it.
+    clearTimeout(githubPushDebounceTimer);
+
+    if (githubPushInFlight) {
+      // Don't run two pushes at once - queue exactly one follow-up so
+      // whatever changed after this push started still gets synced, once
+      // it's safe to read fresh SHAs instead of racing the in-flight one.
+      githubPushQueued = true;
+      return;
+    }
+    githubPushInFlight = true;
+
     setSyncStatus('syncing');
 
     var trades = TradeStore.getAll();
@@ -5828,6 +5848,8 @@
           if (retryResult.ok) meta[shaField] = retryResult.sha;
           return retryResult;
         });
+      }).then(function (result) {
+        return { ok: result.ok, status: result.status, path: path };
       });
     }
 
@@ -5841,8 +5863,9 @@
         putJsonFile('data/parameters.json', paramsJson, 'paramsSha', 'Sync confluence categories')
       ]);
     }).then(function (results) {
-      if (!results.every(function (r) { return r.ok; })) {
-        throw new Error('failed to write one or more data files');
+      var failed = results.filter(function (r) { return !r.ok; });
+      if (failed.length) {
+        throw new Error('failed to write ' + failed.map(function (r) { return r.path + ' (status ' + r.status + ')'; }).join(', '));
       }
       ghMetaSet({
         tradesSha: meta.tradesSha,
@@ -5855,6 +5878,12 @@
       setSyncStatus('synced');
     }).catch(function (err) {
       setSyncStatus('error', err && err.message ? err.message : String(err));
+    }).then(function () {
+      githubPushInFlight = false;
+      if (githubPushQueued) {
+        githubPushQueued = false;
+        pushToGitHub();
+      }
     });
   }
 
