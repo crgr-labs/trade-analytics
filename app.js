@@ -4998,6 +4998,7 @@
   var GITHUB_SYNC_CONFIG_KEY = 'tj_github_sync_config';
   var GITHUB_SYNC_META_KEY = 'tj_github_sync_meta';
   var GITHUB_IMAGE_STATE_KEY = 'tj_github_image_state';
+  var PRE_PULL_SNAPSHOT_KEY = 'tj_pre_pull_snapshot';
 
   // Suppresses scheduleGithubSync() while a just-pulled remote snapshot is
   // being written back into TradeStore/PositionStore, so pulling doesn't
@@ -5065,6 +5066,52 @@
     try {
       localStorage.setItem(GITHUB_IMAGE_STATE_KEY, JSON.stringify(map));
     } catch (e) {}
+  }
+
+  // A single-slot "undo" for pullFromGitHub() - captures local state right
+  // before remote data is applied, so a bad pull (wrong repo, unexpected
+  // remote content) can be rolled back from inside the app even with no
+  // OS-level backup. Best-effort: if localStorage is near its quota the
+  // write silently no-ops rather than blocking the pull it's protecting.
+  function savePrePullSnapshot() {
+    try {
+      localStorage.setItem(PRE_PULL_SNAPSHOT_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        trades: TradeStore.getAll(),
+        positions: PositionStore.getAll(),
+        categories: loadParamCategories(),
+        vocabulary: loadConfluenceVocabulary(),
+        removedDefaults: getRemovedDefaults()
+      }));
+    } catch (e) {}
+  }
+
+  function getPrePullSnapshot() {
+    try {
+      var raw = localStorage.getItem(PRE_PULL_SNAPSHOT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function restorePrePullSnapshot() {
+    var snapshot = getPrePullSnapshot();
+    if (!snapshot) {
+      window.alert('No pre-sync snapshot is available yet - one is saved automatically each time data is pulled from GitHub.');
+      return;
+    }
+    var when = new Date(snapshot.savedAt).toLocaleString();
+    if (!window.confirm('Restore local trades, positions, categories, and parameters to how they were just before the last pull (' + when + ')?\n\nAnything changed since then on this device will be lost.')) {
+      return;
+    }
+    TradeStore.setAll(snapshot.trades || []);
+    PositionStore.setAll(snapshot.positions || []);
+    if (Array.isArray(snapshot.categories)) saveParamCategories(snapshot.categories);
+    if (Array.isArray(snapshot.vocabulary)) saveConfluenceVocabulary(snapshot.vocabulary);
+    if (Array.isArray(snapshot.removedDefaults)) saveRemovedDefaults(snapshot.removedDefaults);
+    if (activeSlug && activeSlug !== 'new-trade-entry') renderForScreen(activeSlug, activeParam);
+    window.alert('Restored. This device now differs from GitHub - push when ready.');
   }
 
   // btoa/atob only handle Latin1 - trade notes can contain emoji/curly
@@ -5429,6 +5476,7 @@
       }
 
       return Promise.all(remoteTrades.map(function (t) { return hydrateChartRef(cfg, t).then(migrateTrade); })).then(function (hydratedTrades) {
+        savePrePullSnapshot();
         githubSyncApplyingRemote = true;
         TradeStore.setAll(hydratedTrades);
         PositionStore.setAll(remotePositions);
@@ -5539,6 +5587,7 @@
     var syncNowBtn = document.getElementById('gh-sync-now');
     var pullNowBtn = document.getElementById('gh-sync-pull');
     var disconnectBtn = document.getElementById('gh-sync-disconnect');
+    var restoreSnapshotBtn = document.getElementById('gh-sync-restore-snapshot');
     if (!toggle || !panel) return;
 
     function fillFromConfig() {
@@ -5594,6 +5643,10 @@
         fillFromConfig();
         renderSyncStatusUI();
       });
+    }
+
+    if (restoreSnapshotBtn) {
+      restoreSnapshotBtn.addEventListener('click', function () { restorePrePullSnapshot(); });
     }
 
     document.addEventListener('click', function (e) {
