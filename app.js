@@ -91,6 +91,10 @@
     return new Date(dateStr + 'T00:00:00');
   }
 
+  function todayDateString() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
   function formatDateLabel(dateStr) {
     var d = parseDate(dateStr);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -575,6 +579,122 @@
     });
   }
 
+  // Direction split across every logged trade (not just closed) - this card
+  // describes what's being set up, not how it performed.
+  function computeDirectionBreakdown(trades) {
+    if (!trades.length) return null;
+    var counts = { long: 0, short: 0 };
+    trades.forEach(function (t) { counts[t.direction === 'short' ? 'short' : 'long']++; });
+    var dominant = counts.long >= counts.short ? 'long' : 'short';
+    return { dominant: dominant, pct: pct(counts[dominant], trades.length) };
+  }
+
+  // Groups every trade by its Daily-context tag plus the next tag after it
+  // (typically the 4H structure), e.g. "Daily Uptrend & Momentum + 4H BOS".
+  function computeContextStructureCombos(trades) {
+    var groups = {};
+    trades.forEach(function (t) {
+      var tags = nonEmptyConfluence(t);
+      var context = tags[0] || 'Unlabeled context';
+      var structure = tags[1];
+      var label = structure ? context + ' + ' + structure : context;
+      groups[label] = groups[label] || { label: label, total: 0 };
+      groups[label].total++;
+    });
+    return Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) { return b.total - a.total; });
+  }
+
+  function computeAverageLeverage(trades) {
+    var withLev = trades.map(function (t) {
+      var multiplier = parseFloat((t.leverage || '').match(/[\d.]+/) || 0);
+      return multiplier ? { multiplier: multiplier, mode: parseLeverageMode(t.leverage) } : null;
+    }).filter(Boolean);
+    if (!withLev.length) return null;
+    var avg = withLev.reduce(function (sum, x) { return sum + x.multiplier; }, 0) / withLev.length;
+    var modeCounts = {};
+    withLev.forEach(function (x) { modeCounts[x.mode] = (modeCounts[x.mode] || 0) + 1; });
+    var dominantMode = Object.keys(modeCounts).sort(function (a, b) { return modeCounts[b] - modeCounts[a]; })[0];
+    return { avg: avg, mode: dominantMode };
+  }
+
+  // null (not 0 or Infinity) when there's no losing $ to divide by - a
+  // profit factor isn't meaningfully defined yet in that case.
+  function computeProfitFactor(withPnl) {
+    var gains = 0, lossAbs = 0;
+    withPnl.forEach(function (x) {
+      if (x.pnl > 0) gains += x.pnl; else if (x.pnl < 0) lossAbs += Math.abs(x.pnl);
+    });
+    return lossAbs ? gains / lossAbs : null;
+  }
+
+  function comboRowHtml(combo, totalTrades, colorClass) {
+    var rate = pct(combo.total, totalTrades);
+    return (
+      '<div>' +
+        '<div class="flex justify-between font-metric-sm text-metric-sm mb-1">' +
+          '<span class="text-on-surface">' + escapeHtml(combo.label) + '</span>' +
+          '<span class="text-on-surface font-semibold">' + combo.total + ' trade' + (combo.total === 1 ? '' : 's') + ' (' + rate + '%)</span>' +
+        '</div>' +
+        '<div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">' +
+          '<div class="h-full ' + colorClass + ' rounded-full" style="width: ' + rate + '%;"></div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderTradeJournalSnapshot(section, trades) {
+    var badgeEl = section.querySelector('#tj-direction-badge');
+    var descEl = section.querySelector('#tj-direction-desc');
+    var comboBodyEl = section.querySelector('#tj-combo-body');
+    var leverageEl = section.querySelector('#tj-avg-leverage');
+
+    var direction = computeDirectionBreakdown(trades);
+    if (badgeEl) badgeEl.textContent = direction ? direction.pct + '% ' + (direction.dominant === 'long' ? 'Long' : 'Short') + ' Execution' : 'No trades yet';
+
+    var combos = computeContextStructureCombos(trades);
+    if (descEl) {
+      descEl.textContent = combos.length
+        ? 'Dominant setup: ' + combos[0].label + '.'
+        : 'Log a trade to see your directional bias.';
+    }
+    if (comboBodyEl) {
+      var top = combos.slice(0, 2);
+      comboBodyEl.innerHTML = top.length
+        ? top.map(function (c, i) { return comboRowHtml(c, trades.length, i === 0 ? 'bg-primary' : 'bg-secondary'); }).join('')
+        : '<p class="font-metric-sm text-metric-sm text-outline-variant">No confluence tags logged yet.</p>';
+    }
+
+    var leverage = computeAverageLeverage(trades);
+    if (leverageEl) leverageEl.textContent = leverage ? leverage.avg.toFixed(1) + 'x ' + (leverage.mode === 'cross' ? 'Cross' : 'Isolated') : 'Not recorded';
+  }
+
+  function renderTradeJournalValidation(section, docStats, confluenceStats) {
+    var badgeEl = section.querySelector('#tj-validation-badge');
+    var copyEl = section.querySelector('#tj-validation-copy');
+    var pfEl = section.querySelector('#tj-profit-factor');
+
+    if (badgeEl) badgeEl.textContent = 'N=' + confluenceStats.closedCount;
+
+    if (copyEl) {
+      var sentences = [];
+      var best = confluenceStats.topParams.filter(function (p) { return p.total >= 3; })[0];
+      if (best) {
+        sentences.push('The ' + best.label + ' setup displays a ' + pct(best.wins, best.total) + '% win conversion rate across ' + best.total + ' iterations.');
+      } else {
+        sentences.push('Not enough recurring signals yet to validate one (need 3+ occurrences of the same tag).');
+      }
+      if (confluenceStats.lossProfile) {
+        sentences.push('The lone control-group deviation occurred during ' + confluenceStats.lossProfile.label + '.');
+      }
+      copyEl.textContent = sentences.join(' ');
+    }
+
+    if (pfEl) {
+      var pf = computeProfitFactor(docStats.withPnl);
+      pfEl.textContent = pf === null ? 'Unavailable' : pf.toFixed(2) + ' PF';
+    }
+  }
+
   function renderTradeJournal() {
     var section = sections['trade-journal'];
     if (!section) return;
@@ -601,6 +721,16 @@
     setActivePill(section);
     applyTradeJournalFilters(section);
     renderTradeJournalPnl(section, trades);
+    renderTradeJournalSnapshot(section, trades);
+    renderTradeJournalValidation(section, computeTradeJournalPnl(trades), computeConfluenceStats(trades));
+
+    var updatedEl = section.querySelector('#tj-updated-at');
+    if (updatedEl) {
+      var now = new Date();
+      var hh = String(now.getUTCHours()).padStart(2, '0');
+      var mm = String(now.getUTCMinutes()).padStart(2, '0');
+      updatedEl.textContent = 'Updated Today ' + hh + ':' + mm + ' UTC';
+    }
   }
 
   function bulkDeleteTrades() {
@@ -1976,8 +2106,7 @@
       exportBtn.addEventListener('click', function () {
         var trades = TradeStore.getAll();
         var json = JSON.stringify(trades, null, 2);
-        var date = new Date().toISOString().slice(0, 10);
-        downloadFile('trade-journal-backup-' + date + '.json', json, 'application/json');
+        downloadFile('trade-journal-backup-' + todayDateString() + '.json', json, 'application/json');
       });
     }
 
@@ -3433,6 +3562,18 @@
       });
     }
 
+    var duplicateBtn = section.querySelector('#cs-btn-duplicate');
+    if (duplicateBtn) {
+      duplicateBtn.addEventListener('click', function () {
+        if (csCurrentTradeId) window.AppRouter.navigate('new-trade-entry', 'duplicate:' + csCurrentTradeId);
+      });
+    }
+
+    var exportPdfBtn = section.querySelector('#cs-btn-export-pdf');
+    if (exportPdfBtn) {
+      exportPdfBtn.addEventListener('click', function () { window.print(); });
+    }
+
     // Clicking a status tag cycles Passed -> Pending -> Failed. The entry form
     // has no status field, so this is the only place a status is set.
     var checklistList = section.querySelector('#cs-confluence-list');
@@ -3756,6 +3897,7 @@
     }).join('');
     var counter = section.querySelector('#chart-attached-count');
     if (counter) counter.textContent = attached + ' / ' + CHART_TIMEFRAMES.length + ' ATTACHED';
+    updateFieldsCompleted(section);
   }
 
   // ---------------------------------------------------------------------
@@ -4057,6 +4199,7 @@
     if (countEl) countEl.textContent = nteSelectedParameters.length + ' selected';
 
     syncConfluenceCategoryOptions(section);
+    updateFieldsCompleted(section);
   }
 
   // The add-row category select is rebuilt from the live list so a deleted
@@ -4354,6 +4497,32 @@
     }
   }
 
+  // 11 fields: the 8 free-text/select inputs below, plus confluence
+  // parameters, a chart (image or link), and notes - each counted once
+  // regardless of how many sub-values it holds.
+  function updateFieldsCompleted(section) {
+    var countEl = section.querySelector('#fields-completed-count');
+    var barEl = section.querySelector('#fields-completed-bar');
+    if (!countEl || !barEl) return;
+
+    var textFields = ['#input-date', '#input-entry-time', '#input-pair', '#input-leverage-multiplier',
+      '#input-entry', '#input-exit', '#input-position-size', '#input-stop-loss', '#input-notes'];
+    var filled = textFields.filter(function (sel) {
+      var el = section.querySelector(sel);
+      return el && el.value && el.value.trim();
+    }).length;
+
+    if (nteSelectedParameters.length) filled++;
+
+    var hasChartImage = CHART_TIMEFRAMES.some(function (tf) { return nteChartImages[tf.key] && nteChartImages[tf.key].value; });
+    var chartLinkInput = section.querySelector('#input-chart-link');
+    if (hasChartImage || (chartLinkInput && chartLinkInput.value.trim())) filled++;
+
+    var total = textFields.length + 2;
+    countEl.textContent = filled + ' / ' + total;
+    barEl.style.width = Math.round((filled / total) * 100) + '%';
+  }
+
   // Deliberately advisory only - a snapshot can live on a shortened or
   // regional domain, so an unexpected host is flagged but never blocks a save.
   function validateChartLink(section) {
@@ -4474,6 +4643,12 @@
     if (leverageMultiplierEl) leverageMultiplierEl.addEventListener('change', updateDelta);
     form.querySelectorAll('input[name="margin_mode"]').forEach(function (r) { r.addEventListener('change', updateDelta); });
 
+    // Delegated rather than per-field: covers every text/select input
+    // (including ones with no other listener, like date/pair/notes)
+    // without enumerating them a second time.
+    form.addEventListener('input', function () { updateFieldsCompleted(section); });
+    form.addEventListener('change', function () { updateFieldsCompleted(section); });
+
     function collectChartLink() {
       var linkInput = section.querySelector('#input-chart-link');
       var url = linkInput ? linkInput.value.trim() : '';
@@ -4496,7 +4671,7 @@
 
       var trade = {
         id: nteEditingTradeId || ('trade-' + Date.now()),
-        date: dateInput && dateInput.value ? dateInput.value : new Date().toISOString().slice(0, 10),
+        date: dateInput && dateInput.value ? dateInput.value : todayDateString(),
         entryTime: entryTimeInput && entryTimeInput.value ? entryTimeInput.value : '',
         pair: normalizePairSymbol(pairField.value),
         direction: directionInput ? directionInput.value : 'long',
@@ -4593,9 +4768,14 @@
     var saveBtn = section.querySelector('#btn-save-trade');
 
     // "promote:<positionId>" enters the form pre-filled from a Position
-    // History row rather than from an existing trade.
+    // History row rather than from an existing trade. "duplicate:<tradeId>"
+    // pre-fills the setup (pair/direction/leverage/confluence tags) from an
+    // existing trade but as a brand-new draft - blank date, blank prices,
+    // blank id - so a similar setup can be logged quickly without editing
+    // the original.
     var rawParam = tradeIdParam ? decodeURIComponent(tradeIdParam) : null;
     var promotingPosition = null;
+    var duplicatingTrade = null;
     var tradeId = rawParam;
     if (rawParam && rawParam.indexOf('promote:') === 0) {
       promotingPosition = PositionStore.getById(rawParam.slice('promote:'.length));
@@ -4606,6 +4786,9 @@
         window.AppRouter.navigate('case-studies', promotingPosition.linkedTradeId);
         return;
       }
+    } else if (rawParam && rawParam.indexOf('duplicate:') === 0) {
+      duplicatingTrade = TradeStore.getById(rawParam.slice('duplicate:'.length));
+      tradeId = null;
     }
     var trade = tradeId ? TradeStore.getById(tradeId) : null;
 
@@ -4615,7 +4798,9 @@
     nteChartErrors = {};
     nteChartTargetTf = null;
     ntePromotingPositionId = null;
-    nteSelectedParameters = trade ? nonEmptyConfluence(trade).slice() : [];
+    nteSelectedParameters = trade ? nonEmptyConfluence(trade).slice()
+      : duplicatingTrade ? nonEmptyConfluence(duplicatingTrade).slice()
+      : [];
     renderConfluenceGrid(section);
     var confluenceAddInput = section.querySelector('#confluence-add-input');
     if (confluenceAddInput) confluenceAddInput.value = '';
@@ -4672,9 +4857,29 @@
       if (headingEl) headingEl.textContent = 'Promote to Case Study';
       if (stageBadgeEl) { stageBadgeEl.textContent = 'STAGE: PROMOTE'; }
       if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Trade';
+    } else if (duplicatingTrade) {
+      nteEditingTradeId = null;
+      ntePromotingPositionId = null;
+      section.querySelector('#input-date').value = todayDateString();
+      section.querySelector('#input-pair').value = duplicatingTrade.pair || '';
+      var dupLeverageMultiplier = parseFloat((duplicatingTrade.leverage || '').match(/[\d.]+/) || 10);
+      var dupMultiplierSelect = section.querySelector('#input-leverage-multiplier');
+      var dupHasOption = Array.prototype.some.call(dupMultiplierSelect.options, function (o) { return Number(o.value) === dupLeverageMultiplier; });
+      dupMultiplierSelect.value = dupHasOption ? String(dupLeverageMultiplier) : '10';
+      var dupMarginModeRadio = form.querySelector('input[name="margin_mode"][value="' + parseLeverageMode(duplicatingTrade.leverage) + '"]');
+      if (dupMarginModeRadio) dupMarginModeRadio.checked = true;
+      ['direction', 'prev_candle'].forEach(function (name) {
+        var value = name === 'direction' ? duplicatingTrade.direction : duplicatingTrade.prevCandle;
+        var radio = form.querySelector('input[name="' + name + '"][value="' + value + '"]');
+        if (radio) radio.checked = true;
+      });
+      if (headingEl) headingEl.textContent = 'New Trade Entry (Duplicated)';
+      if (stageBadgeEl) { stageBadgeEl.textContent = 'STAGE: DRAFT'; }
+      if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Trade';
     } else {
       nteEditingTradeId = null;
       ntePromotingPositionId = null;
+      section.querySelector('#input-date').value = todayDateString();
       if (headingEl) headingEl.textContent = 'New Trade Entry';
       if (stageBadgeEl) { stageBadgeEl.textContent = 'STAGE: DRAFT'; }
       if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Trade';

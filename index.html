@@ -41,6 +41,27 @@
     ::-webkit-scrollbar {
       display: none;
     }
+
+    @media print {
+
+      aside,
+      #app-header,
+      .no-print {
+        display: none !important;
+      }
+
+      main {
+        padding-top: 0 !important;
+      }
+
+      #app-shell {
+        padding-left: 0 !important;
+      }
+
+      body {
+        background: #fff;
+      }
+    }
   </style>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
@@ -89,8 +110,8 @@
       <div class="font-metric-sm text-metric-sm text-secondary mt-0.5">11 trades logged, updated Sep 3</div>
     </div>
   </aside>
-  <div class="pl-[260px]">
-    <header
+  <div class="pl-[260px]" id="app-shell">
+    <header id="app-header"
       class="fixed top-0 left-[260px] right-0 h-16 bg-ground/80 backdrop-blur-xl shadow-[0_1px_0_rgba(11,28,48,0.06),0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-xl">
       <div class="flex items-center gap-2"><span
           class="font-metric-sm text-metric-sm text-secondary uppercase tracking-wider">Operational Mode:</span><span
@@ -688,7 +709,7 @@
                   <span>Showing <strong class="text-on-surface font-semibold" id="visible-count">11</strong>
                     entries</span>
                   <span class="hidden sm:inline">•</span>
-                  <span class="hidden sm:inline">Updated Today 14:32 UTC</span>
+                  <span class="hidden sm:inline" id="tj-updated-at">Updated --:-- UTC</span>
                 </div>
               </div>
               <!-- Data Table Container -->
@@ -1424,34 +1445,14 @@
                   <div class="flex items-center justify-between mb-3">
                     <span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Setup
                       Confluence Density</span>
-                    <span class="font-metric-sm text-metric-sm text-primary font-semibold">100% Long Execution</span>
+                    <span class="font-metric-sm text-metric-sm text-primary font-semibold" id="tj-direction-badge">No trades yet</span>
                   </div>
-                  <p class="font-body-sm text-body-sm text-secondary mb-4">Dominant directional bias favoring 4H Break
-                    of Structure during high-momentum runs.</p>
-                  <div class="space-y-2.5">
-                    <div>
-                      <div class="flex justify-between font-metric-sm text-metric-sm mb-1">
-                        <span class="text-on-surface">Daily Uptrend + 4H BOS</span>
-                        <span class="text-on-surface font-semibold">8 trades (72.7%)</span>
-                      </div>
-                      <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
-                        <div class="h-full bg-primary rounded-full" style="width: 72.7%;"></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div class="flex justify-between font-metric-sm text-metric-sm mb-1">
-                        <span class="text-on-surface">Daily Sideways + 4H BOS</span>
-                        <span class="text-on-surface font-semibold">3 trades (27.3%)</span>
-                      </div>
-                      <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
-                        <div class="h-full bg-secondary rounded-full" style="width: 27.3%;"></div>
-                      </div>
-                    </div>
-                  </div>
+                  <p class="font-body-sm text-body-sm text-secondary mb-4" id="tj-direction-desc">Log a trade to see your directional bias.</p>
+                  <div class="space-y-2.5" id="tj-combo-body"></div>
                 </div>
                 <div class="pt-4 mt-4 flex items-center justify-between text-secondary font-metric-sm text-metric-sm">
                   <span>Average leverage</span>
-                  <span class="font-bold text-on-surface font-metric-md text-metric-md">10.0x Isolated</span>
+                  <span class="font-bold text-on-surface font-metric-md text-metric-md" id="tj-avg-leverage">--</span>
                 </div>
               </div>
               <!-- Active Validation Notice Card (Dark Slate emphasis) -->
@@ -1464,19 +1465,17 @@
                       <span class="font-label-eyebrow text-label-eyebrow text-inverse-on-surface/70 uppercase">Backtest
                         Validation</span>
                     </div>
-                    <span class="font-metric-sm text-metric-sm bg-white/10 px-2 py-0.5 rounded text-surface">SERIES
-                      #08</span>
+                    <span class="font-metric-sm text-metric-sm bg-white/10 px-2 py-0.5 rounded text-surface" id="tj-validation-badge">N=0</span>
                   </div>
                   <h4 class="font-headline-md text-headline-md font-semibold text-white tracking-tight">Systematic Edge
                     Confirmation</h4>
-                  <p class="font-body-sm text-body-sm text-inverse-on-surface/80 mt-2">
-                    The 4H Parabolic setup displays a 100% win conversion rate across 7 iterations. 0GUSDT failure
-                    occurred exclusively during [4H LS] confluence.
+                  <p class="font-body-sm text-body-sm text-inverse-on-surface/80 mt-2" id="tj-validation-copy">
+                    Not enough closed trades yet to identify a validated edge.
                   </p>
                 </div>
                 <div class="pt-4 mt-4 flex items-center justify-between">
                   <span class="font-metric-sm text-metric-sm text-inverse-on-surface/60">Profit Factor (Est)</span>
-                  <span class="font-metric-display text-metric-lg font-bold text-tertiary-fixed">8.24 PF</span>
+                  <span class="font-metric-display text-metric-lg font-bold text-tertiary-fixed" id="tj-profit-factor">Unavailable</span>
                 </div>
               </div>
               <!-- Fast Retrospective Dropzone / Export View -->
@@ -2063,11 +2062,11 @@
       </div>
 
       <!-- Action Footer Strip (Delete Log now lives in the header) -->
-      <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-end gap-2 mt-6">
-        <button class="bg-surface-container-low text-on-surface hover:bg-surface-container px-3 py-1.5 rounded-lg font-headline-sm text-[12px] font-medium transition-colors">
+      <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex items-center justify-end gap-2 mt-6 no-print">
+        <button type="button" id="cs-btn-duplicate" class="bg-surface-container-low text-on-surface hover:bg-surface-container px-3 py-1.5 rounded-lg font-headline-sm text-[12px] font-medium transition-colors">
           Duplicate
         </button>
-        <button class="bg-primary text-on-primary hover:bg-primary-container px-4 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+        <button type="button" id="cs-btn-export-pdf" class="bg-primary text-on-primary hover:bg-primary-container px-4 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
           <span class="material-symbols-outlined text-[16px]">download</span>
           Export PDF Study
         </button>
@@ -2923,7 +2922,7 @@
                           class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Date</label>
                         <input
                           class="h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                          id="input-date" type="date" value="2026-09-04" />
+                          id="input-date" type="date" />
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label
