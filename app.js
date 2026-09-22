@@ -87,6 +87,24 @@
     });
   }
 
+  function safeUrl(value) {
+    if (!value) return '#';
+    var str = String(value).trim();
+    if (/^https?:\/\//i.test(str)) {
+      return escapeHtml(str);
+    }
+    return '#';
+  }
+
+  function safeImageUrl(value) {
+    if (!value) return '';
+    var str = String(value).trim();
+    if (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(str) || /^https?:\/\//i.test(str)) {
+      return escapeHtml(str);
+    }
+    return '';
+  }
+
   function parseDate(dateStr) {
     return new Date(dateStr + 'T00:00:00');
   }
@@ -398,6 +416,9 @@
     var chart = trade.chart;
     if (chart && chart.type === 'link' && chart.value && !firstChartKey(trade)) {
       return '<a href="' + escapeHtml(chart.value) + '" target="_blank" rel="noopener noreferrer" ' +
+      var href = safeUrl(chart.value);
+      if (href === '#') return '';
+      return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" ' +
         'class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors" ' +
         'title="Open TradingView snapshot in a new tab">' +
         '<span class="font-metric-sm text-[10px] font-bold">TV</span></a>';
@@ -3316,6 +3337,7 @@
     var tf = chartTimeframe(tfKey);
     var image = tradeCharts(trade)[tf.key];
     var link = trade.chart && trade.chart.type === 'link' && trade.chart.value ? trade.chart : null;
+    var safeLink = link ? safeUrl(link.value) : '#';
 
     // A TradingView snapshot URL is a web page, not an image file, and those
     // pages aren't guaranteed to permit framing - so it's presented as a
@@ -3331,12 +3353,20 @@
             'View Chart on TradingView' +
             '<span class="material-symbols-outlined text-[15px]">open_in_new</span>' +
           '</a>' +
+          (safeLink !== '#'
+            ? '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-container text-on-primary px-3.5 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold shadow-sm transition-colors">' +
+                'View Chart on TradingView' +
+                '<span class="material-symbols-outlined text-[15px]">open_in_new</span>' +
+              '</a>'
+            : '') +
         '</div>'
       );
     }
 
     var linkButton = link
       ? '<a href="' + escapeHtml(link.value) + '" target="_blank" rel="noopener noreferrer" class="ml-auto inline-flex items-center gap-1 text-primary hover:underline font-metric-sm text-metric-sm font-semibold">' +
+    var linkButton = (link && safeLink !== '#')
+      ? '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" class="ml-auto inline-flex items-center gap-1 text-primary hover:underline font-metric-sm text-metric-sm font-semibold">' +
           'View on TradingView<span class="material-symbols-outlined text-[14px]">open_in_new</span></a>'
       : '';
 
@@ -3347,6 +3377,7 @@
         '<div class="bg-surface-container-low rounded-xl p-3">' +
           '<div class="chart-preview-btn relative rounded-lg overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
             '<img src="' + image.value + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
+            '<img src="' + safeImageUrl(image.value) + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
             '<span class="absolute top-3 left-3 bg-surface-container-lowest/90 text-primary font-metric-sm text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">' + tf.short + '</span>' +
           '</div>' +
           '<div class="flex items-center gap-2 px-1 pt-2">' +
@@ -4056,6 +4087,7 @@
       isPanning = false;
       if (uploadedChart) {
         body.innerHTML = '<img src="' + uploadedChart + '" alt="' + (key ? chartTimeframe(key).label : 'Chart') + ' chart for ' + escapeHtml(trade.pair) + '" class="rounded-lg" draggable="false" />';
+        body.innerHTML = '<img src="' + safeImageUrl(uploadedChart) + '" alt="' + (key ? chartTimeframe(key).label : 'Chart') + ' chart for ' + escapeHtml(trade.pair) + '" class="rounded-lg" draggable="false" />';
         var img = currentImage();
         img.addEventListener('click', function () {
           if (didPan) { didPan = false; return; }
@@ -4865,6 +4897,13 @@
     if (!input || !warning) return;
     var value = input.value.trim();
     warning.hidden = !value || value.toLowerCase().indexOf('tradingview.com') !== -1;
+    if (!value) {
+      warning.hidden = true;
+      return;
+    }
+    var isHttp = /^https?:\/\//i.test(value);
+    var isTV = value.toLowerCase().indexOf('tradingview.com') !== -1;
+    warning.hidden = isHttp && isTV;
   }
 
   function initNewTradeEntry() {
