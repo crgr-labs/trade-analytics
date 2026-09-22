@@ -2550,46 +2550,115 @@
     return entryTimeToUtcMinutes(trade.entryTime, effectiveOffset);
   }
 
-  function computeSessionStats(trades) {
+  // ---------------------------------------------------------------------
+  // Timing records
+  // ---------------------------------------------------------------------
+  //
+  // The weekday/session maths below work on whichever collection the user
+  // picked, so both are first normalized to one shape:
+  //
+  //   { dateStr, utcMinutes, isWin, isLoss, net, contextLabel, comboLabel }
+  //
+  // A trade carries confluence tags but only a local wall-clock "HH:mm"
+  // (hence the timezone offset) and a manually-set outcome. A position
+  // carries no tags but an exact UTC timestamp and real money, so its
+  // labels fall back to the pair.
+
+  function tradeToTimingRecord(trade, offsetMinutes) {
+    var ret = computeTradeReturn(trade);
+    return {
+      dateStr: trade.date,
+      utcMinutes: entryUtcMinutesForTrade(trade, offsetMinutes),
+      isWin: trade.outcome === 'win',
+      isLoss: trade.outcome === 'loss',
+      net: ret && ret.dollarPnl !== null ? ret.dollarPnl : null,
+      contextLabel: shortContext(nonEmptyConfluence(trade)[0]),
+      comboLabel: summarizeCombo(trade)
+    };
+  }
+
+  function tradesToTimingRecords(trades) {
     var offsetMinutes = getEntryTzOffsetMinutes();
-    var closedWithTime = trades.filter(function (t) {
-      return (t.outcome === 'win' || t.outcome === 'loss') && entryUtcMinutesForTrade(t, offsetMinutes) !== null;
+    return trades.map(function (t) { return tradeToTimingRecord(t, offsetMinutes); });
+  }
+
+  // Win/loss is classified on gross pnl (zero excluded) while the money
+  // figure is net of fees - matching computePositionStats and the pair
+  // breakdown exactly, so this screen can't disagree with Position History.
+  function positionToTimingRecord(position) {
+    var openMs = Date.parse(position.openTime);
+    var utcMinutes = null;
+    if (!isNaN(openMs)) {
+      var d = new Date(openMs);
+      utcMinutes = d.getUTCHours() * 60 + d.getUTCMinutes();
+    }
+    return {
+      dateStr: isoDateOnly(position.openTime),
+      utcMinutes: utcMinutes,
+      isWin: position.pnl > 0,
+      isLoss: position.pnl < 0,
+      net: positionNet(position),
+      contextLabel: position.pair,
+      comboLabel: position.pair
+    };
+  }
+
+  function positionsToTimingRecords(positions) {
+    return positions.map(positionToTimingRecord);
+  }
+
+  function computeSessionStatsFromRecords(records) {
+    var withTime = records.filter(function (r) {
+      return (r.isWin || r.isLoss) && r.utcMinutes !== null;
     });
 
     var perHour = [];
-    for (var h = 0; h < 24; h++) perHour.push({ hour: h, wins: 0, losses: 0, total: 0 });
+    for (var h = 0; h < 24; h++) perHour.push({ hour: h, wins: 0, losses: 0, total: 0, net: 0 });
 
     var bySession = {};
-    SESSIONS.forEach(function (s) { bySession[s.key] = { name: s.name, wins: 0, losses: 0, total: 0 }; });
+    SESSIONS.forEach(function (s) { bySession[s.key] = { name: s.name, wins: 0, losses: 0, total: 0, net: 0 }; });
 
-    closedWithTime.forEach(function (t) {
-      var utcMinutes = entryUtcMinutesForTrade(t, offsetMinutes);
-      var hour = Math.floor(utcMinutes / 60);
+    withTime.forEach(function (r) {
+      var hour = Math.floor(r.utcMinutes / 60);
       var bucket = perHour[hour];
       bucket.total++;
-      if (t.outcome === 'win') bucket.wins++; else bucket.losses++;
+      bucket.net += r.net || 0;
+      if (r.isWin) bucket.wins++; else bucket.losses++;
 
       SESSIONS.forEach(function (s) {
         if (hour >= s.start && hour < s.end) {
           var sb = bySession[s.key];
           sb.total++;
-          if (t.outcome === 'win') sb.wins++; else sb.losses++;
+          sb.net += r.net || 0;
+          if (r.isWin) sb.wins++; else sb.losses++;
         }
       });
     });
 
     var sessions = SESSIONS.map(function (s) {
       var sb = bySession[s.key];
-      return { name: s.name, total: sb.total, wins: sb.wins, losses: sb.losses, rate: pct(sb.wins, sb.total) };
+      return { name: s.name, total: sb.total, wins: sb.wins, losses: sb.losses, net: sb.net, rate: pct(sb.wins, sb.total) };
     });
 
-    return { loggedCount: closedWithTime.length, perHour: perHour, sessions: sessions };
+    return { loggedCount: withTime.length, perHour: perHour, sessions: sessions };
   }
 
   // Mirrors dayCellHtml's tinted-tile treatment (green all-win / amber mixed
   // / red all-loss / gray no-trades) so the session tiles read as the same
   // visual family as the day-of-week heatmap above them.
-  function sessionCellHtml(s) {
+  // "3 positions" / "1 trade" - the screen renders whichever collection is
+  // selected, so the noun is passed in rather than hardcoded.
+  function timingCountLabel(count, noun) {
+    return count + ' ' + noun + (count === 1 ? '' : 's');
+  }
+
+  // Real money is only meaningful for positions; a trade's dollarPnl is
+  // usually null, so the net line is omitted entirely in trade mode.
+  function timingNetLabel(net, usingPositions) {
+    return usingPositions ? ' · ' + formatSignedMoney(net) : '';
+  }
+
+  function sessionCellHtml(s, noun, usingPositions) {
     if (s.total === 0) {
       return (
         '<div class="group relative rounded-lg bg-surface-container p-4 text-center flex flex-col justify-between h-32 opacity-75 transition-all duration-200">' +
@@ -2598,7 +2667,7 @@
             '<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>' +
           '</div>' +
           '<div class="my-auto"><span class="font-metric-display text-metric-display text-secondary/40 font-bold block leading-none">—</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-secondary/70 font-medium">no trades</div>' +
+          '<div class="font-metric-sm text-metric-sm text-secondary/70 font-medium">no ' + noun + 's</div>' +
         '</div>'
       );
     }
@@ -2610,7 +2679,7 @@
             '<span class="w-2 h-2 rounded-full bg-error"></span>' +
           '</div>' +
           '<div class="my-auto"><span class="font-metric-display text-metric-display text-on-surface font-bold block leading-none">' + s.rate + '%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-on-secondary-fixed-variant font-medium">' + s.total + ' trade' + (s.total === 1 ? '' : 's') + ' <span class="text-error font-semibold">(' + s.losses + ' loss' + (s.losses === 1 ? '' : 'es') + ')</span></div>' +
+          '<div class="font-metric-sm text-metric-sm text-on-secondary-fixed-variant font-medium">' + timingCountLabel(s.total, noun) + timingNetLabel(s.net, usingPositions) + ' <span class="text-error font-semibold">(' + s.losses + ' loss' + (s.losses === 1 ? '' : 'es') + ')</span></div>' +
         '</div>'
       );
     }
@@ -2622,7 +2691,7 @@
             '<span class="w-2 h-2 rounded-full bg-error"></span>' +
           '</div>' +
           '<div class="my-auto"><span class="font-metric-display text-metric-display text-error font-bold block leading-none">0%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-error font-medium">' + s.total + ' trade' + (s.total === 1 ? '' : 's') + '</div>' +
+          '<div class="font-metric-sm text-metric-sm text-error font-medium">' + timingCountLabel(s.total, noun) + timingNetLabel(s.net, usingPositions) + '</div>' +
         '</div>'
       );
     }
@@ -2633,16 +2702,16 @@
           '<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>' +
         '</div>' +
         '<div class="my-auto"><span class="font-metric-display text-metric-display text-tertiary font-bold block leading-none">100%</span></div>' +
-        '<div class="font-metric-sm text-metric-sm text-on-tertiary-fixed-variant font-medium">' + s.total + ' trade' + (s.total === 1 ? '' : 's') + '</div>' +
+        '<div class="font-metric-sm text-metric-sm text-on-tertiary-fixed-variant font-medium">' + timingCountLabel(s.total, noun) + timingNetLabel(s.net, usingPositions) + '</div>' +
       '</div>'
     );
   }
 
-  function hourBarHtml(h, maxCount) {
+  function hourBarHtml(h, maxCount, noun) {
     var hourLabel = pad2(h.hour);
     if (h.total === 0) {
       return (
-        '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — no trades">' +
+        '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — no ' + noun + 's">' +
           '<div class="w-full h-16 flex items-end"><div class="w-full h-1 bg-surface-container-high rounded-xs"></div></div>' +
           '<span class="font-metric-sm text-[9px] text-outline-variant">' + hourLabel + '</span>' +
         '</div>'
@@ -2652,25 +2721,26 @@
     var barColor = h.losses === 0 ? 'bg-tertiary' : (h.wins === 0 ? 'bg-error' : 'bg-secondary');
     var heightPct = Math.max(14, Math.round((h.total / maxCount) * 100));
     return (
-      '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — ' + h.total + ' trade' + (h.total === 1 ? '' : 's') + ', ' + rate + '% win">' +
+      '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — ' + timingCountLabel(h.total, noun) + ', ' + rate + '% win">' +
         '<div class="w-full h-16 flex items-end"><div class="w-full ' + barColor + ' rounded-xs" style="height: ' + heightPct + '%"></div></div>' +
         '<span class="font-metric-sm text-[9px] text-secondary">' + hourLabel + '</span>' +
       '</div>'
     );
   }
 
-  function computeWeekdayStats(trades) {
-    var closed = trades.filter(function (t) { return t.outcome === 'win' || t.outcome === 'loss'; });
+  function computeWeekdayStatsFromRecords(records) {
+    var closed = records.filter(function (r) { return r.isWin || r.isLoss; });
     var byDay = {};
-    WEEKDAYS.forEach(function (d) { byDay[d] = { day: d, wins: 0, losses: 0, total: 0, trades: [] }; });
+    WEEKDAYS.forEach(function (d) { byDay[d] = { day: d, wins: 0, losses: 0, total: 0, net: 0, records: [] }; });
 
-    closed.forEach(function (t) {
-      var day = weekdayLabel(t.date);
+    closed.forEach(function (r) {
+      var day = weekdayLabel(r.dateStr);
       var bucket = byDay[day];
       if (!bucket) return;
       bucket.total++;
-      bucket.trades.push(t);
-      if (t.outcome === 'win') bucket.wins++; else bucket.losses++;
+      bucket.records.push(r);
+      bucket.net += r.net || 0;
+      if (r.isWin) bucket.wins++; else bucket.losses++;
     });
 
     return WEEKDAYS.map(function (day) {
@@ -2679,16 +2749,23 @@
       var dominantSetup = null;
       if (b.total > 0) {
         if (b.wins > 0 && b.losses > 0) {
-          dominantSetup = 'Mixed, ' + mostCommon(b.trades.map(function (t) { return shortContext(nonEmptyConfluence(t)[0]); })) + ' context';
+          dominantSetup = 'Mixed, ' + mostCommon(b.records.map(function (r) { return r.contextLabel; })) + ' context';
         } else {
-          dominantSetup = mostCommon(b.trades.map(summarizeCombo));
+          dominantSetup = mostCommon(b.records.map(function (r) { return r.comboLabel; }));
         }
       }
-      return { day: day, abbr: WEEKDAY_ABBR[day], total: b.total, wins: b.wins, losses: b.losses, rate: rate, dominantSetup: dominantSetup, trades: b.trades };
+      return {
+        day: day, abbr: WEEKDAY_ABBR[day], total: b.total, wins: b.wins, losses: b.losses,
+        net: b.net, rate: rate, dominantSetup: dominantSetup, records: b.records
+      };
     });
   }
 
-  function dayCellHtml(d) {
+  function computeWeekdayStats(trades) {
+    return computeWeekdayStatsFromRecords(tradesToTimingRecords(trades));
+  }
+
+  function dayCellHtml(d, noun, usingPositions) {
     if (d.total === 0) {
       return (
         '<div class="group relative rounded-lg bg-surface-container p-4 text-center flex flex-col justify-between h-32 opacity-75 transition-all duration-200">' +
@@ -2697,7 +2774,7 @@
             '<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>' +
           '</div>' +
           '<div class="my-auto"><span class="font-metric-display text-metric-display text-secondary/40 font-bold block leading-none">—</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-secondary/70 font-medium">no trades</div>' +
+          '<div class="font-metric-sm text-metric-sm text-secondary/70 font-medium">no ' + noun + 's</div>' +
         '</div>'
       );
     }
@@ -2709,7 +2786,7 @@
             '<span class="w-2 h-2 rounded-full bg-error"></span>' +
           '</div>' +
           '<div class="my-auto"><span class="font-metric-display text-metric-display text-on-surface font-bold block leading-none">' + d.rate + '%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-on-secondary-fixed-variant font-medium">' + d.total + ' trade' + (d.total === 1 ? '' : 's') + ' <span class="text-error font-semibold">(' + d.losses + ' loss' + (d.losses === 1 ? '' : 'es') + ')</span></div>' +
+          '<div class="font-metric-sm text-metric-sm text-on-secondary-fixed-variant font-medium">' + timingCountLabel(d.total, noun) + timingNetLabel(d.net, usingPositions) + ' <span class="text-error font-semibold">(' + d.losses + ' loss' + (d.losses === 1 ? '' : 'es') + ')</span></div>' +
         '</div>'
       );
     }
@@ -2721,7 +2798,7 @@
             '<span class="w-2 h-2 rounded-full bg-error"></span>' +
           '</div>' +
           '<div class="my-auto"><span class="font-metric-display text-metric-display text-error font-bold block leading-none">0%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-error font-medium">' + d.total + ' trade' + (d.total === 1 ? '' : 's') + '</div>' +
+          '<div class="font-metric-sm text-metric-sm text-error font-medium">' + timingCountLabel(d.total, noun) + timingNetLabel(d.net, usingPositions) + '</div>' +
         '</div>'
       );
     }
@@ -2732,49 +2809,80 @@
           '<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>' +
         '</div>' +
         '<div class="my-auto"><span class="font-metric-display text-metric-display text-tertiary font-bold block leading-none">100%</span></div>' +
-        '<div class="font-metric-sm text-metric-sm text-on-tertiary-fixed-variant font-medium">' + d.total + ' trade' + (d.total === 1 ? '' : 's') + '</div>' +
+        '<div class="font-metric-sm text-metric-sm text-on-tertiary-fixed-variant font-medium">' + timingCountLabel(d.total, noun) + timingNetLabel(d.net, usingPositions) + '</div>' +
       '</div>'
     );
   }
 
-  function detailRowHtml(d) {
+  function detailRowHtml(d, noun, usingPositions) {
     var dotColor = d.losses > 0 ? 'bg-error' : 'bg-tertiary-container';
     var rateColor = d.losses > 0 ? 'text-error' : 'text-tertiary-container';
     var pillClass = (d.wins > 0 && d.losses > 0) ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container text-on-surface-variant';
+    var netCell = usingPositions
+      ? '<td class="py-3 px-3 font-metric-md text-metric-md font-semibold text-right ' + (d.net >= 0 ? 'text-tertiary' : 'text-error') + '">' + formatSignedMoney(d.net) + '</td>'
+      : '';
     return (
       '<tr class="hover:bg-surface-container-low/50 transition-colors">' +
         '<td class="py-3 px-3 font-medium text-on-surface flex items-center gap-2"><span class="w-2 h-2 rounded-full ' + dotColor + '"></span>' + d.day + '</td>' +
-        '<td class="py-3 px-3 font-metric-sm text-metric-sm text-on-surface-variant text-right">' + d.total + ' trade' + (d.total === 1 ? '' : 's') + '</td>' +
+        '<td class="py-3 px-3 font-metric-sm text-metric-sm text-on-surface-variant text-right">' + timingCountLabel(d.total, noun) + '</td>' +
         '<td class="py-3 px-3 font-metric-md text-metric-md font-bold ' + rateColor + ' text-right">' + d.rate + '%</td>' +
+        netCell +
         '<td class="py-3 px-3 text-secondary font-medium"><span class="px-2 py-0.5 rounded ' + pillClass + ' font-metric-sm text-metric-sm">' + escapeHtml(d.dominantSetup || '—') + '</span></td>' +
       '</tr>'
     );
   }
 
+  // Which collection the screen is analysing. Positions carry exact UTC
+  // timestamps and real P&L, so they're the better timing sample whenever
+  // any have been imported; trades remain available via the toggle.
+  var thSourceState = null;
+
+  function timingSource() {
+    if (thSourceState === 'trades' || thSourceState === 'positions') return thSourceState;
+    return PositionStore.getAll().length ? 'positions' : 'trades';
+  }
+
   function renderTimingHeatmap() {
     var section = sections['timing-and-heatmap'];
     if (!section) return;
-    var trades = TradeStore.getAll();
-    var stats = computeWeekdayStats(trades);
-    var closed = trades.filter(function (t) { return t.outcome === 'win' || t.outcome === 'loss'; });
-    var totalWins = closed.filter(function (t) { return t.outcome === 'win'; }).length;
+
+    var source = timingSource();
+    var usingPositions = source === 'positions';
+    var noun = usingPositions ? 'position' : 'trade';
+    var items = usingPositions ? PositionStore.getAll() : TradeStore.getAll();
+    var records = usingPositions ? positionsToTimingRecords(items) : tradesToTimingRecords(items);
+
+    var stats = computeWeekdayStatsFromRecords(records);
+    var closed = records.filter(function (r) { return r.isWin || r.isLoss; });
+    var totalWins = closed.filter(function (r) { return r.isWin; }).length;
     var totalLosses = closed.length - totalWins;
 
+    syncTimingSourceToggle(section, source);
+
     var sampleEl = section.querySelector('#th-sample-population');
-    if (sampleEl) sampleEl.textContent = trades.length + ' Logged Execution' + (trades.length === 1 ? '' : 's');
+    if (sampleEl) {
+      sampleEl.textContent = items.length + (usingPositions
+        ? ' Imported Position' + (items.length === 1 ? '' : 's')
+        : ' Logged Execution' + (items.length === 1 ? '' : 's'));
+    }
 
     var winRateEl = section.querySelector('#th-active-winrate');
     if (winRateEl) winRateEl.textContent = pct(totalWins, closed.length) + '% (' + totalWins + 'W / ' + totalLosses + 'L)';
 
     var gridEl = section.querySelector('#th-day-grid');
-    if (gridEl) gridEl.innerHTML = stats.map(dayCellHtml).join('');
+    if (gridEl) gridEl.innerHTML = stats.map(function (d) { return dayCellHtml(d, noun, usingPositions); }).join('');
+
+    var countHead = section.querySelector('#th-detail-count-head');
+    if (countHead) countHead.textContent = usingPositions ? 'POSITIONS' : 'TRADES';
+    var netHead = section.querySelector('#th-detail-net-head');
+    if (netHead) netHead.hidden = !usingPositions;
 
     var detailBody = section.querySelector('#th-detail-body');
     var daysWithTrades = stats.filter(function (d) { return d.total > 0; });
     if (detailBody) {
       detailBody.innerHTML = daysWithTrades.length
-        ? daysWithTrades.map(detailRowHtml).join('')
-        : '<tr><td class="py-3 px-3 text-secondary font-body-sm text-body-sm" colspan="4">No closed trades logged yet.</td></tr>';
+        ? daysWithTrades.map(function (d) { return detailRowHtml(d, noun, usingPositions); }).join('')
+        : '<tr><td class="py-3 px-3 text-secondary font-body-sm text-body-sm" colspan="' + (usingPositions ? 5 : 4) + '">No closed ' + noun + 's logged yet.</td></tr>';
     }
 
     var nEl = section.querySelector('#th-detail-n');
@@ -2797,19 +2905,24 @@
     var sparklineEl = section.querySelector('#th-best-window-sparkline');
     if (bestRun.length) {
       var windowTrades = bestRun.reduce(function (sum, d) { return sum + d.total; }, 0);
+      var windowNet = bestRun.reduce(function (sum, d) { return sum + d.net; }, 0);
       var label = bestRun.length === 1 ? bestRun[0].day : (bestRun[0].day + ' to ' + bestRun[bestRun.length - 1].day);
       if (windowLabelEl) windowLabelEl.textContent = label;
       if (windowCopyEl) {
-        windowCopyEl.innerHTML = 'Every decided trade in this window has closed a winner so far, <span class="text-tertiary-fixed font-metric-sm text-metric-sm font-semibold">' + windowTrades + ' for ' + windowTrades + '</span>. Momentum setups executed during this window showcase zero premature invalidations.';
+        windowCopyEl.innerHTML = 'Every decided ' + noun + ' in this window has closed a winner so far, ' +
+          '<span class="text-tertiary-fixed font-metric-sm text-metric-sm font-semibold">' + windowTrades + ' for ' + windowTrades + '</span>' +
+          (usingPositions ? ', worth ' + formatSignedMoney(windowNet) + ' net.' : '.');
       }
-      if (reliabilityEl) reliabilityEl.textContent = '100.0%';
+      // Reliability is the share of the whole decided sample this perfect
+      // window rests on - a 2-of-2 window is not as reliable as 40-of-40.
+      if (reliabilityEl) reliabilityEl.textContent = closed.length ? pct(windowTrades, closed.length) + '% of sample' : '—';
       if (sparklineEl) {
         var barCount = Math.max(1, Math.min(windowTrades, 8));
         sparklineEl.innerHTML = new Array(barCount).fill('<span class="w-1.5 h-3.5 bg-tertiary-fixed rounded-xs"></span>').join('');
       }
     } else {
       if (windowLabelEl) windowLabelEl.textContent = 'Not yet found';
-      if (windowCopyEl) windowCopyEl.textContent = 'No consecutive winning window yet, log a few more closed trades.';
+      if (windowCopyEl) windowCopyEl.textContent = 'No consecutive winning window yet, log a few more closed ' + noun + 's.';
       if (reliabilityEl) reliabilityEl.textContent = '—';
       if (sparklineEl) sparklineEl.innerHTML = '';
     }
@@ -2824,21 +2937,25 @@
       ? lossyDays.reduce(function (worst, d) { return d.rate < worst.rate ? d : worst; })
       : null;
     if (watchDay) {
-      var context = mostCommon(watchDay.trades.map(function (t) { return shortContext(nonEmptyConfluence(t)[0]); })) || 'Unlabeled';
+      var context = mostCommon(watchDay.records.map(function (r) { return r.contextLabel; })) || 'Unlabeled';
       if (watchLabelEl) watchLabelEl.textContent = watchDay.day;
       if (watchCopyEl) {
-        watchCopyEl.textContent = (watchDay.rate === 0 ? 'Your worst day so far, ' : 'Your softest day so far, ') + watchDay.wins + '/' + watchDay.total + ' (' + watchDay.rate + '%). It’s also sourced mostly from a ' + context + ' daily context, small sample, worth tracking forward.';
+        watchCopyEl.textContent = (watchDay.rate === 0 ? 'Your worst day so far, ' : 'Your softest day so far, ') +
+          watchDay.wins + '/' + watchDay.total + ' (' + watchDay.rate + '%)' +
+          (usingPositions ? ', ' + formatSignedMoney(watchDay.net) + ' net. Mostly ' + context + '.' : '. It’s also sourced mostly from a ' + context + ' daily context, small sample, worth tracking forward.');
       }
       if (watchContextEl) watchContextEl.textContent = context;
-      if (watchStopEl) watchStopEl.textContent = watchDay.losses + ' Stop Hit' + (watchDay.losses === 1 ? '' : 's');
+      if (watchStopEl) watchStopEl.textContent = watchDay.losses + (usingPositions ? ' Losing Position' + (watchDay.losses === 1 ? '' : 's') : ' Stop Hit' + (watchDay.losses === 1 ? '' : 's'));
     } else {
       if (watchLabelEl) watchLabelEl.textContent = 'None yet';
       if (watchCopyEl) watchCopyEl.textContent = 'No losing days logged yet, keep it up.';
       if (watchContextEl) watchContextEl.textContent = '—';
-      if (watchStopEl) watchStopEl.textContent = '0 Stop Hits';
+      if (watchStopEl) watchStopEl.textContent = usingPositions ? '0 Losing Positions' : '0 Stop Hits';
     }
 
-    // Session + hour-of-day breakdown, from whichever trades have an entry time logged.
+    // Session + hour-of-day breakdown. Trades need the user's timezone to
+    // turn a local "HH:mm" into UTC; positions are already true UTC, so the
+    // control is hidden rather than left there implying it does something.
     var tzSelect = section.querySelector('#th-tz-select');
     if (tzSelect && !tzSelect.options.length) {
       var currentOffset = getEntryTzOffsetMinutes();
@@ -2850,10 +2967,12 @@
       });
       tzSelect.value = String(currentOffset);
     }
+    var tzWrap = section.querySelector('#th-tz-wrap');
+    if (tzWrap) tzWrap.hidden = usingPositions;
 
-    var sessionStats = computeSessionStats(trades);
+    var sessionStats = computeSessionStatsFromRecords(records);
     var sessionGridEl = section.querySelector('#th-session-grid');
-    if (sessionGridEl) sessionGridEl.innerHTML = sessionStats.sessions.map(sessionCellHtml).join('');
+    if (sessionGridEl) sessionGridEl.innerHTML = sessionStats.sessions.map(function (s) { return sessionCellHtml(s, noun, usingPositions); }).join('');
 
     var hourStripEl = section.querySelector('#th-hour-strip');
     var hourStripEmptyEl = section.querySelector('#th-hour-strip-empty');
@@ -2865,8 +2984,28 @@
         hourStripEl.hidden = false;
         hourStripEmptyEl.hidden = true;
         var maxCount = sessionStats.perHour.reduce(function (max, h) { return Math.max(max, h.total); }, 1);
-        hourStripEl.innerHTML = sessionStats.perHour.map(function (h) { return hourBarHtml(h, maxCount); }).join('');
+        hourStripEl.innerHTML = sessionStats.perHour.map(function (h) { return hourBarHtml(h, maxCount, noun); }).join('');
       }
+    }
+  }
+
+  var TH_SOURCE_ACTIVE_CLASS = 'bg-surface-container-lowest text-on-surface shadow-sm';
+  var TH_SOURCE_IDLE_CLASS = 'text-secondary hover:text-on-surface';
+
+  function syncTimingSourceToggle(section, source) {
+    var positionCount = PositionStore.getAll().length;
+    Array.prototype.forEach.call(section.querySelectorAll('.th-source-btn'), function (btn) {
+      var isActive = btn.getAttribute('data-source') === source;
+      btn.className = 'px-2.5 py-1 rounded-lg font-metric-sm text-metric-sm font-medium transition-colors ' +
+        (isActive ? TH_SOURCE_ACTIVE_CLASS : TH_SOURCE_IDLE_CLASS);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+    var note = section.querySelector('#th-source-note');
+    if (note) {
+      note.textContent = positionCount
+        ? ''
+        : 'Import position history to analyse exact UTC times and real P&L.';
+      note.hidden = !!positionCount;
     }
   }
 
@@ -2876,6 +3015,16 @@
     if (tzSelect) {
       tzSelect.addEventListener('change', function () {
         setEntryTzOffsetMinutes(parseInt(tzSelect.value, 10));
+        renderTimingHeatmap();
+      });
+    }
+
+    var sourceGroup = section.querySelector('#th-source-toggle');
+    if (sourceGroup) {
+      sourceGroup.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('.th-source-btn') : null;
+        if (!btn) return;
+        thSourceState = btn.getAttribute('data-source');
         renderTimingHeatmap();
       });
     }
@@ -5028,6 +5177,70 @@
     );
   }
 
+  // The account as it actually traded, straight from imported positions -
+  // real exchange P&L and fees, so unlike the documented-setup KPIs above
+  // these resolve to numbers rather than "Unavailable".
+  function renderAccountPerformance(section, positions, posStats) {
+    var emptyEl = section.querySelector('#ins-acct-empty');
+    var bodyEl = section.querySelector('#ins-acct-body');
+    var countEl = section.querySelector('#ins-acct-count');
+    if (!emptyEl || !bodyEl) return;
+
+    if (!posStats) {
+      emptyEl.hidden = false;
+      bodyEl.hidden = true;
+      if (countEl) countEl.textContent = 'No positions imported';
+      return;
+    }
+    emptyEl.hidden = true;
+    bodyEl.hidden = false;
+
+    if (countEl) {
+      var promoted = positions.filter(function (p) { return p.linkedTradeId; }).length;
+      countEl.textContent = posStats.count + ' position' + (posStats.count === 1 ? '' : 's') + ' · ' + promoted + ' promoted';
+    }
+
+    var netEl = section.querySelector('#ins-acct-net');
+    var netSubEl = section.querySelector('#ins-acct-net-sub');
+    if (netEl) {
+      netEl.textContent = formatSignedMoney(posStats.netPnl);
+      netEl.className = 'font-metric-lg text-metric-lg font-bold mt-1 ' + (posStats.netPnl >= 0 ? 'text-tertiary' : 'text-error');
+    }
+    if (netSubEl) netSubEl.textContent = formatSignedMoney(posStats.totalPnl) + ' gross';
+
+    // Same helper the Trade Journal validation card uses, fed real position
+    // money instead of the mostly-null per-trade estimate.
+    var pfEl = section.querySelector('#ins-acct-pf');
+    var pfSubEl = section.querySelector('#ins-acct-pf-sub');
+    var pf = computeProfitFactor(positions.map(function (p) { return { pnl: positionNet(p) }; }));
+    if (pfEl) pfEl.textContent = pf === null ? 'Unavailable' : pf.toFixed(2);
+    if (pfSubEl) pfSubEl.textContent = pf === null ? 'no losing positions yet' : 'net wins ÷ net losses';
+
+    // Mirrors the Position History fee tile's fee-as-%-of-gross wording so
+    // the two screens can't quote different numbers.
+    var feesEl = section.querySelector('#ins-acct-fees');
+    var feesSubEl = section.querySelector('#ins-acct-fees-sub');
+    if (feesEl) feesEl.textContent = formatMoney(posStats.totalFees);
+    if (feesSubEl) {
+      feesSubEl.textContent = posStats.totalPnl !== 0
+        ? (Math.abs(posStats.totalFees / posStats.totalPnl) * 100).toFixed(0) + '% of gross P&L'
+        : 'paid to exchange';
+    }
+
+    var winEl = section.querySelector('#ins-acct-winrate');
+    var winSubEl = section.querySelector('#ins-acct-winrate-sub');
+    if (winEl) winEl.textContent = posStats.winRate.toFixed(1) + '%';
+    if (winSubEl) winSubEl.textContent = posStats.wins + ' wins, ' + posStats.losses + ' losses';
+
+    var equityEl = section.querySelector('#ins-acct-equity');
+    if (equityEl) {
+      var equityItems = positions.filter(function (p) { return p.closeTime; }).map(function (p) {
+        return { t: Date.parse(p.closeTime), amount: positionNet(p), label: p.pair };
+      });
+      equityEl.innerHTML = equityCurveHtml(equityItems, 'Import at least two closed positions to plot an equity curve.');
+    }
+  }
+
   function renderInsightsDashboard() {
     var section = sections['insights-dashboard'];
     if (!section) return;
@@ -5046,6 +5259,8 @@
     var docStats = computeTradeJournalPnl(allTrades);
     var positions = PositionStore.getAll();
     var posStats = positions.length ? computePositionStats(positions) : null;
+
+    renderAccountPerformance(section, positions, posStats);
 
     // --- Header subtitle + KPI ribbon (Logged Trades / Win Rate / Longest Streak) ---
     var distinctPairs = {};

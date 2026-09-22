@@ -286,6 +286,45 @@
                 </div>
               </div>
             </div>
+            <!-- Account Performance: the real account, from imported positions -->
+            <div class="bg-surface-container-lowest rounded-xl p-5 mt-6 shadow-sm">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-4">
+                <div>
+                  <h2 class="text-headline-sm font-headline-sm text-on-surface">Account Performance</h2>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Every position actually taken,
+                    with real exchange P&amp;L and fees.</p>
+                </div>
+                <span class="font-metric-sm text-metric-sm text-secondary" id="ins-acct-count">--</span>
+              </div>
+              <div id="ins-acct-empty" class="font-body-sm text-body-sm text-secondary py-2" hidden>
+                Import your MEXC position history to see account-level performance.
+              </div>
+              <div id="ins-acct-body" hidden>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div class="bg-surface-container-low rounded-xl p-4">
+                    <div class="text-label-eyebrow font-label-eyebrow uppercase text-secondary tracking-wider">Net P&amp;L</div>
+                    <div class="font-metric-lg text-metric-lg font-bold mt-1" id="ins-acct-net">--</div>
+                    <div class="font-metric-sm text-metric-sm text-secondary mt-0.5" id="ins-acct-net-sub"></div>
+                  </div>
+                  <div class="bg-surface-container-low rounded-xl p-4">
+                    <div class="text-label-eyebrow font-label-eyebrow uppercase text-secondary tracking-wider">Profit Factor</div>
+                    <div class="font-metric-lg text-metric-lg font-bold text-on-surface mt-1" id="ins-acct-pf">--</div>
+                    <div class="font-metric-sm text-metric-sm text-secondary mt-0.5" id="ins-acct-pf-sub"></div>
+                  </div>
+                  <div class="bg-surface-container-low rounded-xl p-4">
+                    <div class="text-label-eyebrow font-label-eyebrow uppercase text-secondary tracking-wider">Fee Drag</div>
+                    <div class="font-metric-lg text-metric-lg font-bold text-error mt-1" id="ins-acct-fees">--</div>
+                    <div class="font-metric-sm text-metric-sm text-secondary mt-0.5" id="ins-acct-fees-sub"></div>
+                  </div>
+                  <div class="bg-surface-container-low rounded-xl p-4">
+                    <div class="text-label-eyebrow font-label-eyebrow uppercase text-secondary tracking-wider">Win Rate</div>
+                    <div class="font-metric-lg text-metric-lg font-bold text-on-surface mt-1" id="ins-acct-winrate">--</div>
+                    <div class="font-metric-sm text-metric-sm text-secondary mt-0.5" id="ins-acct-winrate-sub"></div>
+                  </div>
+                </div>
+                <div class="mt-4" id="ins-acct-equity"></div>
+              </div>
+            </div>
             <!-- Documented setups vs account-wide comparison -->
             <div id="ins-pnl-comparison" class="bg-surface-container-lowest rounded-xl p-5 mt-6 shadow-sm" hidden>
               <div class="flex items-center justify-between pb-3">
@@ -2482,6 +2521,13 @@
                 </h1>
                 <p class="font-body-md text-body-md text-on-surface-variant mt-0.5">When your setups actually work,
                   segmented by day of week.</p>
+                <div class="flex flex-wrap items-center gap-2 mt-3">
+                  <div class="inline-flex items-center gap-1 bg-surface-container-low rounded-xl p-1" id="th-source-toggle">
+                    <button type="button" class="th-source-btn px-2.5 py-1 rounded-lg font-metric-sm text-metric-sm font-medium transition-colors text-secondary hover:text-on-surface" data-source="positions" aria-pressed="false">Positions</button>
+                    <button type="button" class="th-source-btn px-2.5 py-1 rounded-lg font-metric-sm text-metric-sm font-medium transition-colors text-secondary hover:text-on-surface" data-source="trades" aria-pressed="false">Trades</button>
+                  </div>
+                  <span class="font-metric-sm text-metric-sm text-secondary" id="th-source-note" hidden></span>
+                </div>
               </div>
               <!-- Quick Meta Metrics Pill Group -->
               <div class="flex items-center gap-2.5">
@@ -2656,8 +2702,9 @@
                         <tr
                           class="bg-surface-container-low text-secondary font-label-eyebrow text-label-eyebrow uppercase">
                           <th class="py-2.5 px-3 rounded-l-lg font-semibold tracking-wider">DAY</th>
-                          <th class="py-2.5 px-3 font-semibold tracking-wider text-right">TRADES</th>
+                          <th class="py-2.5 px-3 font-semibold tracking-wider text-right" id="th-detail-count-head">TRADES</th>
                           <th class="py-2.5 px-3 font-semibold tracking-wider text-right">WIN RATE</th>
+                          <th class="py-2.5 px-3 font-semibold tracking-wider text-right" id="th-detail-net-head" hidden>NET P&amp;L</th>
                           <th class="py-2.5 px-3 rounded-r-lg font-semibold tracking-wider">DOMINANT SETUP</th>
                         </tr>
                       </thead>
@@ -2851,7 +2898,7 @@
                   <span class="font-body-sm text-body-sm text-on-surface-variant">Asia / London / New York, derived
                     from each trade's entry time</span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2" id="th-tz-wrap">
                   <label class="font-metric-sm text-metric-sm text-secondary whitespace-nowrap"
                     for="th-tz-select">Entries logged in</label>
                   <select id="th-tz-select"
