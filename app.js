@@ -28,6 +28,12 @@
   });
   document.querySelectorAll('nav a[data-path]').forEach(function (el) {
     navLinks[el.getAttribute('data-path')] = el;
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      var path = el.getAttribute('data-path');
+      window.location.hash = path;
+      activate(path);
+    });
   });
 
   function setNavActive(slug) {
@@ -99,7 +105,7 @@
   function safeImageUrl(value) {
     if (!value) return '';
     var str = String(value).trim();
-    if (/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(str) || /^https?:\/\//i.test(str)) {
+    if (/^data:image\/[a-zA-Z0-9+.-]+;base64,/i.test(str) || /^https?:\/\//i.test(str)) {
       return escapeHtml(str);
     }
     return '';
@@ -3369,7 +3375,6 @@
       return (
         '<div class="bg-surface-container-low rounded-xl p-3">' +
           '<div class="chart-preview-btn relative rounded-lg overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
-            '<img src="' + image.value + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
             '<img src="' + safeImageUrl(image.value) + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
             '<span class="absolute top-3 left-3 bg-surface-container-lowest/90 text-primary font-metric-sm text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">' + tf.short + '</span>' +
           '</div>' +
@@ -4079,7 +4084,6 @@
       isSpaceDown = false;
       isPanning = false;
       if (uploadedChart) {
-        body.innerHTML = '<img src="' + uploadedChart + '" alt="' + (key ? chartTimeframe(key).label : 'Chart') + ' chart for ' + escapeHtml(trade.pair) + '" class="rounded-lg" draggable="false" />';
         body.innerHTML = '<img src="' + safeImageUrl(uploadedChart) + '" alt="' + (key ? chartTimeframe(key).label : 'Chart') + ' chart for ' + escapeHtml(trade.pair) + '" class="rounded-lg" draggable="false" />';
         var img = currentImage();
         img.addEventListener('click', function () {
@@ -4889,7 +4893,6 @@
     var warning = section.querySelector('#chart-link-warning');
     if (!input || !warning) return;
     var value = input.value.trim();
-    warning.hidden = !value || value.toLowerCase().indexOf('tradingview.com') !== -1;
     if (!value) {
       warning.hidden = true;
       return;
@@ -6581,6 +6584,12 @@
     activate(parsed.slug, parsed.param);
   });
 
+  window.AppRouter = {
+    navigate: function (slug, param) {
+      window.location.hash = param ? (slug + '/' + param) : slug;
+    }
+  };
+
   (function boot() {
     var parsed = parseHash();
     activate(parsed.slug || DEFAULT_SCREEN, parsed.param);
@@ -6588,12 +6597,6 @@
 
   renderSyncStatusUI();
   pullFromGitHub();
-
-  window.AppRouter = {
-    navigate: function (slug, param) {
-      window.location.hash = param ? (slug + '/' + param) : slug;
-    }
-  };
 
   // Quick-action buttons (e.g. "New Trade" on Insights Dashboard / Trade Journal)
   // that share the same data-path convention as the sidebar nav links.
