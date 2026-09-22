@@ -415,7 +415,6 @@
   function tradeChartCellHtml(trade) {
     var chart = trade.chart;
     if (chart && chart.type === 'link' && chart.value && !firstChartKey(trade)) {
-      return '<a href="' + escapeHtml(chart.value) + '" target="_blank" rel="noopener noreferrer" ' +
       var href = safeUrl(chart.value);
       if (href === '#') return '';
       return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" ' +
@@ -3349,10 +3348,6 @@
           '<span class="material-symbols-outlined text-primary text-[32px]">candlestick_chart</span>' +
           '<span class="font-headline-sm text-headline-sm text-on-surface font-medium">TradingView snapshot</span>' +
           '<span class="font-metric-sm text-metric-sm text-secondary break-all max-w-full" title="' + escapeHtml(link.value) + '">' + escapeHtml(truncateMiddle(link.value, 52)) + '</span>' +
-          '<a href="' + escapeHtml(link.value) + '" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-container text-on-primary px-3.5 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold shadow-sm transition-colors">' +
-            'View Chart on TradingView' +
-            '<span class="material-symbols-outlined text-[15px]">open_in_new</span>' +
-          '</a>' +
           (safeLink !== '#'
             ? '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-container text-on-primary px-3.5 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold shadow-sm transition-colors">' +
                 'View Chart on TradingView' +
@@ -3363,8 +3358,6 @@
       );
     }
 
-    var linkButton = link
-      ? '<a href="' + escapeHtml(link.value) + '" target="_blank" rel="noopener noreferrer" class="ml-auto inline-flex items-center gap-1 text-primary hover:underline font-metric-sm text-metric-sm font-semibold">' +
     var linkButton = (link && safeLink !== '#')
       ? '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" class="ml-auto inline-flex items-center gap-1 text-primary hover:underline font-metric-sm text-metric-sm font-semibold">' +
           'View on TradingView<span class="material-symbols-outlined text-[14px]">open_in_new</span></a>'
