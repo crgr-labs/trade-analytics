@@ -3780,6 +3780,57 @@
     return paramCategoryKeys().indexOf(category) !== -1 ? category : FALLBACK_CATEGORY_KEY;
   }
 
+  // Pulling from GitHub must never delete a category/parameter created
+  // locally and not yet pushed - these three merges union local with
+  // remote (local wins on a key collision) instead of replacing local
+  // outright. See localHasExtra, used by the pull path to decide whether
+  // the merge result needs pushing back so other devices converge too.
+  function mergeParamCategories(local, remote) {
+    var merged = local.slice();
+    var seen = {};
+    merged.forEach(function (c) { seen[String(c.key).toLowerCase()] = true; });
+    (remote || []).forEach(function (rc) {
+      if (!rc || !rc.key) return;
+      var key = String(rc.key).toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      merged.push({ key: String(rc.key), label: String(rc.label || rc.key) });
+    });
+    return merged;
+  }
+
+  function mergeConfluenceVocabulary(local, remote) {
+    var merged = local.slice();
+    var seen = {};
+    merged.forEach(function (v) { seen[v.name.toLowerCase()] = true; });
+    (remote || []).forEach(function (rv) {
+      if (!rv || !rv.name) return;
+      var key = String(rv.name).toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      merged.push({ name: String(rv.name), category: normalizeParamCategory(rv.category) });
+    });
+    return merged;
+  }
+
+  function mergeRemovedDefaults(local, remote) {
+    var seen = {};
+    var merged = [];
+    local.concat(remote || []).forEach(function (n) {
+      var key = String(n).toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      merged.push(key);
+    });
+    return merged;
+  }
+
+  function localHasExtra(local, remote, keyFn) {
+    var remoteKeys = {};
+    (remote || []).forEach(function (r) { remoteKeys[String(keyFn(r)).toLowerCase()] = true; });
+    return local.some(function (l) { return !remoteKeys[String(keyFn(l)).toLowerCase()]; });
+  }
+
   function saveConfluenceVocabulary(vocab) {
     try { localStorage.setItem(CUSTOM_PARAMS_STORAGE_KEY, JSON.stringify(vocab)); } catch (e) {}
     scheduleGithubSync();
@@ -5354,28 +5405,75 @@
         return;
       }
 
+      if (!meta.lastPushedFingerprint) {
+        // First time this device has ever synced - there's no fingerprint
+        // to compare against, so the check above can't tell "fresh device,
+        // nothing to lose" apart from "device with real local trades that
+        // just haven't been pushed yet". Ask, rather than silently
+        // replacing trade history. SEED_TRADES ids are 'seed-01'..'seed-11',
+        // so any other id means the user actually logged something here.
+        var localTrades = TradeStore.getAll();
+        var localPositions = PositionStore.getAll();
+        var hasCustomLocalData = localTrades.some(function (t) { return t.id.indexOf('seed-') !== 0; }) || localPositions.length > 0;
+        if (hasCustomLocalData && computeDataFingerprint(remoteTrades, remotePositions) !== localFingerprint) {
+          var replaceLocal = window.confirm(
+            'This device has trades/positions that have never been backed up to GitHub, and the repo already has different data (likely from another device).\n\n' +
+            'Click OK to replace this device\'s trades/positions with what\'s on GitHub.\n' +
+            'Click Cancel to keep this device\'s data and push it to GitHub instead.'
+          );
+          if (!replaceLocal) {
+            pushToGitHub();
+            return;
+          }
+        }
+      }
+
       return Promise.all(remoteTrades.map(function (t) { return hydrateChartRef(cfg, t).then(migrateTrade); })).then(function (hydratedTrades) {
         githubSyncApplyingRemote = true;
         TradeStore.setAll(hydratedTrades);
         PositionStore.setAll(remotePositions);
+
+        // Categories/vocabulary are merged, never replaced outright - a
+        // category or parameter created locally and not yet pushed must
+        // survive a pull. localHasExtra tells us whether the merge result
+        // has something GitHub doesn't, so it can be pushed back and other
+        // devices converge on the same union.
+        var needsParamsPushBack = false;
         if (remoteParams) {
-          // A repo synced before this feature existed won't have this file
-          // yet - keep whatever categories/vocabulary are local until the
-          // next push creates it.
-          if (Array.isArray(remoteParams.categories)) saveParamCategories(remoteParams.categories);
-          if (Array.isArray(remoteParams.vocabulary)) saveConfluenceVocabulary(remoteParams.vocabulary);
-          if (Array.isArray(remoteParams.removedDefaults)) saveRemovedDefaults(remoteParams.removedDefaults);
+          var localCategories = loadParamCategories();
+          var localVocab = loadConfluenceVocabulary();
+          var localRemoved = getRemovedDefaults();
+          needsParamsPushBack =
+            localHasExtra(localCategories, remoteParams.categories, function (c) { return c.key; }) ||
+            localHasExtra(localVocab, remoteParams.vocabulary, function (v) { return v.name; }) ||
+            localHasExtra(localRemoved, remoteParams.removedDefaults, function (n) { return n; });
+
+          // Categories must be saved before vocabulary: mergeConfluenceVocabulary
+          // normalizes each entry's category against the live (just-merged) list.
+          saveParamCategories(mergeParamCategories(localCategories, remoteParams.categories));
+          saveConfluenceVocabulary(mergeConfluenceVocabulary(localVocab, remoteParams.vocabulary));
+          saveRemovedDefaults(mergeRemovedDefaults(localRemoved, remoteParams.removedDefaults));
         }
         githubSyncApplyingRemote = false;
 
-        ghMetaSet({
-          tradesSha: tradesFile.exists ? tradesFile.sha : null,
-          positionsSha: positionsFile.exists ? positionsFile.sha : null,
-          paramsSha: paramsFile.exists ? paramsFile.sha : null,
-          lastPushedFingerprint: computeDataFingerprint(hydratedTrades, remotePositions),
-          lastSyncAt: Date.now()
-        });
-        setSyncStatus('synced');
+        if (needsParamsPushBack) {
+          ghMetaSet({
+            tradesSha: tradesFile.exists ? tradesFile.sha : null,
+            positionsSha: positionsFile.exists ? positionsFile.sha : null,
+            paramsSha: paramsFile.exists ? paramsFile.sha : null,
+            lastSyncAt: Date.now()
+          });
+          pushToGitHub();
+        } else {
+          ghMetaSet({
+            tradesSha: tradesFile.exists ? tradesFile.sha : null,
+            positionsSha: positionsFile.exists ? positionsFile.sha : null,
+            paramsSha: paramsFile.exists ? paramsFile.sha : null,
+            lastPushedFingerprint: computeDataFingerprint(hydratedTrades, remotePositions),
+            lastSyncAt: Date.now()
+          });
+          setSyncStatus('synced');
+        }
 
         // Refresh whatever's on screen - except an in-progress New Trade
         // Entry draft, which a render would reset.
@@ -5439,6 +5537,7 @@
     var tokenInput = document.getElementById('gh-sync-token');
     var saveBtn = document.getElementById('gh-sync-save');
     var syncNowBtn = document.getElementById('gh-sync-now');
+    var pullNowBtn = document.getElementById('gh-sync-pull');
     var disconnectBtn = document.getElementById('gh-sync-disconnect');
     if (!toggle || !panel) return;
 
@@ -5483,6 +5582,10 @@
 
     if (syncNowBtn) {
       syncNowBtn.addEventListener('click', function () { pushToGitHub(); });
+    }
+
+    if (pullNowBtn) {
+      pullNowBtn.addEventListener('click', function () { pullFromGitHub(); });
     }
 
     if (disconnectBtn) {
