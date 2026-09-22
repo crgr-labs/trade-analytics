@@ -1109,62 +1109,147 @@
     };
   }
 
-  function parseMexcWorkbook(workbook) {
-    var sheetNames = workbook.SheetNames;
+  // Lightweight RFC-4180 compliant CSV parser
+  function parseCsv(text) {
+    if (!text || typeof text !== 'string') return [];
+    var str = text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
+    var rows = [];
+    var currentRow = [];
+    var currentField = '';
+    var inQuotes = false;
+    var i = 0;
+    var len = str.length;
+
+    while (i < len) {
+      var char = str[i];
+      if (inQuotes) {
+        if (char === '"') {
+          if (i + 1 < len && str[i + 1] === '"') {
+            currentField += '"';
+            i += 2;
+          } else {
+            inQuotes = false;
+            i++;
+          }
+        } else {
+          currentField += char;
+          i++;
+        }
+      } else {
+        if (char === '"') {
+          inQuotes = true;
+          i++;
+        } else if (char === ',') {
+          currentRow.push(currentField);
+          currentField = '';
+          i++;
+        } else if (char === '\r') {
+          if (i + 1 < len && str[i + 1] === '\n') {
+            i++;
+          }
+          currentRow.push(currentField);
+          currentField = '';
+          rows.push(currentRow);
+          currentRow = [];
+          i++;
+        } else if (char === '\n') {
+          currentRow.push(currentField);
+          currentField = '';
+          rows.push(currentRow);
+          currentRow = [];
+          i++;
+        } else {
+          currentField += char;
+          i++;
+        }
+      }
+    }
+    if (inQuotes) {
+      currentRow.push(currentField);
+      rows.push(currentRow);
+    } else if (currentField.length > 0 || currentRow.length > 0) {
+      currentRow.push(currentField);
+      rows.push(currentRow);
+    }
+    if (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') {
+      rows.pop();
+    }
+    return rows;
+  }
+
+  function parseMexcRowsMatrix(candidateRows) {
+    if (!candidateRows || !candidateRows.length) {
+      return { rows: [], error: 'File is empty.' };
+    }
 
     // Pass 1: a textual header row (case/whitespace/full-width tolerant).
-    for (var s = 0; s < sheetNames.length; s++) {
-      var sheet = workbook.Sheets[sheetNames[s]];
-      if (!sheet) continue;
-      var candidateRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      for (var i = 0; i < candidateRows.length; i++) {
-        var normVals = candidateRows[i].map(normalizeHeaderCell);
-        if (normVals.indexOf('futures') === -1 || normVals.indexOf('direction') === -1) continue;
+    for (var i = 0; i < candidateRows.length; i++) {
+      var normVals = candidateRows[i].map(normalizeHeaderCell);
+      if (normVals.indexOf('futures') === -1 || normVals.indexOf('direction') === -1) continue;
 
-        var headerRow = candidateRows[i];
-        var colIndex = {};
-        headerRow.forEach(function (cell, idx) {
-          var canonical = MEXC_REQUIRED_LOOKUP[normalizeHeaderCell(cell)];
-          if (canonical) colIndex[canonical] = idx;
-        });
-        var openTimeIdx = findOpenTimeColumnIndex(headerRow);
-        if (openTimeIdx !== -1) colIndex['Open Time(UTC+08:00)'] = openTimeIdx;
+      var headerRow = candidateRows[i];
+      var colIndex = {};
+      headerRow.forEach(function (cell, idx) {
+        var canonical = MEXC_REQUIRED_LOOKUP[normalizeHeaderCell(cell)];
+        if (canonical) colIndex[canonical] = idx;
+      });
+      var openTimeIdx = findOpenTimeColumnIndex(headerRow);
+      if (openTimeIdx !== -1) colIndex['Open Time(UTC+08:00)'] = openTimeIdx;
 
-        var missing = MEXC_REQUIRED_COLUMNS.filter(function (name) { return !(name in colIndex); });
-        if (openTimeIdx === -1) missing.push('Open Time');
-        if (missing.length) {
-          return {
-            rows: [], error: 'Missing expected column(s): ' + missing.join(', ') +
-              '. Columns found in this file: ' + describeRowForDiagnostics(headerRow)
-          };
-        }
-
-        var dataRows = [];
-        for (var r = i + 1; r < candidateRows.length; r++) {
-          var raw = candidateRows[r];
-          if (!raw || raw.every(function (c) { return String(c == null ? '' : c).trim() === ''; })) continue;
-          dataRows.push(extractMexcDataRow(raw, colIndex));
-        }
-        return { rows: dataRows, error: null };
+      var missing = MEXC_REQUIRED_COLUMNS.filter(function (name) { return !(name in colIndex); });
+      if (openTimeIdx === -1) missing.push('Open Time');
+      if (missing.length) {
+        return {
+          rows: [], error: 'Missing expected column(s): ' + missing.join(', ') +
+            '. Columns found in this file: ' + describeRowForDiagnostics(headerRow)
+        };
       }
+
+      var dataRows = [];
+      for (var r = i + 1; r < candidateRows.length; r++) {
+        var raw = candidateRows[r];
+        if (!raw || raw.every(function (c) { return String(c == null ? '' : c).trim() === ''; })) continue;
+        dataRows.push(extractMexcDataRow(raw, colIndex));
+      }
+      return { rows: dataRows, error: null };
     }
 
     // Pass 2: no header row at all - MEXC's raw export can be just the data,
     // in a fixed column order, starting at row 1. Find where it starts by
     // content shape instead, then read positionally.
-    for (var s2 = 0; s2 < sheetNames.length; s2++) {
-      var sheet2 = workbook.Sheets[sheetNames[s2]];
-      if (!sheet2) continue;
-      var rows2 = XLSX.utils.sheet_to_json(sheet2, { header: 1, defval: '' });
-      for (var r2 = 0; r2 < rows2.length; r2++) {
-        if (!looksLikeMexcDataRow(rows2[r2])) continue;
-        var dataRows2 = [];
-        for (var r3 = r2; r3 < rows2.length; r3++) {
-          var raw2 = rows2[r3];
-          if (!raw2 || raw2.every(function (c) { return String(c == null ? '' : c).trim() === ''; })) continue;
-          dataRows2.push(extractMexcDataRow(raw2, MEXC_POSITIONAL_COLUMNS));
-        }
-        return { rows: dataRows2, error: null };
+    for (var r2 = 0; r2 < candidateRows.length; r2++) {
+      if (!looksLikeMexcDataRow(candidateRows[r2])) continue;
+      var dataRows2 = [];
+      for (var r3 = r2; r3 < candidateRows.length; r3++) {
+        var raw2 = candidateRows[r3];
+        if (!raw2 || raw2.every(function (c) { return String(c == null ? '' : c).trim() === ''; })) continue;
+        dataRows2.push(extractMexcDataRow(raw2, MEXC_POSITIONAL_COLUMNS));
+      }
+      return { rows: dataRows2, error: null };
+    }
+
+    var sampleRow = candidateRows.filter(function (r) { return r.some(function (c) { return String(c == null ? '' : c).trim() !== ''; }); })[0];
+    return {
+      rows: [], error: 'Could not find MEXC Position History data in this file (looked for column headers, and for rows shaped like exported positions). First readable row: ' + describeRowForDiagnostics(sampleRow)
+    };
+  }
+
+  function parseMexcCsv(csvText) {
+    var candidateRows = parseCsv(csvText);
+    return parseMexcRowsMatrix(candidateRows);
+  }
+
+  function parseMexcWorkbook(workbook) {
+    var sheetNames = workbook.SheetNames || [];
+
+    // Check each sheet with Pass 1 and Pass 2
+    for (var s = 0; s < sheetNames.length; s++) {
+      var sheet = workbook.Sheets[sheetNames[s]];
+      if (!sheet) continue;
+      var candidateRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      var res = parseMexcRowsMatrix(candidateRows);
+      if (res.rows.length > 0 || (res.error && res.error.indexOf('Missing expected column') === 0)) {
+        return res;
       }
     }
 
@@ -1345,7 +1430,8 @@
         var file = e.target.files[0];
         fileInput.value = '';
         if (!file) return;
-        if (typeof XLSX === 'undefined') {
+        var isCsv = /\.csv$/i.test(file.name);
+        if (!isCsv && typeof XLSX === 'undefined') {
           window.alert('The .xlsx import library failed to load, so this file can\'t be read. Check your connection and try again.');
           return;
         }
@@ -1353,9 +1439,14 @@
         reader.onload = function () {
           var result;
           try {
-            var data = new Uint8Array(reader.result);
-            var workbook = XLSX.read(data, { type: 'array', cellDates: true });
-            var parsed = parseMexcWorkbook(workbook);
+            var parsed;
+            if (isCsv) {
+              parsed = parseMexcCsv(reader.result);
+            } else {
+              var data = new Uint8Array(reader.result);
+              var workbook = XLSX.read(data, { type: 'array', cellDates: true });
+              parsed = parseMexcWorkbook(workbook);
+            }
             if (parsed.error) {
               window.alert('Could not import this file: ' + parsed.error);
               return;
@@ -1366,7 +1457,7 @@
             }
             result = importMexcRows(parsed.rows);
           } catch (err) {
-            window.alert('Could not read this file. Make sure it is a MEXC Position History .xlsx export.');
+            window.alert('Could not read this file. Make sure it is a MEXC Position History export (.xlsx or .csv).');
             return;
           }
           showImportSummary(result);
@@ -1375,7 +1466,11 @@
         reader.onerror = function () {
           window.alert('Could not read this file.');
         };
-        reader.readAsArrayBuffer(file);
+        if (isCsv) {
+          reader.readAsText(file);
+        } else {
+          reader.readAsArrayBuffer(file);
+        }
       });
     }
 
@@ -1927,7 +2022,8 @@
         var file = e.target.files[0];
         fileInput.value = '';
         if (!file) return;
-        if (typeof XLSX === 'undefined') {
+        var isCsv = /\.csv$/i.test(file.name);
+        if (!isCsv && typeof XLSX === 'undefined') {
           window.alert('The .xlsx import library failed to load, so this file can\'t be read.');
           return;
         }
@@ -1935,8 +2031,13 @@
         reader.onload = function () {
           var result;
           try {
-            var workbook = XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
-            var parsed = parseMexcWorkbook(workbook);
+            var parsed;
+            if (isCsv) {
+              parsed = parseMexcCsv(reader.result);
+            } else {
+              var workbook = XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
+              parsed = parseMexcWorkbook(workbook);
+            }
             if (parsed.error) {
               window.alert('Could not import this file: ' + parsed.error);
               return;
@@ -1947,7 +2048,7 @@
             }
             result = importPositionRows(parsed.rows);
           } catch (err) {
-            window.alert('Could not read this file. Make sure it is a MEXC Position History .xlsx export.');
+            window.alert('Could not read this file. Make sure it is a MEXC Position History export (.xlsx or .csv).');
             return;
           }
           showPositionImportBanner(result);
@@ -1955,7 +2056,11 @@
           renderInsightsDashboard();
         };
         reader.onerror = function () { window.alert('Could not read this file.'); };
-        reader.readAsArrayBuffer(file);
+        if (isCsv) {
+          reader.readAsText(file);
+        } else {
+          reader.readAsArrayBuffer(file);
+        }
       });
     }
 
