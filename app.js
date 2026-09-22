@@ -3317,20 +3317,65 @@
     }).join('');
   }
 
+  // Same filter+sort the case study list renders with, shared so Prev/Next
+  // on the detail view walks through exactly what the list currently shows.
+  function orderedCaseStudyTrades() {
+    var trades = TradeStore.getAll();
+    var query = csListState.search.trim().toLowerCase();
+    var filtered = query ? trades.filter(function (t) { return (t.pair || '').toLowerCase().indexOf(query) !== -1; }) : trades;
+    return sortCaseStudyTrades(filtered, csListState.sort);
+  }
+
   function renderCaseStudyList() {
     var section = sections['case-studies'];
     if (!section) return;
     var listEl = section.querySelector('#cs-list');
     if (!listEl) return;
 
-    var trades = TradeStore.getAll();
-    var query = csListState.search.trim().toLowerCase();
-    var filtered = query ? trades.filter(function (t) { return (t.pair || '').toLowerCase().indexOf(query) !== -1; }) : trades;
-    var sorted = sortCaseStudyTrades(filtered, csListState.sort);
+    var sorted = orderedCaseStudyTrades();
 
     listEl.innerHTML = sorted.length
       ? sorted.map(caseStudyListRowHtml).join('')
       : '<div class="px-5 py-8 text-center font-body-sm text-body-sm text-secondary">No trades match "' + escapeHtml(csListState.search) + '".</div>';
+  }
+
+  // Populates the Prev/Next buttons and "N of M" label based on where this
+  // trade sits in the current (filtered/sorted) case study list.
+  function renderCaseStudyPrevNext(section, tradeId) {
+    var prevBtn = section.querySelector('#cs-btn-prev');
+    var nextBtn = section.querySelector('#cs-btn-next');
+    var labelEl = section.querySelector('#cs-position-label');
+    if (!prevBtn || !nextBtn || !labelEl) return;
+
+    var ordered = orderedCaseStudyTrades();
+    var index = ordered.findIndex(function (t) { return t.id === tradeId; });
+
+    if (index === -1) {
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      prevBtn.removeAttribute('data-nav-id');
+      nextBtn.removeAttribute('data-nav-id');
+      labelEl.textContent = '';
+      return;
+    }
+
+    labelEl.textContent = (index + 1) + ' of ' + ordered.length;
+
+    if (index > 0) {
+      prevBtn.disabled = false;
+      prevBtn.setAttribute('data-nav-id', ordered[index - 1].id);
+    } else {
+      prevBtn.disabled = true;
+      prevBtn.removeAttribute('data-nav-id');
+    }
+
+    if (index < ordered.length - 1) {
+      nextBtn.disabled = false;
+      nextBtn.setAttribute('data-nav-id', ordered[index + 1].id);
+    } else {
+      nextBtn.disabled = true;
+      nextBtn.removeAttribute('data-nav-id');
+    }
   }
 
   function initCaseStudyListControls() {
@@ -3391,6 +3436,7 @@
 
     section.querySelector('#cs-breadcrumb-pair').textContent = trade.pair;
     section.querySelector('#cs-archive-id').textContent = archiveIdFor(trade);
+    renderCaseStudyPrevNext(section, trade.id);
     section.querySelector('#cs-pair').textContent = trade.pair;
     section.querySelector('#cs-direction').textContent = trade.direction.toUpperCase();
     section.querySelector('#cs-logged-date').textContent = 'Logged ' + formatLongDate(trade.date);
@@ -3572,6 +3618,22 @@
     var exportPdfBtn = section.querySelector('#cs-btn-export-pdf');
     if (exportPdfBtn) {
       exportPdfBtn.addEventListener('click', function () { window.print(); });
+    }
+
+    var prevBtn = section.querySelector('#cs-btn-prev');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function () {
+        var id = prevBtn.getAttribute('data-nav-id');
+        if (id) window.AppRouter.navigate('case-studies', id);
+      });
+    }
+
+    var nextBtn = section.querySelector('#cs-btn-next');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function () {
+        var id = nextBtn.getAttribute('data-nav-id');
+        if (id) window.AppRouter.navigate('case-studies', id);
+      });
     }
 
     // Clicking a status tag cycles Passed -> Pending -> Failed. The entry form

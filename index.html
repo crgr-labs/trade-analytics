@@ -1870,10 +1870,24 @@
       <!-- Header row: title, date, outcome, actions -->
       <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex flex-col gap-2 min-w-0">
-          <a class="self-start text-secondary hover:text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" href="#case-studies">
-            <span class="material-symbols-outlined text-[16px]">arrow_back</span>
-            All Case Studies
-          </a>
+          <div class="flex items-center gap-3">
+            <a class="text-secondary hover:text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" href="#case-studies">
+              <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+              All Case Studies
+            </a>
+            <span class="text-outline-variant">•</span>
+            <div class="flex items-center gap-1.5">
+              <button type="button" id="cs-btn-prev" title="Previous case study"
+                class="w-6 h-6 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+              </button>
+              <span class="font-metric-sm text-metric-sm text-secondary" id="cs-position-label">--</span>
+              <button type="button" id="cs-btn-next" title="Next case study"
+                class="w-6 h-6 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+            </div>
+          </div>
           <div class="flex flex-wrap items-center gap-3">
             <h1 class="font-metric-display text-metric-display text-on-surface font-semibold tracking-tight" id="cs-pair">--</h1>
             <span class="bg-surface-container-low text-primary px-2.5 py-0.5 rounded text-[11px] font-headline-sm font-bold uppercase tracking-wider" id="cs-direction">--</span>
