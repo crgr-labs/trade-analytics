@@ -2996,7 +2996,9 @@
     var positionCount = PositionStore.getAll().length;
     Array.prototype.forEach.call(section.querySelectorAll('.th-source-btn'), function (btn) {
       var isActive = btn.getAttribute('data-source') === source;
-      btn.className = 'px-2.5 py-1 rounded-lg font-metric-sm text-metric-sm font-medium transition-colors ' +
+      // th-source-btn must survive this rewrite - it's what the click
+      // delegation and every future call to this function select on.
+      btn.className = 'th-source-btn px-2.5 py-1 rounded-lg font-metric-sm text-metric-sm font-medium transition-colors ' +
         (isActive ? TH_SOURCE_ACTIVE_CLASS : TH_SOURCE_IDLE_CLASS);
       btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
