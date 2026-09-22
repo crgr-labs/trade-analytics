@@ -187,9 +187,8 @@
                   <span class="text-primary font-semibold">Insights</span>
                 </div>
                 <h1 class="text-headline-xl font-headline-xl text-on-surface">Trade Insights</h1>
-                <p class="text-body-md font-body-md text-on-surface-variant mt-1 max-w-2xl">
-                  Live snapshot of 11 trades from 22 Aug to 3 Sep 2026. Win rate is a hit-rate proxy; P&amp;L is not yet
-                  recorded.
+                <p class="text-body-md font-body-md text-on-surface-variant mt-1 max-w-2xl" id="ins-subtitle">
+                  Live snapshot. Win rate is a hit-rate proxy; P&amp;L is not yet recorded.
                 </p>
               </div>
               <div class="flex items-center gap-3">
@@ -215,8 +214,8 @@
                   <span class="material-symbols-outlined text-[18px] text-secondary">receipt_long</span>
                 </div>
                 <div class="mt-4">
-                  <div class="text-metric-display font-metric-display text-on-surface">11</div>
-                  <div class="text-metric-sm font-metric-sm text-secondary mt-1">10 pairs traded</div>
+                  <div class="text-metric-display font-metric-display text-on-surface" id="ins-kpi-trades-value">0</div>
+                  <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ins-kpi-trades-sub">0 pairs traded</div>
                 </div>
                 <div class="w-full bg-surface-container h-1 rounded-full mt-3 overflow-hidden">
                   <div class="bg-primary h-full rounded-full" style="width: 100%;"></div>
@@ -229,11 +228,11 @@
                   <span class="material-symbols-outlined text-[18px] text-tertiary">verified</span>
                 </div>
                 <div class="mt-4">
-                  <div class="text-metric-display font-metric-display text-tertiary">90.9%</div>
-                  <div class="text-metric-sm font-metric-sm text-secondary mt-1">10 wins, 1 loss</div>
+                  <div class="text-metric-display font-metric-display text-tertiary" id="ins-kpi-winrate-value">--</div>
+                  <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ins-kpi-winrate-sub">no closed trades yet</div>
                 </div>
                 <div class="w-full bg-surface-container h-1 rounded-full mt-3 overflow-hidden">
-                  <div class="bg-tertiary h-full rounded-full" style="width: 90.9%;"></div>
+                  <div class="bg-tertiary h-full rounded-full" id="ins-kpi-winrate-bar" style="width: 0%;"></div>
                 </div>
               </div>
               <!-- KPI 3: Longest Streak -->
@@ -243,11 +242,11 @@
                   <span class="material-symbols-outlined text-[18px] text-primary">electric_bolt</span>
                 </div>
                 <div class="mt-4">
-                  <div class="text-metric-display font-metric-display text-on-surface">5</div>
-                  <div class="text-body-sm font-body-sm text-secondary mt-1">consecutive wins</div>
+                  <div class="text-metric-display font-metric-display text-on-surface" id="ins-kpi-streak-value">0</div>
+                  <div class="text-body-sm font-body-sm text-secondary mt-1" id="ins-kpi-streak-sub">consecutive wins</div>
                 </div>
                 <div class="w-full bg-surface-container h-1 rounded-full mt-3 overflow-hidden">
-                  <div class="bg-primary h-full rounded-full" style="width: 50%;"></div>
+                  <div class="bg-primary h-full rounded-full" id="ins-kpi-streak-bar" style="width: 0%;"></div>
                 </div>
               </div>
               <!-- KPI 4: Documented Setups P&L -->
@@ -351,70 +350,9 @@
                     class="text-label-eyebrow font-label-eyebrow text-primary uppercase font-bold tracking-wider">What
                     Stands Out</span>
                 </div>
-                <span class="text-metric-sm font-metric-sm text-secondary">Clinical Synthesis (N=11)</span>
+                <span class="text-metric-sm font-metric-sm text-secondary" id="ins-key-findings-n">Clinical Synthesis (N=0)</span>
               </div>
-              <div class="flex flex-col gap-3.5">
-                <div
-                  class="flex items-start gap-3.5 p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div
-                    class="w-6 h-6 rounded-full bg-on-surface text-surface-container-lowest flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0">
-                    1
-                  </div>
-                  <div class="text-body-md font-body-md text-on-surface">
-                    <strong class="font-semibold text-on-surface">Trend context is the clearest separator:</strong>
-                    <span class="text-on-surface-variant ml-1">Daily Uptrend and Momentum continuation is 8/8, versus
-                      Daily Sideways at 2/3.</span>
-                  </div>
-                </div>
-                <div
-                  class="flex items-start gap-3.5 p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div
-                    class="w-6 h-6 rounded-full bg-on-surface text-surface-container-lowest flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0">
-                    2
-                  </div>
-                  <div class="text-body-md font-body-md text-on-surface">
-                    <strong class="font-semibold text-on-surface">The only loss is structurally different:</strong>
-                    <span class="text-on-surface-variant ml-1">it combined Daily Sideways, 4H LS, M15 not applicable,
-                      and Daily RSI below 70.</span>
-                  </div>
-                </div>
-                <div
-                  class="flex items-start gap-3.5 p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div
-                    class="w-6 h-6 rounded-full bg-on-surface text-surface-container-lowest flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0">
-                    3
-                  </div>
-                  <div class="text-body-md font-body-md text-on-surface">
-                    <strong class="font-semibold text-on-surface">More confluence did not guarantee a win:</strong>
-                    <span class="text-on-surface-variant ml-1">trades with 6+ filled parameter slots are 8/9; the lone
-                      loss also had six filled slots.</span>
-                  </div>
-                </div>
-                <div
-                  class="flex items-start gap-3.5 p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div
-                    class="w-6 h-6 rounded-full bg-on-surface text-surface-container-lowest flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0">
-                    4
-                  </div>
-                  <div class="text-body-md font-body-md text-on-surface">
-                    <strong class="font-semibold text-on-surface">Execution is highly concentrated:</strong>
-                    <span class="text-on-surface-variant ml-1">every trade is Long at 10x leverage, so direction and
-                      leverage effects can't be compared yet.</span>
-                  </div>
-                </div>
-                <div
-                  class="flex items-start gap-3.5 p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div
-                    class="w-6 h-6 rounded-full bg-on-surface text-surface-container-lowest flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0">
-                    5
-                  </div>
-                  <div class="text-body-md font-body-md text-on-surface">
-                    <strong class="font-semibold text-on-surface">Treat perfect subsets as provisional:</strong>
-                    <span class="text-on-surface-variant ml-1">several signals show 100%, but each rests on only 3-8
-                      observations.</span>
-                  </div>
-                </div>
-              </div>
+              <div class="flex flex-col gap-3.5" id="ins-key-findings"></div>
             </div>
             <!-- Bivariate Correlation Ledgers (2 Columns) -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
@@ -435,41 +373,14 @@
                           <th class="py-2.5 px-3 text-right rounded-r-lg">Win Rate</th>
                         </tr>
                       </thead>
-                      <tbody class="divide-y-0">
-                        <tr class="hover:bg-surface-container-low transition-colors">
-                          <td
-                            class="py-3 px-3 text-body-md font-body-md text-on-surface font-medium flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-tertiary"></span>
-                            Daily Uptrend and Momentum
-                          </td>
-                          <td class="py-3 px-3 text-right text-metric-md font-metric-md text-secondary">8 trades</td>
-                          <td class="py-3 px-3 text-right">
-                            <span
-                              class="font-metric-md text-metric-md font-semibold text-tertiary bg-surface-container px-2 py-0.5 rounded">8/8
-                              (100%)</span>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-surface-container-low transition-colors">
-                          <td
-                            class="py-3 px-3 text-body-md font-body-md text-on-surface font-medium flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-secondary"></span>
-                            Daily Sideways
-                          </td>
-                          <td class="py-3 px-3 text-right text-metric-md font-metric-md text-secondary">3 trades</td>
-                          <td class="py-3 px-3 text-right">
-                            <span
-                              class="font-metric-md text-metric-md font-semibold text-secondary bg-surface-container px-2 py-0.5 rounded">2/3
-                              (67%)</span>
-                          </td>
-                        </tr>
-                      </tbody>
+                      <tbody class="divide-y-0" id="ins-daily-context-body"></tbody>
                     </table>
                   </div>
                 </div>
                 <div
                   class="pt-4 flex items-center justify-between text-metric-sm font-metric-sm text-secondary bg-surface-container-low p-3 rounded-lg mt-4">
-                  <span>Variance spread: +33.3% in trending regime</span>
-                  <span class="material-symbols-outlined text-[16px] text-tertiary">trending_up</span>
+                  <span id="ins-daily-context-note">Not enough closed trades yet to compare contexts.</span>
+                  <span class="material-symbols-outlined text-[16px] text-tertiary" id="ins-daily-context-note-icon">trending_up</span>
                 </div>
               </div>
               <!-- Temporal Distribution Table Card -->
@@ -478,7 +389,7 @@
                   <div class="flex items-center justify-between pb-3">
                     <h2 class="text-headline-sm font-headline-sm text-on-surface">Best Day To Trade</h2>
                     <a class="text-body-sm font-body-sm text-primary font-semibold hover:underline inline-flex items-center gap-0.5"
-                      href="#">
+                      href="#timing-and-heatmap">
                       Full heatmap
                       <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                     </a>
@@ -493,36 +404,13 @@
                           <th class="py-2.5 px-3 text-right rounded-r-lg">Win Rate</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        <tr class="hover:bg-surface-container-low transition-colors">
-                          <td class="py-2.5 px-3 text-body-md font-body-md text-on-surface font-medium">Saturday</td>
-                          <td class="py-2.5 px-3 text-right text-metric-md font-metric-md text-secondary">2 trades</td>
-                          <td class="py-2.5 px-3 text-right">
-                            <span class="font-metric-md text-metric-md font-semibold text-tertiary">100%</span>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-surface-container-low transition-colors">
-                          <td class="py-2.5 px-3 text-body-md font-body-md text-on-surface font-medium">Sunday / Mon /
-                            Wed</td>
-                          <td class="py-2.5 px-3 text-right text-metric-md font-metric-md text-secondary">6 trades</td>
-                          <td class="py-2.5 px-3 text-right">
-                            <span class="font-metric-md text-metric-md font-semibold text-tertiary">100%</span>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-surface-container-low transition-colors">
-                          <td class="py-2.5 px-3 text-body-md font-body-md text-on-surface font-medium">Tuesday</td>
-                          <td class="py-2.5 px-3 text-right text-metric-md font-metric-md text-secondary">2 trades</td>
-                          <td class="py-2.5 px-3 text-right">
-                            <span class="font-metric-md text-metric-md font-semibold text-secondary">50%</span>
-                          </td>
-                        </tr>
-                      </tbody>
+                      <tbody id="ins-best-day-body"></tbody>
                     </table>
                   </div>
                 </div>
                 <div
                   class="pt-4 flex items-center justify-between text-metric-sm font-metric-sm text-secondary bg-surface-container-low p-3 rounded-lg mt-4">
-                  <span>Weekend liquidity: 100% strike rate across 4 setups</span>
+                  <span id="ins-best-day-note">Not enough closed trades yet to identify a best day.</span>
                   <span class="material-symbols-outlined text-[16px] text-primary">calendar_today</span>
                 </div>
               </div>
@@ -532,79 +420,18 @@
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4">
                 <div>
                   <h2 class="text-headline-md font-headline-md text-on-surface">Recurring Signal Performance</h2>
-                  <p class="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-                    Win rate by recurring technical triggers across 11 logged setups.
+                  <p class="text-body-sm font-body-sm text-on-surface-variant mt-0.5" id="ins-signals-sub">
+                    Win rate by recurring technical triggers.
                   </p>
                 </div>
                 <a class="text-body-sm font-body-sm text-primary font-semibold hover:underline inline-flex items-center gap-1 shrink-0"
-                  href="#">
+                  href="#confluence-matrix">
                   Confluence matrix
                   <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </a>
               </div>
               <!-- Signal Multi-column Grid -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 mt-2">
-                <!-- Item 1 -->
-                <div class="flex flex-col gap-1.5 p-3 rounded-lg bg-surface-container-low">
-                  <div class="flex items-center justify-between text-body-sm font-body-sm">
-                    <span class="font-medium text-on-surface">4H Parabolic</span>
-                    <span class="font-metric-md text-metric-md font-semibold text-tertiary">6/6 (100%)</span>
-                  </div>
-                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                    <div class="bg-tertiary h-full rounded-full" style="width: 100%;"></div>
-                  </div>
-                </div>
-                <!-- Item 2 -->
-                <div class="flex flex-col gap-1.5 p-3 rounded-lg bg-surface-container-low">
-                  <div class="flex items-center justify-between text-body-sm font-body-sm">
-                    <span class="font-medium text-on-surface">4H Pullback</span>
-                    <span class="font-metric-md text-metric-md font-semibold text-tertiary">3/3 (100%)</span>
-                  </div>
-                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                    <div class="bg-tertiary h-full rounded-full" style="width: 100%;"></div>
-                  </div>
-                </div>
-                <!-- Item 3 -->
-                <div class="flex flex-col gap-1.5 p-3 rounded-lg bg-surface-container-low">
-                  <div class="flex items-center justify-between text-body-sm font-body-sm">
-                    <span class="font-medium text-on-surface">M15 30% Fib Pullback</span>
-                    <span class="font-metric-md text-metric-md font-semibold text-tertiary">5/5 (100%)</span>
-                  </div>
-                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                    <div class="bg-tertiary h-full rounded-full" style="width: 100%;"></div>
-                  </div>
-                </div>
-                <!-- Item 4 -->
-                <div class="flex flex-col gap-1.5 p-3 rounded-lg bg-surface-container-low">
-                  <div class="flex items-center justify-between text-body-sm font-body-sm">
-                    <span class="font-medium text-on-surface">M15 50% Fib Pullback</span>
-                    <span class="font-metric-md text-metric-md font-semibold text-tertiary">5/5 (100%)</span>
-                  </div>
-                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                    <div class="bg-tertiary h-full rounded-full" style="width: 100%;"></div>
-                  </div>
-                </div>
-                <!-- Item 5 -->
-                <div class="flex flex-col gap-1.5 p-3 rounded-lg bg-surface-container-low">
-                  <div class="flex items-center justify-between text-body-sm font-body-sm">
-                    <span class="font-medium text-on-surface">Daily RSI above 70</span>
-                    <span class="font-metric-md text-metric-md font-semibold text-tertiary">5/5 (100%)</span>
-                  </div>
-                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                    <div class="bg-tertiary h-full rounded-full" style="width: 100%;"></div>
-                  </div>
-                </div>
-                <!-- Item 6 (Imperfect) -->
-                <div class="flex flex-col gap-1.5 p-3 rounded-lg bg-surface-container-low">
-                  <div class="flex items-center justify-between text-body-sm font-body-sm">
-                    <span class="font-medium text-on-surface">Daily RSI below 70</span>
-                    <span class="font-metric-md text-metric-md font-semibold text-secondary">3/4 (75%)</span>
-                  </div>
-                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                    <div class="bg-secondary h-full rounded-full" style="width: 75%;"></div>
-                  </div>
-                </div>
-              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 mt-2" id="ins-signals-grid"></div>
             </div>
             <!-- Risk Protocol & Sample Reliability Warning Card -->
             <div class="mt-6 bg-surface-container-lowest rounded-xl p-5 shadow-sm">
@@ -620,18 +447,15 @@
                 <div class="flex flex-col">
                   <div class="text-label-eyebrow font-label-eyebrow text-secondary uppercase tracking-wider">Date
                     coverage</div>
-                  <div class="font-metric-md text-metric-md font-medium text-on-surface mt-1">22 Aug to 3 Sep 2026 (11
-                    trades)</div>
-                  <div class="text-body-sm font-body-sm text-on-surface-variant mt-1">Distinct pairs: 10 pairs, too few
-                    repeats per symbol</div>
+                  <div class="font-metric-md text-metric-md font-medium text-on-surface mt-1" id="ins-reliability-coverage">No trades logged yet</div>
+                  <div class="text-body-sm font-body-sm text-on-surface-variant mt-1" id="ins-reliability-pairs">Distinct pairs: 0</div>
                 </div>
                 <!-- Col 2 -->
                 <div class="flex flex-col">
                   <div class="text-label-eyebrow font-label-eyebrow text-secondary uppercase tracking-wider">6+
                     parameter trades</div>
-                  <div class="font-metric-md text-metric-md font-medium text-on-surface mt-1">8 wins / 9 trades</div>
-                  <div class="text-body-sm font-body-sm text-on-surface-variant mt-1">Duplicate signal rows: 1 (4H BOS,
-                    journal row 8)</div>
+                  <div class="font-metric-md text-metric-md font-medium text-on-surface mt-1" id="ins-reliability-highconfl">0 wins / 0 trades</div>
+                  <div class="text-body-sm font-body-sm text-on-surface-variant mt-1" id="ins-reliability-duplicates">No flagged duplicates</div>
                 </div>
                 <!-- Col 3 -->
                 <div class="flex flex-col">

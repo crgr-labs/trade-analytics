@@ -2145,6 +2145,13 @@
       byCategory[cat] = byCategory[cat].slice(0, 3);
     });
 
+    // Flat version of paramCounts (not split by category) for callers that
+    // just want the overall most-recurring signals, e.g. the Insights
+    // dashboard's "Recurring Signal Performance" grid.
+    var topParams = Object.keys(paramCounts)
+      .map(function (k) { return paramCounts[k]; })
+      .sort(function (a, b) { return b.total - a.total; });
+
     return {
       totalTrades: trades.length,
       closedCount: closed.length,
@@ -2157,7 +2164,8 @@
       buckets: buckets,
       highConflWins: highConflWins,
       highConflTotal: highConfl.length,
-      byCategory: byCategory
+      byCategory: byCategory,
+      topParams: topParams
     };
   }
 
@@ -4681,6 +4689,78 @@
   // Insights Dashboard screen
   // ---------------------------------------------------------------------
 
+  // Longest run of consecutive wins in date order. An 'open' trade breaks
+  // the streak the same way a loss does - it isn't a confirmed win yet.
+  function computeLongestWinStreak(trades) {
+    var sorted = trades.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    var current = 0, longest = 0;
+    sorted.forEach(function (t) {
+      if (t.outcome === 'win') { current++; longest = Math.max(longest, current); }
+      else { current = 0; }
+    });
+    return longest;
+  }
+
+  // Win rate grouped by each trade's Daily-context tag (the first logged
+  // confluence parameter, e.g. "Daily Uptrend & Momentum").
+  function computeDailyContextStats(trades) {
+    var closed = trades.filter(function (t) { return t.outcome === 'win' || t.outcome === 'loss'; });
+    var groups = {};
+    closed.forEach(function (t) {
+      var label = nonEmptyConfluence(t)[0] || 'Unlabeled context';
+      groups[label] = groups[label] || { label: label, wins: 0, total: 0 };
+      groups[label].total++;
+      if (t.outcome === 'win') groups[label].wins++;
+    });
+    return Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) { return b.total - a.total; });
+  }
+
+  function dotColorForRate(rate) {
+    if (rate >= 80) return 'bg-tertiary';
+    if (rate >= 50) return 'bg-secondary';
+    return 'bg-error';
+  }
+
+  function dailyContextRowHtml(g) {
+    var rate = pct(g.wins, g.total);
+    var colors = rateColors(rate);
+    return (
+      '<tr class="hover:bg-surface-container-low transition-colors">' +
+        '<td class="py-3 px-3 text-body-md font-body-md text-on-surface font-medium flex items-center gap-2">' +
+          '<span class="w-2 h-2 rounded-full ' + dotColorForRate(rate) + '"></span>' + escapeHtml(g.label) +
+        '</td>' +
+        '<td class="py-3 px-3 text-right text-metric-md font-metric-md text-secondary">' + g.total + ' trade' + (g.total === 1 ? '' : 's') + '</td>' +
+        '<td class="py-3 px-3 text-right"><span class="font-metric-md text-metric-md font-semibold ' + colors.text + ' bg-surface-container px-2 py-0.5 rounded">' + g.wins + '/' + g.total + ' (' + rate + '%)</span></td>' +
+      '</tr>'
+    );
+  }
+
+  function bestDayRowHtml(group) {
+    return (
+      '<tr class="hover:bg-surface-container-low transition-colors">' +
+        '<td class="py-2.5 px-3 text-body-md font-body-md text-on-surface font-medium">' + escapeHtml(group.label) + '</td>' +
+        '<td class="py-2.5 px-3 text-right text-metric-md font-metric-md text-secondary">' + group.total + ' trade' + (group.total === 1 ? '' : 's') + '</td>' +
+        '<td class="py-2.5 px-3 text-right"><span class="font-metric-md text-metric-md font-semibold ' + rateColors(group.rate).text + '">' + group.rate + '%</span></td>' +
+      '</tr>'
+    );
+  }
+
+  function signalMicroBarHtml(param) {
+    var rate = pct(param.wins, param.total);
+    var colors = rateColors(rate);
+    return (
+      '<div class="flex flex-col gap-1.5 p-3 rounded-lg bg-surface-container-low">' +
+        '<div class="flex items-center justify-between text-body-sm font-body-sm">' +
+          '<span class="font-medium text-on-surface">' + escapeHtml(param.label) + '</span>' +
+          '<span class="font-metric-md text-metric-md font-semibold ' + colors.text + '">' + param.wins + '/' + param.total + ' (' + rate + '%)</span>' +
+        '</div>' +
+        '<div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">' +
+          '<div class="' + colors.bar + ' h-full rounded-full" style="width: ' + rate + '%;"></div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
   function renderInsightsDashboard() {
     var section = sections['insights-dashboard'];
     if (!section) return;
@@ -4699,6 +4779,131 @@
     var docStats = computeTradeJournalPnl(allTrades);
     var positions = PositionStore.getAll();
     var posStats = positions.length ? computePositionStats(positions) : null;
+
+    // --- Header subtitle + KPI ribbon (Logged Trades / Win Rate / Longest Streak) ---
+    var distinctPairs = {};
+    allTrades.forEach(function (t) { if (t.pair) distinctPairs[t.pair] = true; });
+    var pairCount = Object.keys(distinctPairs).length;
+    var tradeDates = allTrades.map(function (t) { return t.date; }).filter(Boolean).sort();
+
+    var subtitleEl = section.querySelector('#ins-subtitle');
+    if (subtitleEl) {
+      subtitleEl.textContent = allTrades.length
+        ? 'Live snapshot of ' + allTrades.length + ' trade' + (allTrades.length === 1 ? '' : 's') + ' from ' +
+          formatMediumDate(tradeDates[0]) + ' to ' + formatMediumDate(tradeDates[tradeDates.length - 1]) + '.'
+        : 'No trades logged yet. Add your first trade to see live stats here.';
+    }
+
+    var tradesValueEl = section.querySelector('#ins-kpi-trades-value');
+    var tradesSubEl = section.querySelector('#ins-kpi-trades-sub');
+    if (tradesValueEl) tradesValueEl.textContent = allTrades.length;
+    if (tradesSubEl) tradesSubEl.textContent = pairCount + ' pair' + (pairCount === 1 ? '' : 's') + ' traded';
+
+    var closedWins = closed.filter(function (t) { return t.outcome === 'win'; }).length;
+    var closedLosses = closed.length - closedWins;
+    var winRate = pct(closedWins, closed.length);
+    var winRateValueEl = section.querySelector('#ins-kpi-winrate-value');
+    var winRateSubEl = section.querySelector('#ins-kpi-winrate-sub');
+    var winRateBarEl = section.querySelector('#ins-kpi-winrate-bar');
+    if (winRateValueEl) winRateValueEl.textContent = closed.length ? winRate + '%' : '--';
+    if (winRateSubEl) winRateSubEl.textContent = closed.length
+      ? closedWins + ' win' + (closedWins === 1 ? '' : 's') + ', ' + closedLosses + ' loss' + (closedLosses === 1 ? '' : 'es')
+      : 'no closed trades yet';
+    if (winRateBarEl) winRateBarEl.style.width = winRate + '%';
+
+    var longestStreak = computeLongestWinStreak(allTrades);
+    var streakValueEl = section.querySelector('#ins-kpi-streak-value');
+    var streakBarEl = section.querySelector('#ins-kpi-streak-bar');
+    if (streakValueEl) streakValueEl.textContent = longestStreak;
+    if (streakBarEl) streakBarEl.style.width = (closed.length ? Math.min(100, Math.round((longestStreak / closed.length) * 100)) : 0) + '%';
+
+    // --- What Stands Out - reuses the Confluence Matrix screen's own
+    // narrative computation, so the two screens can never disagree. ---
+    var confluenceStats = computeConfluenceStats(allTrades);
+    var findingsNEl = section.querySelector('#ins-key-findings-n');
+    var findingsEl = section.querySelector('#ins-key-findings');
+    if (findingsNEl) findingsNEl.textContent = 'Clinical Synthesis (N=' + allTrades.length + ')';
+    if (findingsEl) findingsEl.innerHTML = renderKeyFindings(confluenceStats);
+
+    // --- Daily Context Performance ---
+    var dailyGroups = computeDailyContextStats(allTrades);
+    var dailyBodyEl = section.querySelector('#ins-daily-context-body');
+    if (dailyBodyEl) {
+      dailyBodyEl.innerHTML = dailyGroups.length
+        ? dailyGroups.slice(0, 5).map(dailyContextRowHtml).join('')
+        : '<tr><td class="py-3 px-3 text-secondary font-body-sm text-body-sm" colspan="3">Not enough closed trades yet.</td></tr>';
+    }
+    var dailyNoteEl = section.querySelector('#ins-daily-context-note');
+    if (dailyNoteEl) {
+      if (dailyGroups.length >= 2) {
+        var byRate = dailyGroups.map(function (g) { return { label: g.label, rate: pct(g.wins, g.total) }; })
+          .sort(function (a, b) { return b.rate - a.rate; });
+        var bestCtx = byRate[0], worstCtx = byRate[byRate.length - 1];
+        var spread = bestCtx.rate - worstCtx.rate;
+        dailyNoteEl.textContent = 'Variance spread: ' + (spread >= 0 ? '+' : '') + spread + '% between ' + bestCtx.label + ' and ' + worstCtx.label;
+      } else {
+        dailyNoteEl.textContent = 'Not enough closed trades yet to compare contexts.';
+      }
+    }
+
+    // --- Best Day To Trade ---
+    var weekdayStats = computeWeekdayStats(allTrades).filter(function (d) { return d.total > 0; });
+    var dayGroupMap = {};
+    weekdayStats.forEach(function (d) {
+      dayGroupMap[d.rate] = dayGroupMap[d.rate] || { rate: d.rate, total: 0, days: [] };
+      dayGroupMap[d.rate].total += d.total;
+      dayGroupMap[d.rate].days.push(d.day);
+    });
+    var dayGroups = Object.keys(dayGroupMap).map(function (k) { return dayGroupMap[k]; })
+      .sort(function (a, b) { return b.rate - a.rate || b.total - a.total; })
+      .slice(0, 3)
+      .map(function (g) { return { label: g.days.join(' / '), total: g.total, rate: g.rate }; });
+    var bestDayBodyEl = section.querySelector('#ins-best-day-body');
+    if (bestDayBodyEl) {
+      bestDayBodyEl.innerHTML = dayGroups.length
+        ? dayGroups.map(bestDayRowHtml).join('')
+        : '<tr><td class="py-2.5 px-3 text-secondary font-body-sm text-body-sm" colspan="3">Not enough closed trades yet.</td></tr>';
+    }
+    var bestDayNoteEl = section.querySelector('#ins-best-day-note');
+    if (bestDayNoteEl) {
+      var weekend = weekdayStats.filter(function (d) { return d.day === 'Saturday' || d.day === 'Sunday'; });
+      var weekendTotal = weekend.reduce(function (sum, d) { return sum + d.total; }, 0);
+      var weekendWins = weekend.reduce(function (sum, d) { return sum + d.wins; }, 0);
+      bestDayNoteEl.textContent = weekendTotal
+        ? 'Weekend liquidity: ' + pct(weekendWins, weekendTotal) + '% strike rate across ' + weekendTotal + ' setup' + (weekendTotal === 1 ? '' : 's')
+        : 'No weekend trades logged yet.';
+    }
+
+    // --- Recurring Signal Performance ---
+    var signalsSubEl = section.querySelector('#ins-signals-sub');
+    if (signalsSubEl) signalsSubEl.textContent = 'Win rate by recurring technical triggers across ' + confluenceStats.totalTrades + ' logged setup' + (confluenceStats.totalTrades === 1 ? '' : 's') + '.';
+    var signalsGridEl = section.querySelector('#ins-signals-grid');
+    if (signalsGridEl) {
+      var topSignals = confluenceStats.topParams.slice(0, 6);
+      signalsGridEl.innerHTML = topSignals.length
+        ? topSignals.map(signalMicroBarHtml).join('')
+        : '<p class="font-body-sm text-body-sm text-secondary col-span-full">No recurring parameters yet - log a few closed trades to surface one.</p>';
+    }
+
+    // --- Reliability and Coverage ---
+    var coverageEl = section.querySelector('#ins-reliability-coverage');
+    if (coverageEl) {
+      coverageEl.textContent = tradeDates.length
+        ? formatMediumDate(tradeDates[0]) + ' to ' + formatMediumDate(tradeDates[tradeDates.length - 1]) + ' (' + allTrades.length + ' trade' + (allTrades.length === 1 ? '' : 's') + ')'
+        : 'No trades logged yet';
+    }
+    var pairsEl = section.querySelector('#ins-reliability-pairs');
+    if (pairsEl) {
+      pairsEl.textContent = 'Distinct pairs: ' + pairCount + ' pair' + (pairCount === 1 ? '' : 's') +
+        (pairCount && pairCount === allTrades.length ? ', no repeats yet' : '');
+    }
+    var highConflEl = section.querySelector('#ins-reliability-highconfl');
+    if (highConflEl) highConflEl.textContent = confluenceStats.highConflWins + ' wins / ' + confluenceStats.highConflTotal + ' trades';
+    var duplicatesEl = section.querySelector('#ins-reliability-duplicates');
+    if (duplicatesEl) {
+      var dupCount = allTrades.filter(function (t) { return t.matchWarning; }).length;
+      duplicatesEl.textContent = dupCount ? 'Flagged duplicates: ' + dupCount + ' trade' + (dupCount === 1 ? '' : 's') : 'No flagged duplicates';
+    }
 
     var valueEl = section.querySelector('#ins-profitability-value');
     var subEl = section.querySelector('#ins-profitability-sub');
