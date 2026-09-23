@@ -3037,62 +3037,62 @@
     return usingPositions ? ' · ' + formatSignedMoney(net) : '';
   }
 
-  // Option A: Neon Fintech Dark Design
-  // Charcoal dark surfaces (#0e1320), electric neon glow borders,
-  // luminous status pills, crisp white metrics, and glowing cyber accents.
-  var NEON_DARK = {
+  // Option B: Bold Gradient Design (Vivid Duo-Tone Gradients)
+  // Deep, radiant diagonal gradients with frosted white typography,
+  // rounded-2xl geometry, and lush color-matched shadows.
+  var BOLD_GRADIENT = {
     profit: {
-      card: 'background: linear-gradient(145deg, #101626 0%, #090d16 100%); border: 1.5px solid rgba(0, 255, 163, 0.7); box-shadow: 0 0 20px rgba(0, 255, 163, 0.2), 0 4px 12px rgba(0, 0, 0, 0.35);',
-      name: 'color: #f1f5f9;',
-      pill: 'background: rgba(0, 255, 163, 0.12); color: #00ffa3; border: 1px solid rgba(0, 255, 163, 0.5); text-shadow: 0 0 8px rgba(0, 255, 163, 0.4);',
-      dot: '#00ffa3; box-shadow: 0 0 8px #00ffa3;',
-      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);',
-      pnl: 'color: #00ffa3; background: rgba(0, 255, 163, 0.10); border: 1px solid rgba(0, 255, 163, 0.35); text-shadow: 0 0 8px rgba(0, 255, 163, 0.3);',
-      counts: 'color: #94a3b8;',
-      divider: 'border-color: rgba(255, 255, 255, 0.1);',
-      bar: 'linear-gradient(180deg, #00ffa3 0%, #059669 100%)',
-      barGlow: '0 0 10px rgba(0, 255, 163, 0.45)',
-      barLabel: 'color: #059669;',
+      card: 'background: linear-gradient(135deg, #094044 0%, #0d9488 45%, #06b6d4 100%); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.42), 0 8px 10px -6px rgba(13, 148, 136, 0.3);',
+      name: 'color: #ffffff;',
+      pill: 'background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.35); text-shadow: 0 1px 2px rgba(0,0,0,0.25);',
+      dot: '#ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.8);',
+      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);',
+      pnl: 'color: #ffffff; background: rgba(255, 255, 255, 0.22); border: 1px solid rgba(255, 255, 255, 0.4); text-shadow: 0 1px 2px rgba(0,0,0,0.2);',
+      counts: 'color: rgba(255, 255, 255, 0.9);',
+      divider: 'border-color: rgba(255, 255, 255, 0.22);',
+      bar: 'linear-gradient(180deg, #22d3ee 0%, #0d9488 100%)',
+      barGlow: '0 2px 8px rgba(6, 182, 212, 0.4)',
+      barLabel: 'color: #0e7490;',
       tag: 'PROFIT'
     },
     loss: {
-      card: 'background: linear-gradient(145deg, #101626 0%, #090d16 100%); border: 1.5px solid rgba(255, 80, 100, 0.7); box-shadow: 0 0 20px rgba(255, 80, 100, 0.2), 0 4px 12px rgba(0, 0, 0, 0.35);',
-      name: 'color: #f1f5f9;',
-      pill: 'background: rgba(255, 80, 100, 0.12); color: #ff5064; border: 1px solid rgba(255, 80, 100, 0.5); text-shadow: 0 0 8px rgba(255, 80, 100, 0.4);',
-      dot: '#ff5064; box-shadow: 0 0 8px #ff5064;',
-      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);',
-      pnl: 'color: #ff5064; background: rgba(255, 80, 100, 0.10); border: 1px solid rgba(255, 80, 100, 0.35); text-shadow: 0 0 8px rgba(255, 80, 100, 0.3);',
-      counts: 'color: #94a3b8;',
-      divider: 'border-color: rgba(255, 255, 255, 0.1);',
-      bar: 'linear-gradient(180deg, #ff5064 0%, #e11d48 100%)',
-      barGlow: '0 0 10px rgba(255, 80, 100, 0.45)',
-      barLabel: 'color: #e11d48;',
+      card: 'background: linear-gradient(135deg, #881337 0%, #e11d48 50%, #f43f5e 100%); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 10px 25px -5px rgba(244, 63, 94, 0.42), 0 8px 10px -6px rgba(225, 29, 72, 0.3);',
+      name: 'color: #ffffff;',
+      pill: 'background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.35); text-shadow: 0 1px 2px rgba(0,0,0,0.25);',
+      dot: '#ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.8);',
+      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);',
+      pnl: 'color: #ffffff; background: rgba(255, 255, 255, 0.22); border: 1px solid rgba(255, 255, 255, 0.4); text-shadow: 0 1px 2px rgba(0,0,0,0.2);',
+      counts: 'color: rgba(255, 255, 255, 0.9);',
+      divider: 'border-color: rgba(255, 255, 255, 0.22);',
+      bar: 'linear-gradient(180deg, #fb7185 0%, #e11d48 100%)',
+      barGlow: '0 2px 8px rgba(244, 63, 94, 0.4)',
+      barLabel: 'color: #be123c;',
       tag: 'LOSS'
     },
     mixed: {
-      card: 'background: linear-gradient(145deg, #101626 0%, #090d16 100%); border: 1.5px solid rgba(130, 100, 255, 0.7); box-shadow: 0 0 20px rgba(130, 100, 255, 0.2), 0 4px 12px rgba(0, 0, 0, 0.35);',
-      name: 'color: #f1f5f9;',
-      pill: 'background: rgba(130, 100, 255, 0.12); color: #a78bfa; border: 1px solid rgba(130, 100, 255, 0.5); text-shadow: 0 0 8px rgba(130, 100, 255, 0.4);',
-      dot: '#8264ff; box-shadow: 0 0 8px #8264ff;',
-      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);',
-      pnl: 'color: #a78bfa; background: rgba(130, 100, 255, 0.10); border: 1px solid rgba(130, 100, 255, 0.35);',
-      counts: 'color: #94a3b8;',
-      divider: 'border-color: rgba(255, 255, 255, 0.1);',
-      bar: 'linear-gradient(180deg, #a78bfa 0%, #6366f1 100%)',
-      barGlow: '0 0 10px rgba(130, 100, 255, 0.45)',
+      card: 'background: linear-gradient(135deg, #312e81 0%, #6366f1 50%, #8b5cf6 100%); border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.42), 0 8px 10px -6px rgba(99, 102, 241, 0.3);',
+      name: 'color: #ffffff;',
+      pill: 'background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.35); text-shadow: 0 1px 2px rgba(0,0,0,0.25);',
+      dot: '#ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.8);',
+      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);',
+      pnl: 'color: #ffffff; background: rgba(255, 255, 255, 0.22); border: 1px solid rgba(255, 255, 255, 0.4); text-shadow: 0 1px 2px rgba(0,0,0,0.2);',
+      counts: 'color: rgba(255, 255, 255, 0.9);',
+      divider: 'border-color: rgba(255, 255, 255, 0.22);',
+      bar: 'linear-gradient(180deg, #c084fc 0%, #6366f1 100%)',
+      barGlow: '0 2px 8px rgba(139, 92, 246, 0.4)',
       barLabel: 'color: #6366f1;',
       tag: 'MIXED'
     },
     empty: {
-      card: 'background: #090d16; border: 1px solid #1e293b;',
-      name: 'color: #64748b;',
-      pill: 'color: #475569;',
-      dot: '#334155;',
-      rate: 'color: #334155;',
+      card: 'background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);',
+      name: 'color: #94a3b8;',
+      pill: 'color: #94a3b8; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);',
+      dot: '#64748b;',
+      rate: 'color: #64748b;',
       pnl: '',
-      counts: 'color: #475569;',
-      divider: 'border-color: #1e293b;',
-      bar: '#1e293b',
+      counts: 'color: #94a3b8;',
+      divider: 'border-color: rgba(255, 255, 255, 0.1);',
+      bar: '#cbd5e1',
       barGlow: 'none',
       barLabel: 'color: #94a3b8;',
       tag: 'NO DATA'
@@ -3104,30 +3104,30 @@
     var unprofitable = usingPositions && s.net < 0;
 
     if (s.total === 0) {
-      var emptyCfg = NEON_DARK.empty;
+      var emptyCfg = BOLD_GRADIENT.empty;
       return (
-        '<div class="group relative rounded-xl p-4 text-left flex flex-col justify-between h-36 transition-all duration-200" style="' + emptyCfg.card + '">' +
+        '<div class="group relative rounded-2xl p-5 text-left flex flex-col justify-between h-40 transition-all duration-200" style="' + emptyCfg.card + '">' +
           '<div class="flex items-center justify-between">' +
             '<span class="text-xs font-bold uppercase tracking-wider" style="' + emptyCfg.name + '">' + escapeHtml(s.name) + '</span>' +
-            '<span class="text-[10px] font-semibold text-slate-500">NO DATA</span>' +
+            '<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full" style="' + emptyCfg.pill + '">NO DATA</span>' +
           '</div>' +
           '<div class="my-auto py-1">' +
-            '<span class="text-3xl font-extrabold tracking-tight block leading-none" style="' + emptyCfg.rate + '">—</span>' +
+            '<span class="text-4xl font-black tracking-tight block leading-none" style="' + emptyCfg.rate + '">—</span>' +
           '</div>' +
-          '<div class="text-xs font-medium text-slate-500">no ' + noun + 's</div>' +
+          '<div class="text-xs font-medium" style="' + emptyCfg.counts + '">no ' + noun + 's</div>' +
         '</div>'
       );
     }
 
     var cfg;
     if (usingPositions) {
-      if (profitable)        cfg = NEON_DARK.profit;
-      else if (unprofitable) cfg = NEON_DARK.loss;
-      else                   cfg = NEON_DARK.mixed;
+      if (profitable)        cfg = BOLD_GRADIENT.profit;
+      else if (unprofitable) cfg = BOLD_GRADIENT.loss;
+      else                   cfg = BOLD_GRADIENT.mixed;
     } else {
-      if (s.wins > 0 && s.losses > 0) cfg = NEON_DARK.mixed;
-      else if (s.losses > 0)           cfg = NEON_DARK.loss;
-      else                             cfg = NEON_DARK.profit;
+      if (s.wins > 0 && s.losses > 0) cfg = BOLD_GRADIENT.mixed;
+      else if (s.losses > 0)           cfg = BOLD_GRADIENT.loss;
+      else                             cfg = BOLD_GRADIENT.profit;
     }
 
     var rateLabel = s.wins > 0 && s.losses > 0 ? s.rate + '%' : s.losses > 0 ? '0%' : '100%';
@@ -3135,28 +3135,28 @@
     var pnlBadge = '';
     if (usingPositions) {
       var netSign = s.net >= 0 ? '+' : '';
-      pnlBadge = '<span class="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style="' + cfg.pnl + '">' +
+      pnlBadge = '<span class="text-xs font-bold font-mono px-2.5 py-0.5 rounded-md shadow-xs" style="' + cfg.pnl + '">' +
         netSign + '$' + Math.abs(s.net).toFixed(2) + '</span>';
     }
 
-    var countsLabel = '<span class="text-xs font-semibold" style="' + cfg.counts + '">' + s.wins + 'W <span style="opacity:0.4">/</span> ' + s.losses + 'L</span>' +
-      (s.total ? ' <span class="text-[11px]" style="opacity:0.6">(' + s.total + ' ' + noun + (s.total === 1 ? '' : 's') + ')</span>' : '');
+    var countsLabel = '<span class="text-xs font-semibold" style="' + cfg.counts + '">' + s.wins + 'W <span style="opacity:0.6">/</span> ' + s.losses + 'L</span>' +
+      (s.total ? ' <span class="text-[11px]" style="opacity:0.75">(' + s.total + ' ' + noun + (s.total === 1 ? '' : 's') + ')</span>' : '');
 
     return (
-      '<div class="th-session-card group relative rounded-xl p-4 text-left flex flex-col justify-between h-36 transition-all duration-200 hover:-translate-y-1 hover:brightness-110 cursor-pointer" style="' + cfg.card + '">' +
+      '<div class="th-session-card group relative rounded-2xl p-5 text-left flex flex-col justify-between h-40 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl cursor-pointer" style="' + cfg.card + '">' +
         '<div class="flex items-center justify-between">' +
           '<div class="flex items-center gap-2">' +
             '<span class="w-2 h-2 rounded-full" style="background:' + cfg.dot + '"></span>' +
             '<span class="text-xs font-bold uppercase tracking-wider" style="' + cfg.name + '">' + escapeHtml(s.name) + '</span>' +
           '</div>' +
-          '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider" style="' + cfg.pill + '">' +
+          '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-xs" style="' + cfg.pill + '">' +
             cfg.tag +
           '</span>' +
         '</div>' +
         '<div class="my-auto py-1">' +
-          '<div class="text-3xl font-black tracking-tight" style="' + cfg.rate + '">' + rateLabel + '</div>' +
+          '<div class="text-4xl font-black tracking-tight" style="' + cfg.rate + '">' + rateLabel + '</div>' +
         '</div>' +
-        '<div class="flex items-center justify-between pt-2 border-t" style="' + cfg.divider + '">' +
+        '<div class="flex items-center justify-between pt-2.5 border-t" style="' + cfg.divider + '">' +
           countsLabel +
           pnlBadge +
         '</div>' +
@@ -3176,8 +3176,8 @@
     }
     var rate = pct(h.wins, h.total);
     var cfg = h.losses === 0
-      ? NEON_DARK.profit
-      : (h.wins === 0 ? NEON_DARK.loss : NEON_DARK.mixed);
+      ? BOLD_GRADIENT.profit
+      : (h.wins === 0 ? BOLD_GRADIENT.loss : BOLD_GRADIENT.mixed);
 
     var heightPct = Math.max(14, Math.round((h.total / maxCount) * 100));
     var barStyle = 'background:' + cfg.bar + '; border-radius: 4px 4px 1px 1px; box-shadow: ' + cfg.barGlow + ';';
