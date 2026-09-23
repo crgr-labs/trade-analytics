@@ -2005,6 +2005,7 @@
       </div>
 
       <!-- Two-Column Main Layout: chart evidence | trade detail + checklist -->
+      <!-- Two-Column Main Layout: chart evidence | execution details + trade detail + checklist -->
       <div class="grid grid-cols-12 gap-6 mt-6">
         <!-- Left Column: Chart Evidence -->
         <div class="col-span-12 xl:col-span-7 flex flex-col gap-4 min-w-0">
@@ -2032,6 +2033,54 @@
           <div class="flex items-center gap-2 min-h-[2rem]">
             <span class="material-symbols-outlined text-primary text-[20px]">fact_check</span>
             <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Trade Detail &amp; Confluence Checklist</h2>
+          </div>
+          <!-- Execution Details Card -->
+          <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+            <div class="flex items-center justify-between pb-3 mb-1">
+              <h3 class="font-label-eyebrow text-label-eyebrow uppercase text-secondary tracking-wider font-semibold">Execution Details</h3>
+              <span class="font-metric-sm text-metric-sm text-secondary" id="cs-detail-pair-label">--</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5 bg-surface-container-low px-3 rounded-lg mb-2">
+              <span class="font-body-md text-body-md text-on-surface font-medium">Realized Return</span>
+              <span class="flex flex-col items-end">
+                <span class="font-metric-lg text-metric-lg font-bold text-tertiary" id="cs-return-value">--</span>
+                <span class="font-metric-sm text-metric-sm text-secondary" id="cs-return-sub"></span>
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-x-6">
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">Date</span>
+                <span class="font-metric-md text-metric-md text-on-surface font-medium" id="cs-detail-date">--</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">Change</span>
+                <span class="font-metric-md text-metric-md font-bold text-tertiary" id="cs-detail-change">--</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">Leverage</span>
+                <span class="font-metric-md text-metric-md text-on-surface font-medium" id="cs-detail-leverage">--</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">Prev. Candle</span>
+                <span class="font-body-md text-body-md text-on-surface font-semibold flex items-center gap-1.5" id="cs-detail-prevcandle">--</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">Margin</span>
+                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-position-size">Not recorded</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">Notional</span>
+                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-notional">Not recorded</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">Stop-Loss</span>
+                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-stop-loss">Not recorded</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b border-surface-container">
+                <span class="font-body-md text-body-md text-secondary">P&amp;L ($)</span>
+                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-pnl">Not recorded</span>
+              </div>
+            </div>
           </div>
           <!-- Metadata tiles -->
           <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-4">
