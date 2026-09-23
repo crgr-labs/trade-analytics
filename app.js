@@ -3094,47 +3094,47 @@
   // modern status micro-pills, and punchy typography.
   var NFT_LIGHT = {
     profit: {
-      card: 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(16, 185, 129, 0.22); border-left: 4px solid #10b981; box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
-      name: 'color: #0f172a;',
-      pill: 'background: rgba(16, 185, 129, 0.12); color: #047857; border: 1px solid rgba(16, 185, 129, 0.3);',
+      card: 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, var(--nft-card-end) 80%); border: 1px solid rgba(16, 185, 129, 0.22); border-left: 4px solid #10b981; box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
+      name: 'color: var(--nft-name);',
+      pill: 'background: rgba(16, 185, 129, 0.12); color: var(--nft-profit-text); border: 1px solid rgba(16, 185, 129, 0.3);',
       dot: '#10b981',
-      rate: 'color: #059669;',
-      pnl: 'color: #047857; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);',
-      bar: 'linear-gradient(180deg, #bbf7d0 0%, #86efac 100%)',
-      barLabel: 'color: #16a34a;',
+      rate: 'color: var(--nft-profit-rate);',
+      pnl: 'color: var(--nft-profit-text); background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);',
+      bar: 'var(--nft-profit-bar)',
+      barLabel: 'color: var(--nft-profit-label);',
       tag: 'PROFIT'
     },
     loss: {
-      card: 'background: linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(244, 63, 94, 0.22); border-left: 4px solid #f43f5e; box-shadow: 0 1px 3px rgba(244, 63, 94, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
-      name: 'color: #0f172a;',
-      pill: 'background: rgba(244, 63, 94, 0.10); color: #be123c; border: 1px solid rgba(244, 63, 94, 0.25);',
+      card: 'background: linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, var(--nft-card-end) 80%); border: 1px solid rgba(244, 63, 94, 0.22); border-left: 4px solid #f43f5e; box-shadow: 0 1px 3px rgba(244, 63, 94, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
+      name: 'color: var(--nft-name);',
+      pill: 'background: rgba(244, 63, 94, 0.10); color: var(--nft-loss-text); border: 1px solid rgba(244, 63, 94, 0.25);',
       dot: '#f43f5e',
-      rate: 'color: #e11d48;',
-      pnl: 'color: #be123c; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2);',
-      bar: 'linear-gradient(180deg, #fecaca 0%, #fca5a5 100%)',
-      barLabel: 'color: #dc2626;',
+      rate: 'color: var(--nft-loss-rate);',
+      pnl: 'color: var(--nft-loss-text); background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2);',
+      bar: 'var(--nft-loss-bar)',
+      barLabel: 'color: var(--nft-loss-label);',
       tag: 'LOSS'
     },
     mixed: {
-      card: 'background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(99, 102, 241, 0.22); border-left: 4px solid #6366f1; box-shadow: 0 1px 3px rgba(99, 102, 241, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
-      name: 'color: #0f172a;',
-      pill: 'background: rgba(99, 102, 241, 0.10); color: #4338ca; border: 1px solid rgba(99, 102, 241, 0.25);',
+      card: 'background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, var(--nft-card-end) 80%); border: 1px solid rgba(99, 102, 241, 0.22); border-left: 4px solid #6366f1; box-shadow: 0 1px 3px rgba(99, 102, 241, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
+      name: 'color: var(--nft-name);',
+      pill: 'background: rgba(99, 102, 241, 0.10); color: var(--nft-mixed-text); border: 1px solid rgba(99, 102, 241, 0.25);',
       dot: '#6366f1',
-      rate: 'color: #4f46e5;',
-      pnl: 'color: #4338ca; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2);',
-      bar: 'linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%)',
-      barLabel: 'color: #2563eb;',
+      rate: 'color: var(--nft-mixed-rate);',
+      pnl: 'color: var(--nft-mixed-text); background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2);',
+      bar: 'var(--nft-mixed-bar)',
+      barLabel: 'color: var(--nft-mixed-label);',
       tag: 'MIXED'
     },
     empty: {
-      card: 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #cbd5e1;',
-      name: 'color: #94a3b8;',
-      pill: 'color: #94a3b8;',
-      dot: '#cbd5e1',
-      rate: 'color: #cbd5e1;',
+      card: 'background: var(--nft-empty-bg); border: 1px solid var(--nft-empty-border); border-left: 4px solid var(--nft-empty-accent);',
+      name: 'color: var(--nft-empty-text);',
+      pill: 'color: var(--nft-empty-text);',
+      dot: 'var(--nft-empty-accent)',
+      rate: 'color: var(--nft-empty-accent);',
       pnl: '',
-      bar: '#e2e8f0',
-      barLabel: 'color: #94a3b8;',
+      bar: 'var(--nft-empty-bar)',
+      barLabel: 'color: var(--nft-empty-text);',
       tag: 'NO DATA'
     }
   };
@@ -3209,7 +3209,7 @@
     if (h.total === 0) {
       return (
         '<div class="flex-1 flex flex-col items-center gap-1.5" title="' + hourLabel + ':00 UTC — no ' + noun + 's">' +
-          '<div class="w-full h-16 flex items-end"><div class="w-full h-1 rounded-full" style="background: #e2e8f0;"></div></div>' +
+          '<div class="w-full h-16 flex items-end"><div class="w-full h-1 rounded-full" style="background: var(--nft-empty-bar);"></div></div>' +
           '<span class="font-mono text-[9px] text-slate-400 font-medium">' + hourLabel + '</span>' +
         '</div>'
       );
@@ -6962,6 +6962,17 @@
       if (panel.hidden) openPanel(); else closePanel();
     });
 
+    // The "⌘K" pill next to the icon is a real shortcut: Cmd+K (Mac) or
+    // Ctrl+K (Windows / Linux) opens the search from anywhere; pressing it again
+    // while the panel is open closes it. preventDefault stops the browser's own
+    // Ctrl+K (focus the address bar's search).
+    document.addEventListener('keydown', function (e) {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        if (panel.hidden) openPanel(); else closePanel();
+      }
+    });
+
     input.addEventListener('input', function () {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(renderResults, HEADER_SEARCH_DEBOUNCE_MS);
@@ -7739,6 +7750,59 @@
     document.addEventListener('screenchange', closePanel);
   }
 
+  // ---------------------------------------------------------------------
+  // Light / dark theme
+  // ---------------------------------------------------------------------
+  //
+  // The whole palette is CSS variables (index.html); the "dark" class on <html>
+  // swaps the set. The saved choice is applied before first paint by a tiny
+  // inline script in <head>, so this only wires the button. Light is the default.
+
+  var THEME_STORAGE_KEY = 'tj_theme';
+
+  function currentTheme() {
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  }
+
+  function renderThemeToggle() {
+    var btn = document.getElementById('theme-toggle');
+    var icon = document.getElementById('theme-toggle-icon');
+    if (!btn) return;
+    var dark = currentTheme() === 'dark';
+    // The icon shows where a click takes you: a sun in dark mode, a moon in light.
+    if (icon) icon.textContent = dark ? 'light_mode' : 'dark_mode';
+    var label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    btn.title = label;
+  }
+
+  function setTheme(theme) {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) { /* choice just won't persist */ }
+    renderThemeToggle();
+  }
+
+  function initThemeToggle() {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    renderThemeToggle();
+    btn.addEventListener('click', function () {
+      setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    });
+
+    // Printing / Save as PDF is always the light theme, then the choice comes back.
+    var restoreDark = false;
+    window.addEventListener('beforeprint', function () {
+      restoreDark = currentTheme() === 'dark';
+      if (restoreDark) document.documentElement.classList.remove('dark');
+    });
+    window.addEventListener('afterprint', function () {
+      if (restoreDark) document.documentElement.classList.add('dark');
+      restoreDark = false;
+    });
+  }
+
   function renderForScreen(slug, param) {
     if (slug === 'insights-dashboard') renderInsightsDashboard();
     if (slug === 'trade-journal') renderTradeJournal();
@@ -7764,6 +7828,7 @@
   initTimingHeatmapControls(sections['timing-and-heatmap']);
   initHeaderSearch();
   initGithubSyncSettings();
+  initThemeToggle();
 
   document.addEventListener('screenchange', function (e) {
     // Leaving a table drops its selection rather than carrying a stale one

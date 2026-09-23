@@ -17,6 +17,220 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
     rel="stylesheet" />
   <style>
+    /* ---- Theme palette -------------------------------------------------
+       Every colour token in the Tailwind config reads one of these variables
+       (as an "r g b" triplet so opacity modifiers such as bg-primary/10 still
+       work). Light is the original palette; html.dark swaps the whole set.
+       The choice is stored in localStorage (tj_theme) and applied before first
+       paint by the tiny script in <head>. */
+    :root {
+      --c-on-surface: 11 28 48;
+      --c-surface-container-low: 243 244 246;
+      --c-on-primary: 255 255 255;
+      --c-on-primary-fixed-variant: 29 78 216;
+      --c-on-secondary-container: 92 100 122;
+      --c-on-secondary: 255 255 255;
+      --c-primary-container: 37 99 235;
+      --c-tertiary-fixed: 111 251 190;
+      --c-surface-tint: 37 99 235;
+      --c-secondary: 86 94 116;
+      --c-outline-variant: 199 196 216;
+      --c-error: 186 26 26;
+      --c-surface-dim: 203 219 245;
+      --c-on-tertiary-fixed-variant: 0 82 54;
+      --c-on-surface-variant: 70 69 85;
+      --c-on-secondary-fixed-variant: 63 70 92;
+      --c-surface-variant: 211 228 254;
+      --c-on-error: 255 255 255;
+      --c-on-background: 11 28 48;
+      --c-secondary-fixed: 218 226 253;
+      --c-error-container: 255 218 214;
+      --c-secondary-fixed-dim: 190 198 224;
+      --c-on-tertiary-fixed: 0 33 19;
+      --c-primary-fixed-dim: 147 197 253;
+      --c-inverse-on-surface: 234 241 255;
+      --c-primary-fixed: 219 234 254;
+      --c-surface-container-lowest: 255 255 255;
+      --c-tertiary-container: 0 110 75;
+      --c-surface: 248 249 255;
+      --c-on-secondary-fixed: 19 27 46;
+      --c-surface-container-high: 220 233 255;
+      --c-surface-container-highest: 211 228 254;
+      --c-on-tertiary-container: 103 244 183;
+      --c-secondary-container: 218 226 253;
+      --c-outline: 119 117 135;
+      --c-tertiary: 0 83 56;
+      --c-on-primary-fixed: 23 37 84;
+      --c-surface-container: 229 238 255;
+      --c-tertiary-fixed-dim: 78 222 163;
+      --c-surface-bright: 248 249 255;
+      --c-background: 248 249 255;
+      --c-primary: 29 78 216;
+      --c-on-primary-container: 219 234 254;
+      --c-on-tertiary: 255 255 255;
+      --c-inverse-primary: 147 197 253;
+      --c-inverse-surface: 33 49 69;
+      --c-on-error-container: 147 0 10;
+      --c-ground: 255 255 255;
+      --c-warning: 217 119 6;
+      --c-warning-container: 254 243 199;
+      --c-on-warning-container: 146 64 14;
+      --ring-color: rgba(11, 28, 48, 0.06);
+      --shadow-1: rgba(11, 28, 48, 0.06);
+      --shadow-2: rgba(11, 28, 48, 0.05);
+      /* Timing & Heatmap session cards / hour bars (app.js NFT_LIGHT) */
+      --nft-card-end: #ffffff; --nft-name: #0f172a;
+      --nft-profit-text: #047857; --nft-profit-rate: #059669; --nft-profit-label: #16a34a;
+      --nft-profit-bar: linear-gradient(180deg, #bbf7d0 0%, #86efac 100%);
+      --nft-loss-text: #be123c; --nft-loss-rate: #e11d48; --nft-loss-label: #dc2626;
+      --nft-loss-bar: linear-gradient(180deg, #fecaca 0%, #fca5a5 100%);
+      --nft-mixed-text: #4338ca; --nft-mixed-rate: #4f46e5; --nft-mixed-label: #2563eb;
+      --nft-mixed-bar: linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%);
+      --nft-empty-bg: #f8fafc; --nft-empty-border: #e2e8f0; --nft-empty-accent: #cbd5e1; --nft-empty-text: #94a3b8;
+      --nft-empty-bar: #e2e8f0;
+    }
+
+    html.dark {
+      color-scheme: dark;
+      --c-on-surface: 227 234 246;
+      --c-surface-container-low: 23 34 57;
+      --c-on-primary: 255 255 255;
+      --c-on-primary-fixed-variant: 147 180 251;
+      --c-on-secondary-container: 195 205 224;
+      --c-on-secondary: 11 18 32;
+      --c-primary-container: 106 146 248;
+      --c-tertiary-fixed: 18 63 48;
+      --c-surface-tint: 79 127 245;
+      --c-secondary: 159 171 194;
+      --c-outline-variant: 47 61 90;
+      --c-error: 255 138 128;
+      --c-surface-dim: 10 15 28;
+      --c-on-tertiary-fixed-variant: 111 240 184;
+      --c-on-surface-variant: 183 194 214;
+      --c-on-secondary-fixed-variant: 183 194 214;
+      --c-surface-variant: 42 58 92;
+      --c-on-error: 74 13 10;
+      --c-on-background: 227 234 246;
+      --c-secondary-fixed: 42 58 92;
+      --c-error-container: 90 29 26;
+      --c-secondary-fixed-dim: 58 76 115;
+      --c-on-tertiary-fixed: 185 246 220;
+      --c-primary-fixed-dim: 147 180 251;
+      --c-inverse-on-surface: 15 22 38;
+      --c-primary-fixed: 30 47 87;
+      --c-surface-container-lowest: 17 26 44;
+      --c-tertiary-container: 31 174 124;
+      --c-surface: 15 22 38;
+      --c-on-secondary-fixed: 219 228 245;
+      --c-surface-container-high: 37 52 86;
+      --c-surface-container-highest: 45 63 102;
+      --c-on-tertiary-container: 0 40 26;
+      --c-secondary-container: 38 52 79;
+      --c-outline: 127 139 163;
+      --c-tertiary: 78 222 163;
+      --c-on-primary-fixed: 219 230 255;
+      --c-surface-container: 29 42 69;
+      --c-tertiary-fixed-dim: 78 222 163;
+      --c-surface-bright: 26 37 64;
+      --c-background: 15 22 38;
+      --c-primary: 79 127 245;
+      --c-on-primary-container: 255 255 255;
+      --c-on-tertiary: 0 33 19;
+      --c-inverse-primary: 37 99 235;
+      --c-inverse-surface: 219 228 245;
+      --c-on-error-container: 255 180 171;
+      --c-ground: 10 15 28;
+      --c-warning: 245 158 11;
+      --c-warning-container: 70 51 15;
+      --c-on-warning-container: 252 211 77;
+      --ring-color: rgba(255, 255, 255, 0.09);
+      --shadow-1: rgba(0, 0, 0, 0.35);
+      --shadow-2: rgba(0, 0, 0, 0.3);
+      --nft-card-end: #111a2c; --nft-name: #e3eaf6;
+      --nft-profit-text: #34d399; --nft-profit-rate: #34d399; --nft-profit-label: #4ade80;
+      --nft-profit-bar: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+      --nft-loss-text: #fda4af; --nft-loss-rate: #fb7185; --nft-loss-label: #f87171;
+      --nft-loss-bar: linear-gradient(180deg, #fb7185 0%, #e11d48 100%);
+      --nft-mixed-text: #a5b4fc; --nft-mixed-rate: #a5b4fc; --nft-mixed-label: #93c5fd;
+      --nft-mixed-bar: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+      --nft-empty-bg: #172239; --nft-empty-border: #2f3d5a; --nft-empty-accent: #3a4a6b; --nft-empty-text: #7f8ba3;
+      --nft-empty-bar: #2f3d5a;
+    }
+
+    /* Cards that are dark on purpose (Confluence Matrix banner, Timing "Best window",
+       Position History validation notice) keep the LIGHT palette inside them, so
+       their "inverse" tokens resolve exactly as in light mode. Their background is
+       nudged from the near-black navy to a slightly lighter one so the card still
+       separates from the dark page. */
+    html.dark .emphasis-dark {
+      --c-on-surface: 11 28 48;
+      --c-surface-container-low: 243 244 246;
+      --c-on-primary: 255 255 255;
+      --c-on-primary-fixed-variant: 29 78 216;
+      --c-on-secondary-container: 92 100 122;
+      --c-on-secondary: 255 255 255;
+      --c-primary-container: 37 99 235;
+      --c-tertiary-fixed: 111 251 190;
+      --c-surface-tint: 37 99 235;
+      --c-secondary: 86 94 116;
+      --c-outline-variant: 199 196 216;
+      --c-error: 186 26 26;
+      --c-surface-dim: 203 219 245;
+      --c-on-tertiary-fixed-variant: 0 82 54;
+      --c-on-surface-variant: 70 69 85;
+      --c-on-secondary-fixed-variant: 63 70 92;
+      --c-surface-variant: 211 228 254;
+      --c-on-error: 255 255 255;
+      --c-on-background: 11 28 48;
+      --c-secondary-fixed: 218 226 253;
+      --c-error-container: 255 218 214;
+      --c-secondary-fixed-dim: 190 198 224;
+      --c-on-tertiary-fixed: 0 33 19;
+      --c-primary-fixed-dim: 147 197 253;
+      --c-inverse-on-surface: 234 241 255;
+      --c-primary-fixed: 219 234 254;
+      --c-surface-container-lowest: 255 255 255;
+      --c-tertiary-container: 0 110 75;
+      --c-surface: 248 249 255;
+      --c-on-secondary-fixed: 19 27 46;
+      --c-surface-container-high: 220 233 255;
+      --c-surface-container-highest: 211 228 254;
+      --c-on-tertiary-container: 103 244 183;
+      --c-secondary-container: 218 226 253;
+      --c-outline: 119 117 135;
+      --c-tertiary: 0 83 56;
+      --c-on-primary-fixed: 23 37 84;
+      --c-surface-container: 229 238 255;
+      --c-tertiary-fixed-dim: 78 222 163;
+      --c-surface-bright: 248 249 255;
+      --c-background: 248 249 255;
+      --c-primary: 29 78 216;
+      --c-on-primary-container: 219 234 254;
+      --c-on-tertiary: 255 255 255;
+      --c-inverse-primary: 147 197 253;
+      --c-inverse-surface: 33 49 69;
+      --c-on-error-container: 147 0 10;
+      --c-ground: 255 255 255;
+      --c-warning: 217 119 6;
+      --c-warning-container: 254 243 199;
+      --c-on-warning-container: 146 64 14;
+      --c-on-surface: 24 38 68;
+      --c-inverse-surface: 24 38 68;
+    }
+
+    /* Modal scrims must darken the page in both themes. */
+    html.dark .bg-on-surface\/60 { background-color: rgba(0, 0, 0, 0.62); }
+
+    /* Stock Tailwind utilities used in a few places (not theme tokens) */
+    html.dark .text-slate-400 { color: #7f8ba3; }
+    html.dark .text-slate-600 { color: #b7c2d6; }
+    html.dark .text-blue-600 { color: #6a92f8; }
+    html.dark .border-slate-100\/90 { border-color: rgba(255, 255, 255, 0.08); }
+    /* Sidebar / header hairlines were hard-coded dark-on-light shadows */
+    html.dark aside { box-shadow: 1px 0 0 rgba(255, 255, 255, 0.08), 0 1px 8px rgba(0, 0, 0, 0.3); }
+    html.dark #app-header { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 8px rgba(0, 0, 0, 0.3); }
+
+
     @layer base {
 
       html,
@@ -46,7 +260,7 @@
        the zoom modal (a body-level element) can't open above it, so the image
        stops being click-to-zoom and gets its own exit button. */
     #cs-chart-container:fullscreen {
-      background: #fff;
+      background: rgb(var(--c-surface-container-lowest));
       padding: 1.5rem;
       overflow: auto;
       display: flex;
@@ -118,9 +332,13 @@
       }
     }
   </style>
+  <script>
+    /* Apply the saved theme before anything paints. Light is the default. */
+    try { if (localStorage.getItem('tj_theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) { /* storage blocked: stay light */ }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script
-    id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "on-surface": "#0b1c30", "surface-container-low": "#f3f4f6", "on-primary": "#ffffff", "on-primary-fixed-variant": "#1d4ed8", "on-secondary-container": "#5c647a", "on-secondary": "#ffffff", "primary-container": "#2563eb", "tertiary-fixed": "#6ffbbe", "surface-tint": "#2563eb", "secondary": "#565e74", "outline-variant": "#c7c4d8", "error": "#ba1a1a", "surface-dim": "#cbdbf5", "on-tertiary-fixed-variant": "#005236", "on-surface-variant": "#464555", "on-secondary-fixed-variant": "#3f465c", "surface-variant": "#d3e4fe", "on-error": "#ffffff", "on-background": "#0b1c30", "secondary-fixed": "#dae2fd", "error-container": "#ffdad6", "secondary-fixed-dim": "#bec6e0", "on-tertiary-fixed": "#002113", "primary-fixed-dim": "#93c5fd", "inverse-on-surface": "#eaf1ff", "primary-fixed": "#dbeafe", "surface-container-lowest": "#ffffff", "tertiary-container": "#006e4b", "surface": "#f8f9ff", "on-secondary-fixed": "#131b2e", "surface-container-high": "#dce9ff", "surface-container-highest": "#d3e4fe", "on-tertiary-container": "#67f4b7", "secondary-container": "#dae2fd", "outline": "#777587", "tertiary": "#005338", "on-primary-fixed": "#172554", "surface-container": "#e5eeff", "tertiary-fixed-dim": "#4edea3", "surface-bright": "#f8f9ff", "background": "#f8f9ff", "primary": "#1d4ed8", "on-primary-container": "#dbeafe", "on-tertiary": "#ffffff", "inverse-primary": "#93c5fd", "inverse-surface": "#213145", "on-error-container": "#93000a", "ground": "#ffffff", "warning": "#d97706", "warning-container": "#fef3c7", "on-warning-container": "#92400e" }, boxShadow: { "sm": "0 0 0 1px rgba(11,28,48,0.06), 0 1px 2px rgba(11,28,48,0.06), 0 4px 12px rgba(11,28,48,0.05)" }, borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, spacing: { "gutter-desktop": "1.5rem", "margin-tablet": "1.5rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "space-md": "0.75rem", "gutter": "1.25rem", "margin-desktop": "2rem", "space-lg": "1.25rem", "margin": "1rem" }, fontFamily: { "body-sm": ["Inter"], "headline-xl": ["Inter"], "metric-display": ["JetBrains Mono"], "headline-lg": ["Inter"], "headline-sm": ["Inter"], "metric-sm": ["JetBrains Mono"], "body-md": ["Inter"], "headline-md": ["Inter"], "headline-lg-mobile": ["Inter"], "metric-lg": ["JetBrains Mono"], "body-lg": ["Inter"], "metric-md": ["JetBrains Mono"], "label-eyebrow": ["Inter"] }, fontSize: { "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }], "headline-xl": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "metric-display": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.03em", "fontWeight": "600" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "headline-sm": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "600" }], "metric-sm": ["11px", { "lineHeight": "16px", "fontWeight": "500" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "headline-md": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-lg-mobile": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "metric-lg": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "metric-md": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }], "label-eyebrow": ["11px", { "lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "600" }] } } } }</script>
+    id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "on-surface": "rgb(var(--c-on-surface) / <alpha-value>)", "surface-container-low": "rgb(var(--c-surface-container-low) / <alpha-value>)", "on-primary": "rgb(var(--c-on-primary) / <alpha-value>)", "on-primary-fixed-variant": "rgb(var(--c-on-primary-fixed-variant) / <alpha-value>)", "on-secondary-container": "rgb(var(--c-on-secondary-container) / <alpha-value>)", "on-secondary": "rgb(var(--c-on-secondary) / <alpha-value>)", "primary-container": "rgb(var(--c-primary-container) / <alpha-value>)", "tertiary-fixed": "rgb(var(--c-tertiary-fixed) / <alpha-value>)", "surface-tint": "rgb(var(--c-surface-tint) / <alpha-value>)", "secondary": "rgb(var(--c-secondary) / <alpha-value>)", "outline-variant": "rgb(var(--c-outline-variant) / <alpha-value>)", "error": "rgb(var(--c-error) / <alpha-value>)", "surface-dim": "rgb(var(--c-surface-dim) / <alpha-value>)", "on-tertiary-fixed-variant": "rgb(var(--c-on-tertiary-fixed-variant) / <alpha-value>)", "on-surface-variant": "rgb(var(--c-on-surface-variant) / <alpha-value>)", "on-secondary-fixed-variant": "rgb(var(--c-on-secondary-fixed-variant) / <alpha-value>)", "surface-variant": "rgb(var(--c-surface-variant) / <alpha-value>)", "on-error": "rgb(var(--c-on-error) / <alpha-value>)", "on-background": "rgb(var(--c-on-background) / <alpha-value>)", "secondary-fixed": "rgb(var(--c-secondary-fixed) / <alpha-value>)", "error-container": "rgb(var(--c-error-container) / <alpha-value>)", "secondary-fixed-dim": "rgb(var(--c-secondary-fixed-dim) / <alpha-value>)", "on-tertiary-fixed": "rgb(var(--c-on-tertiary-fixed) / <alpha-value>)", "primary-fixed-dim": "rgb(var(--c-primary-fixed-dim) / <alpha-value>)", "inverse-on-surface": "rgb(var(--c-inverse-on-surface) / <alpha-value>)", "primary-fixed": "rgb(var(--c-primary-fixed) / <alpha-value>)", "surface-container-lowest": "rgb(var(--c-surface-container-lowest) / <alpha-value>)", "tertiary-container": "rgb(var(--c-tertiary-container) / <alpha-value>)", "surface": "rgb(var(--c-surface) / <alpha-value>)", "on-secondary-fixed": "rgb(var(--c-on-secondary-fixed) / <alpha-value>)", "surface-container-high": "rgb(var(--c-surface-container-high) / <alpha-value>)", "surface-container-highest": "rgb(var(--c-surface-container-highest) / <alpha-value>)", "on-tertiary-container": "rgb(var(--c-on-tertiary-container) / <alpha-value>)", "secondary-container": "rgb(var(--c-secondary-container) / <alpha-value>)", "outline": "rgb(var(--c-outline) / <alpha-value>)", "tertiary": "rgb(var(--c-tertiary) / <alpha-value>)", "on-primary-fixed": "rgb(var(--c-on-primary-fixed) / <alpha-value>)", "surface-container": "rgb(var(--c-surface-container) / <alpha-value>)", "tertiary-fixed-dim": "rgb(var(--c-tertiary-fixed-dim) / <alpha-value>)", "surface-bright": "rgb(var(--c-surface-bright) / <alpha-value>)", "background": "rgb(var(--c-background) / <alpha-value>)", "primary": "rgb(var(--c-primary) / <alpha-value>)", "on-primary-container": "rgb(var(--c-on-primary-container) / <alpha-value>)", "on-tertiary": "rgb(var(--c-on-tertiary) / <alpha-value>)", "inverse-primary": "rgb(var(--c-inverse-primary) / <alpha-value>)", "inverse-surface": "rgb(var(--c-inverse-surface) / <alpha-value>)", "on-error-container": "rgb(var(--c-on-error-container) / <alpha-value>)", "ground": "rgb(var(--c-ground) / <alpha-value>)", "warning": "rgb(var(--c-warning) / <alpha-value>)", "warning-container": "rgb(var(--c-warning-container) / <alpha-value>)", "on-warning-container": "rgb(var(--c-on-warning-container) / <alpha-value>)" }, boxShadow: { "sm": "0 0 0 1px var(--ring-color), 0 1px 2px var(--shadow-1), 0 4px 12px var(--shadow-2)" }, borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, spacing: { "gutter-desktop": "1.5rem", "margin-tablet": "1.5rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "space-md": "0.75rem", "gutter": "1.25rem", "margin-desktop": "2rem", "space-lg": "1.25rem", "margin": "1rem" }, fontFamily: { "body-sm": ["Inter"], "headline-xl": ["Inter"], "metric-display": ["JetBrains Mono"], "headline-lg": ["Inter"], "headline-sm": ["Inter"], "metric-sm": ["JetBrains Mono"], "body-md": ["Inter"], "headline-md": ["Inter"], "headline-lg-mobile": ["Inter"], "metric-lg": ["JetBrains Mono"], "body-lg": ["Inter"], "metric-md": ["JetBrains Mono"], "label-eyebrow": ["Inter"] }, fontSize: { "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }], "headline-xl": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "metric-display": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.03em", "fontWeight": "600" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "headline-sm": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "600" }], "metric-sm": ["11px", { "lineHeight": "16px", "fontWeight": "500" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "headline-md": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-lg-mobile": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "metric-lg": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "metric-md": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "500" }], "label-eyebrow": ["11px", { "lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "600" }] } } } }</script>
 </head>
 
 <body class="bg-ground font-body-md text-on-surface">
@@ -171,9 +389,11 @@
       <div class="flex items-center gap-4">
         <div class="relative">
           <button type="button" id="header-search-toggle" aria-expanded="false" aria-haspopup="true"
-            aria-controls="header-search-panel" aria-label="Search trades and positions"
-            class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
+            aria-controls="header-search-panel" aria-label="Search trades and positions (Cmd or Ctrl + K)" title="Search (&#8984;K or Ctrl+K)"
+            class="h-8 pl-1.5 pr-1.5 rounded-lg flex items-center gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
             <span class="material-symbols-outlined text-[20px]">search</span>
+            <!-- Shortcut hint: Cmd+K / Ctrl+K opens this same search (see initHeaderSearch) -->
+            <kbd class="px-1.5 py-0.5 rounded-md border border-outline-variant font-metric-sm text-[10px] leading-none font-semibold text-secondary bg-surface-container-lowest">&#8984;K</kbd>
           </button>
           <div id="header-search-panel" hidden
             class="absolute right-0 top-full mt-2 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-3">
@@ -243,6 +463,17 @@
             </button>
           </div>
         </div>
+        <!-- Light / dark toggle: icon shows the theme you would switch to (see initThemeToggle) -->
+        <button type="button" id="theme-toggle" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode"
+          class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
+          <span class="material-symbols-outlined text-[20px]" id="theme-toggle-icon">dark_mode</span>
+        </button>
+        <!-- Global primary action, on every page -->
+        <button type="button" id="header-new-trade" data-path="new-trade-entry"
+          class="bg-primary hover:bg-primary-container text-on-primary px-4 py-2 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 shadow-sm transition-all duration-150 whitespace-nowrap">
+          <span class="material-symbols-outlined text-[18px]">add</span>
+          <span>New Trade</span>
+        </button>
       </div>
     </header>
     <main class="pt-16 bg-ground min-h-screen">
@@ -1566,7 +1797,7 @@
               </div>
               <!-- Active Validation Notice Card (Dark Slate emphasis) -->
               <div
-                class="bg-on-surface text-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+                class="emphasis-dark bg-on-surface text-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
                 <div>
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
@@ -2294,7 +2525,7 @@
             </header>
             <!-- Dark Highlight Banner (Visual Anchor) -->
             <section
-              class="mt-6 rounded-xl p-6 bg-on-surface text-surface-container-lowest shadow-md relative overflow-hidden">
+              class="emphasis-dark mt-6 rounded-xl p-6 bg-on-surface text-surface-container-lowest shadow-md relative overflow-hidden">
               <!-- Subtle architectural background glow -->
               <div
                 class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-primary-container/20 blur-3xl pointer-events-none">
@@ -2967,7 +3198,7 @@
               <div class="lg:col-span-5 flex flex-col gap-4">
                 <!-- Card 1: Emphasis Dark Card (Best Window) -->
                 <div
-                  class="bg-inverse-surface text-inverse-on-surface rounded-xl p-5 shadow-md relative overflow-hidden group">
+                  class="emphasis-dark bg-inverse-surface text-inverse-on-surface rounded-xl p-5 shadow-md relative overflow-hidden group">
                   <!-- Background subtle glow -->
                   <div
                     class="absolute -right-8 -bottom-8 w-32 h-32 bg-tertiary-fixed-dim/10 rounded-full blur-2xl pointer-events-none">
