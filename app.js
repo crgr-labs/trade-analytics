@@ -3037,51 +3037,79 @@
     return usingPositions ? ' · ' + formatSignedMoney(net) : '';
   }
 
+  // Watercolor palette for session/day cards
+  // Soft, desaturated tones that read as meaningful without being harsh.
+  var WC = {
+    // Profitable / wins-only: sage green wash
+    profitBg:   'style="background:rgba(134,179,139,0.18);border:1.5px solid rgba(134,179,139,0.45)"',
+    profitDot:  'style="background:#7aab82"',
+    profitText: 'style="color:#3a7a42"',
+    profitSub:  'style="color:#4d7a52"',
+    // Mixed (wins + losses): warm periwinkle
+    mixedBg:    'style="background:rgba(140,148,210,0.18);border:1.5px solid rgba(140,148,210,0.4)"',
+    mixedDot:   'style="background:#e06060"',
+    mixedText:  'style="color:#3c3c6e"',
+    mixedSub:   'style="color:#5a5a8a"',
+    // Loss-only / unprofitable: dusty rose
+    lossBg:     'style="background:rgba(210,120,120,0.14);border:1.5px solid rgba(210,100,100,0.38)"',
+    lossDot:    'style="background:#d07070"',
+    lossText:   'style="color:#a83030"',
+    lossSub:    'style="color:#c05050"',
+    // Empty: slate
+    emptyBg:    'style="background:rgba(160,165,175,0.10);border:1.5px solid rgba(160,165,175,0.2)"',
+    emptyText:  'style="color:#9aa0a8"'
+  };
+
   function sessionCellHtml(s, noun, usingPositions) {
+    var profitable   = usingPositions && s.net > 0;
+    var unprofitable = usingPositions && s.net < 0;
+
     if (s.total === 0) {
       return (
-        '<div class="group relative rounded-lg bg-surface-container p-4 text-center flex flex-col justify-between h-32 opacity-75 transition-all duration-200">' +
+        '<div class="group relative rounded-xl p-4 text-center flex flex-col justify-between h-32 transition-all duration-200" ' + WC.emptyBg + '>' +
           '<div class="flex items-center justify-between">' +
-            '<span class="font-label-eyebrow text-label-eyebrow text-secondary font-medium">' + escapeHtml(s.name) + '</span>' +
-            '<span class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>' +
+            '<span class="font-label-eyebrow text-label-eyebrow font-medium" ' + WC.emptyText + '>' + escapeHtml(s.name) + '</span>' +
+            '<span class="w-1.5 h-1.5 rounded-full" style="background:rgba(160,165,175,0.4)"></span>' +
           '</div>' +
-          '<div class="my-auto"><span class="font-metric-display text-metric-display text-secondary/40 font-bold block leading-none">—</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-secondary/70 font-medium">no ' + noun + 's</div>' +
+          '<div class="my-auto"><span class="font-metric-display text-metric-display font-bold block leading-none" style="color:rgba(160,165,175,0.4)">—</span></div>' +
+          '<div class="font-metric-sm text-metric-sm font-medium" ' + WC.emptyText + '>no ' + noun + 's</div>' +
         '</div>'
       );
     }
-    if (s.wins > 0 && s.losses > 0) {
-      return (
-        '<div class="group relative rounded-lg bg-secondary-fixed p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">' +
-          '<div class="flex items-center justify-between">' +
-            '<span class="font-label-eyebrow text-label-eyebrow text-on-secondary-fixed font-bold">' + escapeHtml(s.name) + '</span>' +
-            '<span class="w-2 h-2 rounded-full bg-error"></span>' +
-          '</div>' +
-          '<div class="my-auto"><span class="font-metric-display text-metric-display text-on-surface font-bold block leading-none">' + s.rate + '%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-on-secondary-fixed-variant font-medium">' + timingCountLabel(s.total, noun) + timingNetLabel(s.net, usingPositions) + ' <span class="text-error font-semibold">(' + s.losses + ' loss' + (s.losses === 1 ? '' : 'es') + ')</span></div>' +
-        '</div>'
-      );
+
+    // Determine colour scheme
+    var schemeBg, schemeDot, schemeRate, schemeSub, schemeErrLabel;
+    if (usingPositions) {
+      if (profitable)        { schemeBg = WC.profitBg; schemeDot = WC.profitDot; schemeRate = WC.profitText; schemeSub = WC.profitSub; }
+      else if (unprofitable) { schemeBg = WC.lossBg;   schemeDot = WC.lossDot;   schemeRate = WC.lossText;   schemeSub = WC.lossSub;   }
+      else                   { schemeBg = WC.mixedBg;  schemeDot = WC.mixedDot;  schemeRate = WC.mixedText;  schemeSub = WC.mixedSub;  }
+    } else {
+      // Trade mode: colour by win/loss presence
+      if (s.wins > 0 && s.losses > 0) { schemeBg = WC.mixedBg;  schemeDot = WC.mixedDot;  schemeRate = WC.mixedText;  schemeSub = WC.mixedSub;  }
+      else if (s.losses > 0)           { schemeBg = WC.lossBg;   schemeDot = WC.lossDot;   schemeRate = WC.lossText;   schemeSub = WC.lossSub;   }
+      else                             { schemeBg = WC.profitBg; schemeDot = WC.profitDot; schemeRate = WC.profitText; schemeSub = WC.profitSub; }
     }
-    if (s.losses > 0) {
-      return (
-        '<div class="group relative rounded-lg bg-error-container/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">' +
-          '<div class="flex items-center justify-between">' +
-            '<span class="font-label-eyebrow text-label-eyebrow text-error font-bold">' + escapeHtml(s.name) + '</span>' +
-            '<span class="w-2 h-2 rounded-full bg-error"></span>' +
-          '</div>' +
-          '<div class="my-auto"><span class="font-metric-display text-metric-display text-error font-bold block leading-none">0%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-error font-medium">' + timingCountLabel(s.total, noun) + timingNetLabel(s.net, usingPositions) + '</div>' +
-        '</div>'
-      );
+
+    var rateLabel = s.wins > 0 && s.losses > 0 ? s.rate + '%' : s.losses > 0 ? '0%' : '100%';
+
+    // Bottom caption: counts + net P&L
+    var bottomLine = s.wins + 'W / ' + s.losses + 'L';
+    if (usingPositions) {
+      var netSign = s.net >= 0 ? '+' : '';
+      var netColor = s.net >= 0 ? 'color:#3a7a42' : 'color:#a83030';
+      bottomLine += ' · <span style="' + netColor + ';font-weight:600">' + netSign + '$' + Math.abs(s.net).toFixed(2) + '</span>';
+    } else if (s.wins > 0 && s.losses > 0) {
+      bottomLine += ' <span style="color:#a83030;font-weight:600">(' + s.losses + ' loss' + (s.losses === 1 ? '' : 'es') + ')</span>';
     }
+
     return (
-      '<div class="group relative rounded-lg bg-tertiary-fixed/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">' +
+      '<div class="group relative rounded-xl p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" ' + schemeBg + '>' +
         '<div class="flex items-center justify-between">' +
-          '<span class="font-label-eyebrow text-label-eyebrow text-on-tertiary-fixed font-bold">' + escapeHtml(s.name) + '</span>' +
-          '<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>' +
+          '<span class="font-label-eyebrow text-label-eyebrow font-bold" ' + schemeRate + '>' + escapeHtml(s.name) + '</span>' +
+          '<span class="w-2 h-2 rounded-full" ' + schemeDot + '></span>' +
         '</div>' +
-        '<div class="my-auto"><span class="font-metric-display text-metric-display text-tertiary font-bold block leading-none">100%</span></div>' +
-        '<div class="font-metric-sm text-metric-sm text-on-tertiary-fixed-variant font-medium">' + timingCountLabel(s.total, noun) + timingNetLabel(s.net, usingPositions) + '</div>' +
+        '<div class="my-auto"><span class="font-metric-display text-metric-display font-bold block leading-none" ' + schemeRate + '>' + rateLabel + '</span></div>' +
+        '<div class="font-metric-sm text-metric-sm font-medium" ' + schemeSub + '>' + bottomLine + '</div>' +
       '</div>'
     );
   }
@@ -3091,18 +3119,24 @@
     if (h.total === 0) {
       return (
         '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — no ' + noun + 's">' +
-          '<div class="w-full h-16 flex items-end"><div class="w-full h-1 bg-surface-container-high rounded-xs"></div></div>' +
-          '<span class="font-metric-sm text-[9px] text-outline-variant">' + hourLabel + '</span>' +
+          '<div class="w-full h-16 flex items-end"><div class="w-full h-1 rounded-xs" style="background:rgba(160,165,175,0.2)"></div></div>' +
+          '<span class="font-metric-sm text-[9px]" style="color:rgba(160,165,175,0.5)">' + hourLabel + '</span>' +
         '</div>'
       );
     }
     var rate = pct(h.wins, h.total);
-    var barColor = h.losses === 0 ? 'bg-tertiary' : (h.wins === 0 ? 'bg-error' : 'bg-secondary');
+    // Watercolor bar colours matching the session card palette
+    var barStyle = h.losses === 0
+      ? 'background:rgba(122,171,130,0.85)'           // sage green
+      : h.wins === 0
+        ? 'background:rgba(208,112,112,0.80)'         // dusty rose
+        : 'background:rgba(140,148,210,0.75)';        // periwinkle (mixed)
+    var labelColor = h.losses === 0 ? 'color:#3a7a42' : h.wins === 0 ? 'color:#a83030' : 'color:#3c3c6e';
     var heightPct = Math.max(14, Math.round((h.total / maxCount) * 100));
     return (
       '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — ' + timingCountLabel(h.total, noun) + ', ' + rate + '% win">' +
-        '<div class="w-full h-16 flex items-end"><div class="w-full ' + barColor + ' rounded-xs" style="height: ' + heightPct + '%"></div></div>' +
-        '<span class="font-metric-sm text-[9px] text-secondary">' + hourLabel + '</span>' +
+        '<div class="w-full h-16 flex items-end"><div class="w-full rounded-xs" style="height:' + heightPct + '%;' + barStyle + '"></div></div>' +
+        '<span class="font-metric-sm text-[9px]" style="' + labelColor + '">' + hourLabel + '</span>' +
       '</div>'
     );
   }
