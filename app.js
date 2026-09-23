@@ -4320,25 +4320,26 @@
 
   // Populates the Prev/Next buttons and "N of M" label based on where this
   // trade sits in the current (filtered/sorted) case study list.
-  // Bottom-of-page card linking to the adjacent trade: pair, direction and its
-  // P&L / R-multiple when one can be computed (outcome otherwise).
+  // Compact pill link to the adjacent trade: "<- Previous Trade: PAIR (value)" /
+  // "Next Trade: PAIR (value) ->". The value is the trade's P&L or R-multiple;
+  // without either it falls back to the date (never a blank or invented number),
+  // with a tooltip saying why. A missing neighbour renders nothing but an empty
+  // grid cell, so the remaining pill keeps its side rather than showing disabled.
   function adjacentTradeCardHtml(trade, isNext) {
     if (!trade) return '<div></div>';
     var result = tradeReturnLabel(trade);
-    var tone = result ? (result.positive ? 'text-tertiary' : 'text-error') : 'text-secondary';
-    var directionClass = DIRECTION_BADGE_CLASS[trade.direction] || DIRECTION_BADGE_CLASS.long;
-    var heading = isNext
-      ? '<span>Next Trade</span><span class="material-symbols-outlined text-[16px]">arrow_forward</span>'
-      : '<span class="material-symbols-outlined text-[16px]">arrow_back</span><span>Previous Trade</span>';
+    var valueHtml = result
+      ? '<span class="font-semibold ' + (result.positive ? 'text-tertiary' : 'text-error') + '">(' + result.label + ')</span>'
+      : '<span class="text-secondary" title="P&amp;L / R-multiple not recorded for this trade">(' + escapeHtml(formatMediumDate(trade.date)) + ')</span>';
+    var arrow = '<span class="material-symbols-outlined text-[18px] shrink-0 text-secondary group-hover:text-primary transition-colors">' + (isNext ? 'arrow_forward' : 'arrow_back') + '</span>';
+    var label =
+      '<span class="min-w-0 truncate font-metric-md text-metric-md">' +
+        '<span class="text-secondary">' + (isNext ? 'Next Trade:' : 'Previous Trade:') + '</span> ' +
+        '<span class="font-bold text-on-surface">' + escapeHtml(trade.pair) + '</span> ' + valueHtml +
+      '</span>';
     return (
-      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="group bg-surface-container-lowest rounded-xl p-4 shadow-sm hover:bg-surface-container-low/60 transition-colors flex flex-col gap-2 min-w-0 ' + (isNext ? 'sm:items-end sm:text-right' : '') + '">' +
-        '<span class="flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow uppercase tracking-wider text-secondary group-hover:text-primary transition-colors">' + heading + '</span>' +
-        '<span class="flex flex-wrap items-center gap-2.5 min-w-0 ' + (isNext ? 'sm:justify-end' : '') + '">' +
-          '<span class="font-metric-lg text-metric-lg font-bold text-on-surface truncate">' + escapeHtml(trade.pair) + '</span>' +
-          '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + trade.direction.toUpperCase() + '</span>' +
-          '<span class="font-metric-md text-metric-md font-semibold ' + tone + '">' + (result ? result.label : trade.outcome.toUpperCase()) + '</span>' +
-        '</span>' +
-        '<span class="font-metric-sm text-metric-sm text-secondary">' + formatMediumDate(trade.date) + '</span>' +
+      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="group flex items-center gap-2 min-w-0 px-4 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low hover:border-primary transition-colors ' + (isNext ? 'justify-end text-right' : '') + '">' +
+        (isNext ? label + arrow : arrow + label) +
       '</a>'
     );
   }
