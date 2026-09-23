@@ -3048,8 +3048,8 @@
       dot: '#10b981',
       rate: 'color: #059669;',
       pnl: 'color: #047857; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);',
-      bar: 'linear-gradient(180deg, #34d399 0%, #059669 100%)',
-      barLabel: 'color: #047857;',
+      bar: 'linear-gradient(180deg, #bbf7d0 0%, #86efac 100%)',
+      barLabel: 'color: #16a34a;',
       tag: 'PROFIT'
     },
     loss: {
@@ -3059,8 +3059,8 @@
       dot: '#f43f5e',
       rate: 'color: #e11d48;',
       pnl: 'color: #be123c; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2);',
-      bar: 'linear-gradient(180deg, #fb7185 0%, #e11d48 100%)',
-      barLabel: 'color: #be123c;',
+      bar: 'linear-gradient(180deg, #fecaca 0%, #fca5a5 100%)',
+      barLabel: 'color: #dc2626;',
       tag: 'LOSS'
     },
     mixed: {
@@ -3070,8 +3070,8 @@
       dot: '#6366f1',
       rate: 'color: #4f46e5;',
       pnl: 'color: #4338ca; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2);',
-      bar: 'linear-gradient(180deg, #a5b4fc 0%, #4f46e5 100%)',
-      barLabel: 'color: #4338ca;',
+      bar: 'linear-gradient(180deg, #bfdbfe 0%, #93c5fd 100%)',
+      barLabel: 'color: #2563eb;',
       tag: 'MIXED'
     },
     empty: {
@@ -3081,7 +3081,7 @@
       dot: '#cbd5e1',
       rate: 'color: #cbd5e1;',
       pnl: '',
-      bar: '#cbd5e1',
+      bar: '#e2e8f0',
       barLabel: 'color: #94a3b8;',
       tag: 'NO DATA'
     }
@@ -3168,14 +3168,14 @@
       : (h.wins === 0 ? NFT_LIGHT.loss : NFT_LIGHT.mixed);
 
     var heightPct = Math.max(14, Math.round((h.total / maxCount) * 100));
-    var barStyle = 'background:' + cfg.bar + '; border-radius: 4px 4px 1px 1px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);';
+    var barStyle = 'background:' + cfg.bar + '; border-radius: 4px 4px 1px 1px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);';
 
     return (
       '<div class="flex-1 flex flex-col items-center gap-1.5 transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer" title="' + hourLabel + ':00 UTC — ' + timingCountLabel(h.total, noun) + ', ' + rate + '% win">' +
         '<div class="w-full h-16 flex items-end">' +
           '<div class="w-full" style="height:' + heightPct + '%;' + barStyle + '"></div>' +
         '</div>' +
-        '<span class="font-mono text-[9px] font-bold" style="' + cfg.barLabel + '">' + hourLabel + '</span>' +
+        '<span class="font-mono text-[9px] font-semibold" style="' + cfg.barLabel + '">' + hourLabel + '</span>' +
       '</div>'
     );
   }
