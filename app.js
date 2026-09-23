@@ -1590,6 +1590,222 @@
     return { imported: imported, skipped: skipped, ignored: ignored };
   }
 
+  // ---------------------------------------------------------------------
+  // TradingView Paper Trade History import
+  // ---------------------------------------------------------------------
+  // TradingView exports one row per order (entry + exit), both sharing the
+  // same "Trade number".  We pair them up to build one closed position per
+  // trade number.  Columns (0-indexed):
+  //   0: Symbol  1: Trade number  2: Type  3: Date and time
+  //   4: Order ID  5: Signal  6: Price  7: Size (qty)
+  //   8: Size (value)  9: Net PnL USD  10: Return %
+  //  11: Commission USD  12: Cumulative PnL USD  13: Cumulative PnL %
+
+  var TV_REQUIRED_HEADERS = ['symbol', 'trade number', 'type', 'date and time', 'price', 'net pnl usd'];
+
+  // "Jul 31, 2026, 09:23"  →  ISO UTC string  (TV paper trades have no TZ; treat as UTC)
+  var TV_MONTH_MAP = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+  function parseTvDateTime(raw) {
+    if (!raw) return '';
+    // Handle JS Date objects (cellDates: true)
+    if (raw instanceof Date) {
+      if (isNaN(raw.getTime())) return '';
+      return raw.toISOString();
+    }
+    var s = String(raw).trim();
+    // "Jul 31, 2026, 09:23"
+    var m = s.match(/^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{4}),\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+      var mo = TV_MONTH_MAP[m[1].toLowerCase()];
+      if (mo === undefined) return '';
+      var ms = Date.UTC(parseInt(m[3]), mo, parseInt(m[2]), parseInt(m[4]), parseInt(m[5]), m[6] ? parseInt(m[6]) : 0);
+      return new Date(ms).toISOString();
+    }
+    // Fallback: let Date parse it
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? '' : d.toISOString();
+  }
+
+  // "OKX:MMTUSDT.P"  or  "BINANCE:BTCUSDT.P"  →  "MMTUSDT.P"
+  function parseTvSymbol(raw) {
+    var s = (raw || '').toString().trim().toUpperCase();
+    var colonIdx = s.lastIndexOf(':');
+    if (colonIdx !== -1) s = s.slice(colonIdx + 1);
+    // Already ends in .P  (TV perps) or doesn't — normalise to .P convention
+    if (!s.endsWith('.P')) s = s.replace(/\.P$/, '') + '.P';
+    return s;
+  }
+
+  // "Entry long" / "Exit long" / "Entry short" / "Exit short"
+  function parseTvType(raw) {
+    var s = (raw || '').toLowerCase();
+    var isEntry = s.indexOf('entry') !== -1;
+    var isLong  = s.indexOf('long') !== -1;
+    return { isEntry: isEntry, direction: isLong ? 'long' : 'short' };
+  }
+
+  function parseTvNumber(raw) {
+    if (typeof raw === 'number') return isNaN(raw) ? null : raw;
+    var s = (raw == null ? '' : String(raw)).trim().replace(/,/g, '');
+    if (!s) return null;
+    var n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+
+  // Detect whether a rows matrix looks like a TradingView paper-trade export.
+  // Returns { headerRow, colIndex } if recognised, or null if not.
+  function detectTvHeader(candidateRows) {
+    for (var i = 0; i < candidateRows.length; i++) {
+      var row = candidateRows[i];
+      var norm = row.map(function (c) { return normalizeHeaderCell(c); });
+      var hasAll = TV_REQUIRED_HEADERS.every(function (h) { return norm.indexOf(h) !== -1; });
+      if (!hasAll) continue;
+      var idx = {};
+      norm.forEach(function (n, j) { idx[n] = j; });
+      return { headerRowIndex: i, colIndex: idx };
+    }
+    return null;
+  }
+
+  function parseTvRowsMatrix(candidateRows) {
+    var detected = detectTvHeader(candidateRows);
+    if (!detected) return null;   // not a TradingView file
+
+    var ci = detected.colIndex;
+    var dataStart = detected.headerRowIndex + 1;
+
+    // Collect all order rows
+    var orders = [];
+    for (var r = dataStart; r < candidateRows.length; r++) {
+      var row = candidateRows[r];
+      if (!row || row.every(function (c) { return String(c == null ? '' : c).trim() === ''; })) continue;
+      var typeInfo = parseTvType(row[ci['type']]);
+      orders.push({
+        symbol:    parseTvSymbol(row[ci['symbol']]),
+        tradeNum:  parseTvNumber(row[ci['trade number']]),
+        isEntry:   typeInfo.isEntry,
+        direction: typeInfo.direction,
+        datetime:  parseTvDateTime(row[ci['date and time']]),
+        price:     parseTvNumber(row[ci['price']]),
+        sizeQty:   parseTvNumber(row[ci['size (qty)']]),
+        sizeVal:   parseTvNumber(row[ci['size (value)']]),
+        netPnl:    parseTvNumber(row[ci['net pnl usd']]),
+        commission:parseTvNumber(row[ci['commission usd']]),
+        returnPct: parseTvNumber(row[ci['return %']])
+      });
+    }
+
+    // Group entry + exit by trade number
+    var byTradeNum = {};
+    orders.forEach(function (o) {
+      var k = String(o.tradeNum) + '|' + o.symbol;
+      if (!byTradeNum[k]) byTradeNum[k] = { entry: null, exit: null, symbol: o.symbol, direction: o.direction };
+      if (o.isEntry) byTradeNum[k].entry = o;
+      else           byTradeNum[k].exit  = o;
+    });
+
+    var positions = [];
+    Object.keys(byTradeNum).forEach(function (k) {
+      var grp = byTradeNum[k];
+      var entry = grp.entry;
+      var exit  = grp.exit;
+      // Need at least an exit to know the trade is closed and have PnL
+      if (!exit) return;
+
+      var pnl  = exit.netPnl !== null ? exit.netPnl : 0;
+      var comm = (entry && entry.commission !== null ? Math.abs(entry.commission) : 0) +
+                 (exit.commission !== null ? Math.abs(exit.commission) : 0);
+
+      var openIso  = entry ? entry.datetime : '';
+      var closeIso = exit.datetime;
+
+      // Position ID natural key includes trade number from the filename context;
+      // use symbol + openIso + closeIso for dedup.
+      positions.push({
+        symbol:    grp.symbol,
+        direction: grp.direction,
+        openIso:   openIso,
+        closeIso:  closeIso,
+        entryPrice:entry ? entry.price : null,
+        closePrice:exit.price,
+        sizeVal:   exit.sizeVal,
+        pnl:       pnl,
+        fee:       comm,
+        source:    'tv-paper'
+      });
+    });
+
+    return { positions: positions, error: null };
+  }
+
+  function importTvPositions(parsed) {
+    var existing = PositionStore.getAll();
+    var seen = {};
+    existing.forEach(function (p) { seen[positionNaturalKey(p)] = true; });
+
+    var imported = 0, skipped = 0;
+
+    parsed.positions.forEach(function (pos) {
+      if (!pos.closeIso) { skipped++; return; }
+
+      var pair = pos.symbol; // already normalised by parseTvSymbol
+
+      // Build a stub record matching the PositionStore schema
+      var rec = {
+        id: '',
+        uid: '',
+        pair: pair,
+        openTime:   pos.openIso || pos.closeIso,
+        closeTime:  pos.closeIso,
+        marginMode: 'paper',
+        entryPrice: pos.entryPrice,
+        closePrice: pos.closePrice,
+        direction:  pos.direction,
+        qty:        '',
+        fee:        pos.fee,
+        pnl:        pos.pnl,
+        status:     'All Closed',
+        linkedTradeId: null,
+        source:     'tv-paper'
+      };
+
+      var key = positionNaturalKey(rec);
+      if (seen[key]) { skipped++; return; }
+      seen[key] = true;
+
+      var dateSlug = (rec.openTime || rec.closeTime).slice(0, 10);
+      rec.id = 'pos-tv-' + pair.replace(/[^A-Z0-9]/g, '') + '-' + dateSlug + '-' + Math.random().toString(36).slice(2, 8);
+      existing.push(rec);
+      imported++;
+    });
+
+    PositionStore.setAll(existing);
+    return { imported: imported, skipped: skipped };
+  }
+
+  // Try TradingView first, then fall back to MEXC.  Returns
+  // { kind: 'tv'|'mexc'|'unknown', parsed, error }
+  function detectAndParseWorkbook(workbook) {
+    var sheetNames = workbook.SheetNames || [];
+    for (var s = 0; s < sheetNames.length; s++) {
+      var sheet = workbook.Sheets[sheetNames[s]];
+      if (!sheet) continue;
+      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      var tvResult = parseTvRowsMatrix(rows);
+      if (tvResult) return { kind: 'tv', parsed: tvResult };
+    }
+    // Fall back to MEXC
+    var mexcResult = parseMexcWorkbook(workbook);
+    return { kind: 'mexc', parsed: mexcResult };
+  }
+
+  function detectAndParseCsv(text) {
+    var rows = parseCsv(text);
+    var tvResult = parseTvRowsMatrix(rows);
+    if (tvResult) return { kind: 'tv', parsed: tvResult };
+    return { kind: 'mexc', parsed: parseMexcRowsMatrix(rows) };
+  }
+
   function positionNet(p) {
     return p.pnl - p.fee;
   }
@@ -1743,6 +1959,9 @@
     var action = p.linkedTradeId
       ? '<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#case-studies/' + encodeURIComponent(p.linkedTradeId) + '"><span>View case study</span><span class="material-symbols-outlined text-[15px]">arrow_forward</span></a>'
       : '<button type="button" class="ph-promote-btn px-2.5 py-1 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-metric-sm text-metric-sm font-semibold transition-colors" data-position-id="' + escapeHtml(p.id) + '">Promote</button>';
+    var sourceBadge = p.source === 'tv-paper'
+      ? '<div class="mt-0.5"><span class="inline-flex items-center gap-1 bg-warning-container text-warning font-metric-sm text-[10px] font-semibold px-1.5 py-0.5 rounded"><span class="material-symbols-outlined text-[10px] align-middle">labs</span>Paper</span></div>'
+      : '';
     var promotedBadge = p.linkedTradeId
       ? '<div class="mt-1"><span class="inline-flex items-center gap-1 bg-primary/10 text-primary font-metric-sm text-[10px] font-semibold px-1.5 py-0.5 rounded"><span class="material-symbols-outlined text-[11px] align-middle">arrow_outward</span>Promoted</span></div>'
       : '';
@@ -1753,6 +1972,7 @@
         '<td class="px-5 py-3 font-metric-sm text-metric-sm text-on-surface whitespace-nowrap">' + formatIsoDateTime(p.openTime) + '</td>' +
         '<td class="px-5 py-3"><div class="flex flex-col">' +
           '<span class="font-metric-md text-metric-md font-bold text-on-surface">' + escapeHtml(p.pair) + '</span>' +
+          sourceBadge +
           promotedBadge +
         '</div></td>' +
         '<td class="px-5 py-3"><span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">' + p.direction.toUpperCase() + '</span></td>' +
@@ -2032,15 +2252,40 @@
           var result;
           try {
             var parsed;
+            var detected;
             if (isCsv) {
               parsed = parseMexcCsv(reader.result);
+              detected = detectAndParseCsv(reader.result);
             } else {
               var workbook = XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
               parsed = parseMexcWorkbook(workbook);
+              detected = detectAndParseWorkbook(workbook);
             }
             if (parsed.error) {
               window.alert('Could not import this file: ' + parsed.error);
               return;
+
+            if (detected.kind === 'tv') {
+              var tvParsed = detected.parsed;
+              if (tvParsed.error) { window.alert('Could not import this file: ' + tvParsed.error); return; }
+              if (!tvParsed.positions || !tvParsed.positions.length) {
+                window.alert('No closed trades found in this TradingView paper-trade export.'); return;
+              }
+              var tvResult = importTvPositions(tvParsed);
+              var tvText = 'Imported ' + tvResult.imported + ' paper trade' + (tvResult.imported === 1 ? '' : 's') + ' from TradingView';
+              if (tvResult.skipped) tvText += ' (' + tvResult.skipped + ' already on file)';
+              result = { text: tvText };
+            } else {
+              var mexcParsed = detected.parsed;
+              if (mexcParsed.error) { window.alert('Could not import this file: ' + mexcParsed.error); return; }
+              if (!mexcParsed.rows || !mexcParsed.rows.length) {
+                window.alert('No position rows found in this file.'); return;
+              }
+              var mexcResult = importPositionRows(mexcParsed.rows);
+              var mexcText = 'Imported ' + mexcResult.imported + ' position' + (mexcResult.imported === 1 ? '' : 's');
+              if (mexcResult.skipped) mexcText += ' (' + mexcResult.skipped + ' already on file)';
+              if (mexcResult.ignored) mexcText += ', ' + mexcResult.ignored + ' skipped (not closed)';
+              result = { text: mexcText };
             }
             if (!parsed.rows.length) {
               window.alert('No position rows found in this file.');
@@ -2049,9 +2294,14 @@
             result = importPositionRows(parsed.rows);
           } catch (err) {
             window.alert('Could not read this file. Make sure it is a MEXC Position History export (.xlsx or .csv).');
+            window.alert('Could not read this file. Supported formats: MEXC Position History (.xlsx/.csv) or TradingView Paper Trade History (.xlsx/.csv).');
             return;
           }
           showPositionImportBanner(result);
+          var textEl = section.querySelector('#ph-import-text');
+          var banner = section.querySelector('#ph-import-banner');
+          if (textEl) textEl.textContent = result.text;
+          if (banner) banner.hidden = false;
           renderPositionHistory();
           renderInsightsDashboard();
         };
