@@ -3037,27 +3037,54 @@
     return usingPositions ? ' · ' + formatSignedMoney(net) : '';
   }
 
-  // Watercolor palette for session/day cards
-  // Soft, desaturated tones that read as meaningful without being harsh.
-  var WC = {
-    // Profitable / wins-only: sage green wash
-    profitBg:   'style="background:rgba(134,179,139,0.18);border:1.5px solid rgba(134,179,139,0.45)"',
-    profitDot:  'style="background:#7aab82"',
-    profitText: 'style="color:#3a7a42"',
-    profitSub:  'style="color:#4d7a52"',
-    // Mixed (wins + losses): warm periwinkle
-    mixedBg:    'style="background:rgba(140,148,210,0.18);border:1.5px solid rgba(140,148,210,0.4)"',
-    mixedDot:   'style="background:#e06060"',
-    mixedText:  'style="color:#3c3c6e"',
-    mixedSub:   'style="color:#5a5a8a"',
-    // Loss-only / unprofitable: dusty rose
-    lossBg:     'style="background:rgba(210,120,120,0.14);border:1.5px solid rgba(210,100,100,0.38)"',
-    lossDot:    'style="background:#d07070"',
-    lossText:   'style="color:#a83030"',
-    lossSub:    'style="color:#c05050"',
-    // Empty: slate
-    emptyBg:    'style="background:rgba(160,165,175,0.10);border:1.5px solid rgba(160,165,175,0.2)"',
-    emptyText:  'style="color:#9aa0a8"'
+  // Option C: Frosted Neo-Fintech Light Design
+  // High-contrast, crisp white surfaces, vibrant 4px left-accent stripes,
+  // modern status micro-pills, and punchy typography.
+  var NFT_LIGHT = {
+    profit: {
+      card: 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(16, 185, 129, 0.22); border-left: 4px solid #10b981; box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
+      name: 'color: #0f172a;',
+      pill: 'background: rgba(16, 185, 129, 0.12); color: #047857; border: 1px solid rgba(16, 185, 129, 0.3);',
+      dot: '#10b981',
+      rate: 'color: #059669;',
+      pnl: 'color: #047857; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);',
+      bar: 'linear-gradient(180deg, #34d399 0%, #059669 100%)',
+      barLabel: 'color: #047857;',
+      tag: 'PROFIT'
+    },
+    loss: {
+      card: 'background: linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(244, 63, 94, 0.22); border-left: 4px solid #f43f5e; box-shadow: 0 1px 3px rgba(244, 63, 94, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
+      name: 'color: #0f172a;',
+      pill: 'background: rgba(244, 63, 94, 0.10); color: #be123c; border: 1px solid rgba(244, 63, 94, 0.25);',
+      dot: '#f43f5e',
+      rate: 'color: #e11d48;',
+      pnl: 'color: #be123c; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2);',
+      bar: 'linear-gradient(180deg, #fb7185 0%, #e11d48 100%)',
+      barLabel: 'color: #be123c;',
+      tag: 'LOSS'
+    },
+    mixed: {
+      card: 'background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(99, 102, 241, 0.22); border-left: 4px solid #6366f1; box-shadow: 0 1px 3px rgba(99, 102, 241, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
+      name: 'color: #0f172a;',
+      pill: 'background: rgba(99, 102, 241, 0.10); color: #4338ca; border: 1px solid rgba(99, 102, 241, 0.25);',
+      dot: '#6366f1',
+      rate: 'color: #4f46e5;',
+      pnl: 'color: #4338ca; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2);',
+      bar: 'linear-gradient(180deg, #a5b4fc 0%, #4f46e5 100%)',
+      barLabel: 'color: #4338ca;',
+      tag: 'MIXED'
+    },
+    empty: {
+      card: 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #cbd5e1;',
+      name: 'color: #94a3b8;',
+      pill: 'color: #94a3b8;',
+      dot: '#cbd5e1',
+      rate: 'color: #cbd5e1;',
+      pnl: '',
+      bar: '#cbd5e1',
+      barLabel: 'color: #94a3b8;',
+      tag: 'NO DATA'
+    }
   };
 
   function sessionCellHtml(s, noun, usingPositions) {
@@ -3065,51 +3092,62 @@
     var unprofitable = usingPositions && s.net < 0;
 
     if (s.total === 0) {
+      var emptyCfg = NFT_LIGHT.empty;
       return (
-        '<div class="group relative rounded-xl p-4 text-center flex flex-col justify-between h-32 transition-all duration-200" ' + WC.emptyBg + '>' +
+        '<div class="group relative rounded-xl p-4 text-left flex flex-col justify-between h-36 transition-all duration-200" style="' + emptyCfg.card + '">' +
           '<div class="flex items-center justify-between">' +
-            '<span class="font-label-eyebrow text-label-eyebrow font-medium" ' + WC.emptyText + '>' + escapeHtml(s.name) + '</span>' +
-            '<span class="w-1.5 h-1.5 rounded-full" style="background:rgba(160,165,175,0.4)"></span>' +
+            '<span class="text-xs font-bold uppercase tracking-wider" style="' + emptyCfg.name + '">' + escapeHtml(s.name) + '</span>' +
+            '<span class="text-[10px] font-semibold text-slate-400">NO DATA</span>' +
           '</div>' +
-          '<div class="my-auto"><span class="font-metric-display text-metric-display font-bold block leading-none" style="color:rgba(160,165,175,0.4)">—</span></div>' +
-          '<div class="font-metric-sm text-metric-sm font-medium" ' + WC.emptyText + '>no ' + noun + 's</div>' +
+          '<div class="my-auto py-1">' +
+            '<span class="text-3xl font-extrabold tracking-tight block leading-none" style="' + emptyCfg.rate + '">—</span>' +
+          '</div>' +
+          '<div class="text-xs font-medium text-slate-400">no ' + noun + 's</div>' +
         '</div>'
       );
     }
 
-    // Determine colour scheme
-    var schemeBg, schemeDot, schemeRate, schemeSub, schemeErrLabel;
+    var cfg;
     if (usingPositions) {
-      if (profitable)        { schemeBg = WC.profitBg; schemeDot = WC.profitDot; schemeRate = WC.profitText; schemeSub = WC.profitSub; }
-      else if (unprofitable) { schemeBg = WC.lossBg;   schemeDot = WC.lossDot;   schemeRate = WC.lossText;   schemeSub = WC.lossSub;   }
-      else                   { schemeBg = WC.mixedBg;  schemeDot = WC.mixedDot;  schemeRate = WC.mixedText;  schemeSub = WC.mixedSub;  }
+      if (profitable)        cfg = NFT_LIGHT.profit;
+      else if (unprofitable) cfg = NFT_LIGHT.loss;
+      else                   cfg = NFT_LIGHT.mixed;
     } else {
-      // Trade mode: colour by win/loss presence
-      if (s.wins > 0 && s.losses > 0) { schemeBg = WC.mixedBg;  schemeDot = WC.mixedDot;  schemeRate = WC.mixedText;  schemeSub = WC.mixedSub;  }
-      else if (s.losses > 0)           { schemeBg = WC.lossBg;   schemeDot = WC.lossDot;   schemeRate = WC.lossText;   schemeSub = WC.lossSub;   }
-      else                             { schemeBg = WC.profitBg; schemeDot = WC.profitDot; schemeRate = WC.profitText; schemeSub = WC.profitSub; }
+      if (s.wins > 0 && s.losses > 0) cfg = NFT_LIGHT.mixed;
+      else if (s.losses > 0)           cfg = NFT_LIGHT.loss;
+      else                             cfg = NFT_LIGHT.profit;
     }
 
     var rateLabel = s.wins > 0 && s.losses > 0 ? s.rate + '%' : s.losses > 0 ? '0%' : '100%';
 
-    // Bottom caption: counts + net P&L
-    var bottomLine = s.wins + 'W / ' + s.losses + 'L';
+    var pnlBadge = '';
     if (usingPositions) {
       var netSign = s.net >= 0 ? '+' : '';
-      var netColor = s.net >= 0 ? 'color:#3a7a42' : 'color:#a83030';
-      bottomLine += ' · <span style="' + netColor + ';font-weight:600">' + netSign + '$' + Math.abs(s.net).toFixed(2) + '</span>';
-    } else if (s.wins > 0 && s.losses > 0) {
-      bottomLine += ' <span style="color:#a83030;font-weight:600">(' + s.losses + ' loss' + (s.losses === 1 ? '' : 'es') + ')</span>';
+      pnlBadge = '<span class="text-xs font-bold font-mono px-2 py-0.5 rounded-md shadow-xs" style="' + cfg.pnl + '">' +
+        netSign + '$' + Math.abs(s.net).toFixed(2) + '</span>';
     }
 
+    var countsLabel = '<span class="text-xs font-semibold text-slate-600">' + s.wins + 'W <span class="text-slate-400">/</span> ' + s.losses + 'L</span>' +
+      (s.total ? ' <span class="text-[11px] text-slate-400 font-normal">(' + s.total + ' ' + noun + (s.total === 1 ? '' : 's') + ')</span>' : '');
+
     return (
-      '<div class="group relative rounded-xl p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" ' + schemeBg + '>' +
+      '<div class="th-session-card group relative rounded-xl p-4 text-left flex flex-col justify-between h-36 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer" style="' + cfg.card + '">' +
         '<div class="flex items-center justify-between">' +
-          '<span class="font-label-eyebrow text-label-eyebrow font-bold" ' + schemeRate + '>' + escapeHtml(s.name) + '</span>' +
-          '<span class="w-2 h-2 rounded-full" ' + schemeDot + '></span>' +
+          '<div class="flex items-center gap-1.5">' +
+            '<span class="w-2 h-2 rounded-full" style="background:' + cfg.dot + '"></span>' +
+            '<span class="text-xs font-bold uppercase tracking-wider" style="' + cfg.name + '">' + escapeHtml(s.name) + '</span>' +
+          '</div>' +
+          '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider" style="' + cfg.pill + '">' +
+            cfg.tag +
+          '</span>' +
         '</div>' +
-        '<div class="my-auto"><span class="font-metric-display text-metric-display font-bold block leading-none" ' + schemeRate + '>' + rateLabel + '</span></div>' +
-        '<div class="font-metric-sm text-metric-sm font-medium" ' + schemeSub + '>' + bottomLine + '</div>' +
+        '<div class="my-auto py-1">' +
+          '<div class="text-3xl font-black tracking-tight" style="' + cfg.rate + '">' + rateLabel + '</div>' +
+        '</div>' +
+        '<div class="flex items-center justify-between pt-2 border-t border-slate-100/90">' +
+          countsLabel +
+          pnlBadge +
+        '</div>' +
       '</div>'
     );
   }
@@ -3118,25 +3156,26 @@
     var hourLabel = pad2(h.hour);
     if (h.total === 0) {
       return (
-        '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — no ' + noun + 's">' +
-          '<div class="w-full h-16 flex items-end"><div class="w-full h-1 rounded-xs" style="background:rgba(160,165,175,0.2)"></div></div>' +
-          '<span class="font-metric-sm text-[9px]" style="color:rgba(160,165,175,0.5)">' + hourLabel + '</span>' +
+        '<div class="flex-1 flex flex-col items-center gap-1.5" title="' + hourLabel + ':00 UTC — no ' + noun + 's">' +
+          '<div class="w-full h-16 flex items-end"><div class="w-full h-1 rounded-full" style="background: #e2e8f0;"></div></div>' +
+          '<span class="font-mono text-[9px] text-slate-400 font-medium">' + hourLabel + '</span>' +
         '</div>'
       );
     }
     var rate = pct(h.wins, h.total);
-    // Watercolor bar colours matching the session card palette
-    var barStyle = h.losses === 0
-      ? 'background:rgba(122,171,130,0.85)'           // sage green
-      : h.wins === 0
-        ? 'background:rgba(208,112,112,0.80)'         // dusty rose
-        : 'background:rgba(140,148,210,0.75)';        // periwinkle (mixed)
-    var labelColor = h.losses === 0 ? 'color:#3a7a42' : h.wins === 0 ? 'color:#a83030' : 'color:#3c3c6e';
+    var cfg = h.losses === 0
+      ? NFT_LIGHT.profit
+      : (h.wins === 0 ? NFT_LIGHT.loss : NFT_LIGHT.mixed);
+
     var heightPct = Math.max(14, Math.round((h.total / maxCount) * 100));
+    var barStyle = 'background:' + cfg.bar + '; border-radius: 4px 4px 1px 1px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);';
+
     return (
-      '<div class="flex-1 flex flex-col items-center gap-1" title="' + hourLabel + ':00 UTC — ' + timingCountLabel(h.total, noun) + ', ' + rate + '% win">' +
-        '<div class="w-full h-16 flex items-end"><div class="w-full rounded-xs" style="height:' + heightPct + '%;' + barStyle + '"></div></div>' +
-        '<span class="font-metric-sm text-[9px]" style="' + labelColor + '">' + hourLabel + '</span>' +
+      '<div class="flex-1 flex flex-col items-center gap-1.5 transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer" title="' + hourLabel + ':00 UTC — ' + timingCountLabel(h.total, noun) + ', ' + rate + '% win">' +
+        '<div class="w-full h-16 flex items-end">' +
+          '<div class="w-full" style="height:' + heightPct + '%;' + barStyle + '"></div>' +
+        '</div>' +
+        '<span class="font-mono text-[9px] font-bold" style="' + cfg.barLabel + '">' + hourLabel + '</span>' +
       '</div>'
     );
   }
