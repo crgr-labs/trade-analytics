@@ -4509,6 +4509,7 @@
     }
     renderCaseStudyReturnBadges(section, ret);
     renderCaseStudyStats(section, trade, ret);
+    renderCaseStudyTimeline(section, trade);
 
     // Metadata tiles
     var hasR = ret && ret.rMultiple !== null;
@@ -4556,7 +4557,6 @@
       '<span class="w-2 h-2 rounded-full ' + (trade.prevCandle === 'bearish' ? 'bg-error' : 'bg-tertiary') + '"></span>' +
       (trade.prevCandle ? (trade.prevCandle.charAt(0).toUpperCase() + trade.prevCandle.slice(1)) : 'Not recorded');
 
-    var NOT_RECORDED_CLASS = 'font-metric-sm text-metric-sm font-medium text-secondary bg-surface-container px-2.5 py-0.5 rounded';
     var positionSizeEl = section.querySelector('#cs-detail-position-size');
     if (trade.positionSize) {
       positionSizeEl.textContent = '$' + trade.positionSize;
@@ -4577,6 +4577,93 @@
 
     section.querySelector('#cs-btn-edit').setAttribute('data-trade-id', trade.id);
     section.querySelector('#cs-btn-delete').setAttribute('data-trade-id', trade.id);
+  }
+
+  var NOT_RECORDED_CLASS = 'font-metric-sm text-metric-sm font-medium text-secondary bg-surface-container px-2.5 py-0.5 rounded';
+
+  // True-UTC entry moment for the timeline. A linked Position History record
+  // has the exact open time; otherwise it's the logged date + entry time,
+  // which is local wall-clock in the journal's timezone setting for manual
+  // trades but already UTC for MEXC imports. A trade with no entry time
+  // yields the date only (hasTime false) and is never given an invented hour.
+  function timelineEntryMoment(trade, position) {
+    var openMs = position && position.openTime ? Date.parse(position.openTime) : NaN;
+    if (!isNaN(openMs)) return { ms: openMs, hasTime: true };
+    var d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trade.date || '');
+    if (!d) return null;
+    var t = /^(\d{1,2}):(\d{2})$/.exec(trade.entryTime || '');
+    if (!t) return { hasTime: false };
+    var offset = trade.source === 'mexc-import' ? 0 : getEntryTzOffsetMinutes();
+    return { ms: Date.UTC(+d[1], +d[2] - 1, +d[3], +t[1], +t[2]) - offset * 60000, hasTime: true };
+  }
+
+  // Shown in the journal's timezone setting (the one Timing & Heatmap uses),
+  // so entry and exit are always in the same frame and labelled with it.
+  function formatTimelineMoment(ms) {
+    var offset = getEntryTzOffsetMinutes();
+    var d = new Date(ms + offset * 60000);
+    return MONTH_ABBR[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear() + ' · ' +
+      pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()) + ' ' + formatTzOffsetLabel(offset);
+  }
+
+  // Exactly two events - one entry, one exit - from what the trade really has.
+  // The exit time only exists for a trade linked to Position History; every
+  // missing value renders as the same "Not recorded" tag used in Execution
+  // Details rather than a guess.
+  function renderCaseStudyTimeline(section, trade) {
+    var list = section.querySelector('#cs-timeline');
+    if (!list) return;
+    var position = linkedPositionForTrade(trade);
+
+    var entry = timelineEntryMoment(trade, position);
+    var entryStamp = entry && entry.hasTime ? formatTimelineMoment(entry.ms)
+      : (entry ? formatMediumDate(trade.date) : null);
+
+    var closeMs = position && position.closeTime ? Date.parse(position.closeTime) : NaN;
+    var isOpen = trade.outcome === 'open';
+    var exitStamp = !isNaN(closeMs) ? formatTimelineMoment(closeMs) : null;
+
+    function priceHtml(raw) {
+      return parsePriceValue(raw || '') !== null
+        ? '<span class="font-metric-lg text-metric-lg font-semibold text-on-surface">$' + escapeHtml(raw) + '</span>'
+        : '<span class="' + NOT_RECORDED_CLASS + '">Not recorded</span>';
+    }
+    function stampHtml(stamp, missing) {
+      return stamp
+        ? '<span class="font-metric-sm text-metric-sm text-secondary">' + escapeHtml(stamp) + '</span>'
+        : '<span class="font-metric-sm text-metric-sm text-secondary italic">' + missing + '</span>';
+    }
+    function row(dotClass, stampMarkup, title, descriptionHtml, priceMarkup, isLast) {
+      return (
+        '<li class="relative flex gap-4' + (isLast ? '' : ' pb-6') + '">' +
+          (isLast ? '' : '<span class="absolute left-[5px] top-4 bottom-0 w-px bg-outline-variant"></span>') +
+          '<span class="relative mt-1 w-[11px] h-[11px] rounded-full shrink-0 ring-4 ring-surface-container-lowest ' + dotClass + '"></span>' +
+          '<div class="flex-1 min-w-0 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">' +
+            '<div class="flex flex-col gap-0.5 min-w-0">' +
+              stampMarkup +
+              '<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">' + title + '</span>' +
+              '<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2 flex-wrap">' + descriptionHtml + '</span>' +
+            '</div>' +
+            '<div class="shrink-0">' + priceMarkup + '</div>' +
+          '</div>' +
+        '</li>'
+      );
+    }
+
+    var exitDescription;
+    if (isOpen) {
+      exitDescription = 'Position still open';
+    } else {
+      var pillClass = OUTCOME_PILL_CLASS[trade.outcome] || OUTCOME_PILL_CLASS.open;
+      var dot = OUTCOME_DOT_CLASS[trade.outcome] || OUTCOME_DOT_CLASS.open;
+      exitDescription = 'Position closed <span class="' + pillClass + ' font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">' +
+        '<span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + escapeHtml(String(trade.outcome).toUpperCase()) + '</span>';
+    }
+
+    list.innerHTML =
+      row('bg-primary', stampHtml(entryStamp, 'Entry date not recorded'), 'Entry', 'Position opened', priceHtml(trade.entryPrice), false) +
+      row(isOpen ? OUTCOME_DOT_CLASS.open : (OUTCOME_DOT_CLASS[trade.outcome] || OUTCOME_DOT_CLASS.open),
+        stampHtml(exitStamp, isOpen ? 'Not closed yet' : 'Close time not recorded'), 'Exit', exitDescription, priceHtml(trade.exitPrice), true);
   }
 
   // Larger P&L and R badges in the header; each only when it can be computed.
