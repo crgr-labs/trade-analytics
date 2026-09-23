@@ -188,9 +188,13 @@
         <div class="relative">
           <button type="button" id="github-sync-toggle" aria-expanded="false" aria-haspopup="true"
             aria-controls="github-sync-panel" aria-label="GitHub sync settings"
-            class="relative w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
+            class="h-8 pl-1.5 pr-2 rounded-lg flex items-center gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
             <span class="material-symbols-outlined text-[20px]">cloud_sync</span>
-            <span id="github-sync-status-dot" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-outline-variant"></span>
+            <!-- Status pill (dot + text); colours and wording are set by renderSyncStatusUI() -->
+            <span id="github-sync-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold whitespace-nowrap bg-surface-container text-on-surface-variant">
+              <span id="github-sync-status-dot" class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
+              <span id="github-sync-pill-text">Sync off</span>
+            </span>
           </button>
           <div id="github-sync-panel" hidden
             class="absolute right-0 top-full mt-2 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-4">
@@ -1944,7 +1948,7 @@
             <span>BACK TO ALL CASE STUDIES</span>
           </a>
           <span class="text-outline-variant shrink-0">&bull;</span>
-          <span class="font-label-eyebrow text-label-eyebrow text-secondary tracking-wider truncate">JOURNAL / CASE STUDIES / <span class="text-primary font-semibold" id="cs-crumb-pair">--</span></span>
+          <span class="font-label-eyebrow text-label-eyebrow text-secondary tracking-wider uppercase truncate">JOURNAL / TRADE JOURNAL / CASE STUDIES / <span class="text-primary font-semibold" id="cs-crumb-pair">--</span></span>
         </div>
         <div class="flex items-center gap-1 shrink-0" id="cs-pager">
           <button type="button" id="cs-btn-prev" title="Previous case study"

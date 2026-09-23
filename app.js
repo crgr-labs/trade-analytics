@@ -4513,7 +4513,10 @@
 
     section.querySelector('#cs-crumb-list').hidden = true;
     section.querySelector('#cs-crumb-detail').hidden = false;
-    section.querySelector('#cs-crumb-pair').textContent = trade.pair;
+    // Final crumb: the pair plus the trade's date, abbreviated ("KERNELUSDT.P (SEP 22)").
+    var crumbDate = /^\d{4}-(\d{2})-(\d{2})$/.exec(trade.date || '');
+    section.querySelector('#cs-crumb-pair').textContent = trade.pair +
+      (crumbDate && MONTH_ABBR[+crumbDate[1] - 1] ? ' (' + MONTH_ABBR[+crumbDate[1] - 1].toUpperCase() + ' ' + (+crumbDate[2]) + ')' : '');
     renderCaseStudyPrevNext(section, trade.id);
     section.querySelector('#cs-pair').textContent = trade.pair;
     section.querySelector('#cs-pair-avatar').textContent = (trade.pair || '?').charAt(0).toUpperCase();
@@ -7594,26 +7597,52 @@
     error: 'bg-error'
   };
 
+  // The header pill: same palette as the Win / Loss / Open pills - green when
+  // up to date, blue while syncing, red on error, neutral when not set up.
+  var SYNC_PILL_CLASS = {
+    unconfigured: 'bg-surface-container text-on-surface-variant',
+    syncing: 'bg-primary/10 text-primary',
+    synced: 'bg-tertiary-fixed/30 text-on-tertiary-fixed-variant',
+    error: 'bg-error-container text-on-error-container'
+  };
+
   function renderSyncStatusUI() {
     var dot = document.getElementById('github-sync-status-dot');
     var text = document.getElementById('github-sync-status-text');
+    var pill = document.getElementById('github-sync-pill');
+    var pillText = document.getElementById('github-sync-pill-text');
+    var toggle = document.getElementById('github-sync-toggle');
     if (!dot || !text) return;
 
     var cfg = ghConfigGet();
     var meta = ghMetaGet();
     var state = cfg ? (meta.status || 'synced') : 'unconfigured';
+    if (!SYNC_PILL_CLASS[state]) state = 'unconfigured';
 
-    dot.className = 'absolute top-1 right-1 w-2 h-2 rounded-full ' + (SYNC_STATUS_DOT_CLASS[state] || SYNC_STATUS_DOT_CLASS.unconfigured);
+    dot.className = 'w-1.5 h-1.5 rounded-full ' + SYNC_STATUS_DOT_CLASS[state];
 
+    // The panel keeps the long form (incl. the error detail); the pill is short.
+    var pillLabel;
     if (!cfg) {
       text.textContent = 'GitHub sync not configured';
+      pillLabel = 'Sync off';
     } else if (state === 'syncing') {
       text.textContent = 'Syncing…';
+      pillLabel = 'Syncing…';
     } else if (state === 'error') {
       text.textContent = 'Sync error' + (meta.lastError ? ': ' + meta.lastError : '');
+      pillLabel = 'Sync error';
     } else {
       var rel = formatRelativeTime(meta.lastSyncAt);
       text.textContent = rel ? 'Synced ' + rel : 'Synced';
+      pillLabel = text.textContent;
+    }
+
+    if (pill) pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold whitespace-nowrap ' + SYNC_PILL_CLASS[state];
+    if (pillText) pillText.textContent = pillLabel;
+    if (toggle) {
+      toggle.setAttribute('aria-label', 'GitHub sync settings: ' + text.textContent);
+      toggle.title = text.textContent;
     }
   }
 
@@ -7760,6 +7789,8 @@
   })();
 
   renderSyncStatusUI();
+  // "Synced 2m ago" is computed at render time, so re-render to keep it current.
+  setInterval(renderSyncStatusUI, 30000);
   pullFromGitHub();
 
   // Quick-action buttons (e.g. "New Trade" on Insights Dashboard / Trade Journal)
