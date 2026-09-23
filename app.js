@@ -3781,14 +3781,67 @@
 
   // Trades carry no exit time, so duration only exists when the trade came
   // from (or was promoted from) a Position History record.
-  function tradeDurationLabel(trade) {
+  function linkedPositionForTrade(trade) {
     var positions = PositionStore.getAll();
     for (var i = 0; i < positions.length; i++) {
-      if (positions[i].linkedTradeId === trade.id) {
-        var label = formatDurationMs(positionDurationMs(positions[i]));
-        return label === '—' ? null : label;
-      }
+      if (positions[i].linkedTradeId === trade.id) return positions[i];
     }
+    return null;
+  }
+
+  function tradeDurationLabel(trade) {
+    var position = linkedPositionForTrade(trade);
+    if (!position) return null;
+    var label = formatDurationMs(positionDurationMs(position));
+    return label === '—' ? null : label;
+  }
+
+  // Fees only exist for exchange-sourced data: the linked Position History
+  // record, or the fee carried on a trade imported straight from MEXC. A zero
+  // is treated as unknown (the importers default a missing fee to 0).
+  function tradeFeeAmount(trade) {
+    var position = linkedPositionForTrade(trade);
+    var fee = position && typeof position.fee === 'number' ? position.fee
+      : (typeof trade.fee === 'number' ? trade.fee : null);
+    if (fee === null || !isFinite(fee) || fee === 0) return null;
+    return Math.abs(fee);
+  }
+
+  // Reward:risk as a multiple of the entry-to-stop distance. Uses the planned
+  // Take-Profit when set, otherwise the realized Exit when it was in profit.
+  // Needs a stop on the losing side of entry; returns null otherwise.
+  function computeRiskReward(trade) {
+    var entry = parsePriceValue(trade.entryPrice);
+    var stop = parsePriceValue(trade.stopLoss);
+    if (entry === null || stop === null) return null;
+    var isShort = trade.direction === 'short';
+    var risk = isShort ? (stop - entry) : (entry - stop);
+    if (!(risk > 0)) return null;
+
+    var candidates = [
+      { price: parsePriceValue(trade.takeProfit), basis: 'Planned' },
+      { price: parsePriceValue(trade.exitPrice), basis: 'Realized' }
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var price = candidates[i].price;
+      if (price === null) continue;
+      var reward = isShort ? (entry - price) : (price - entry);
+      if (reward > 0) return { ratio: reward / risk, basis: candidates[i].basis };
+    }
+    return null;
+  }
+
+  function formatRiskReward(rr) {
+    return '1 : ' + Number(rr.ratio.toFixed(2));
+  }
+
+  // Signed $ P&L when it can be computed, otherwise the R-multiple - the
+  // same precedence the case study list rows use.
+  function tradeReturnLabel(trade) {
+    var ret = computeTradeReturn(trade);
+    if (!ret) return null;
+    if (ret.dollarPnl !== null) return { label: formatSignedDollars(ret.dollarPnl), positive: ret.dollarPnl >= 0 };
+    if (ret.rMultiple !== null) return { label: formatSignedR(ret.rMultiple), positive: ret.rMultiple >= 0 };
     return null;
   }
 
@@ -4057,19 +4110,10 @@
   // R-multiple (needs entry+exit+stop-loss) when only that is recorded, and
   // renders nothing when neither can be computed rather than a placeholder.
   function caseStudyReturnBadgeHtml(trade) {
-    var ret = computeTradeReturn(trade);
-    if (!ret) return '';
-    var label = null, positive = true;
-    if (ret.dollarPnl !== null) {
-      label = formatSignedDollars(ret.dollarPnl);
-      positive = ret.dollarPnl >= 0;
-    } else if (ret.rMultiple !== null) {
-      label = formatSignedR(ret.rMultiple);
-      positive = ret.rMultiple >= 0;
-    }
-    if (!label) return '';
-    var tone = positive ? 'bg-tertiary/10 text-tertiary' : 'bg-error/10 text-error';
-    return '<span class="' + tone + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + label + '</span>';
+    var result = tradeReturnLabel(trade);
+    if (!result) return '';
+    var tone = result.positive ? 'bg-tertiary/10 text-tertiary' : 'bg-error/10 text-error';
+    return '<span class="' + tone + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + result.label + '</span>';
   }
 
   function caseStudyListRowHtml(trade) {
@@ -4208,6 +4252,43 @@
 
   // Populates the Prev/Next buttons and "N of M" label based on where this
   // trade sits in the current (filtered/sorted) case study list.
+  // Bottom-of-page card linking to the adjacent trade: pair, direction and its
+  // P&L / R-multiple when one can be computed (outcome otherwise).
+  function adjacentTradeCardHtml(trade, isNext) {
+    if (!trade) return '<div></div>';
+    var result = tradeReturnLabel(trade);
+    var tone = result ? (result.positive ? 'text-tertiary' : 'text-error') : 'text-secondary';
+    var directionClass = DIRECTION_BADGE_CLASS[trade.direction] || DIRECTION_BADGE_CLASS.long;
+    var heading = isNext
+      ? '<span>Next Trade</span><span class="material-symbols-outlined text-[16px]">arrow_forward</span>'
+      : '<span class="material-symbols-outlined text-[16px]">arrow_back</span><span>Previous Trade</span>';
+    return (
+      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="group bg-surface-container-lowest rounded-xl p-4 shadow-sm hover:bg-surface-container-low/60 transition-colors flex flex-col gap-2 min-w-0 ' + (isNext ? 'sm:items-end sm:text-right' : '') + '">' +
+        '<span class="flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow uppercase tracking-wider text-secondary group-hover:text-primary transition-colors">' + heading + '</span>' +
+        '<span class="flex flex-wrap items-center gap-2.5 min-w-0 ' + (isNext ? 'sm:justify-end' : '') + '">' +
+          '<span class="font-metric-lg text-metric-lg font-bold text-on-surface truncate">' + escapeHtml(trade.pair) + '</span>' +
+          '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + trade.direction.toUpperCase() + '</span>' +
+          '<span class="font-metric-md text-metric-md font-semibold ' + tone + '">' + (result ? result.label : trade.outcome.toUpperCase()) + '</span>' +
+        '</span>' +
+        '<span class="font-metric-sm text-metric-sm text-secondary">' + formatMediumDate(trade.date) + '</span>' +
+      '</a>'
+    );
+  }
+
+  function renderCaseStudyAdjacent(section, ordered, index) {
+    var wrap = section.querySelector('#cs-adjacent');
+    if (!wrap) return;
+    var prev = index > 0 ? ordered[index - 1] : null;
+    var next = index !== -1 && index < ordered.length - 1 ? ordered[index + 1] : null;
+    if (!prev && !next) {
+      wrap.hidden = true;
+      wrap.innerHTML = '';
+      return;
+    }
+    wrap.innerHTML = adjacentTradeCardHtml(prev, false) + adjacentTradeCardHtml(next, true);
+    wrap.hidden = false;
+  }
+
   function renderCaseStudyPrevNext(section, tradeId) {
     var prevBtn = section.querySelector('#cs-btn-prev');
     var nextBtn = section.querySelector('#cs-btn-next');
@@ -4216,6 +4297,7 @@
 
     var ordered = orderedCaseStudyTrades();
     var index = ordered.findIndex(function (t) { return t.id === tradeId; });
+    renderCaseStudyAdjacent(section, ordered, index);
 
     if (index === -1) {
       prevBtn.disabled = true;
@@ -4323,7 +4405,7 @@
     outcomeDot.className = 'w-1.5 h-1.5 rounded-full ' + (OUTCOME_DOT_CLASS[trade.outcome] || OUTCOME_DOT_CLASS.open);
     // 'breakeven' isn't a form option, but zero-P&L imports produce it, so it
     // gets the same neutral treatment as an open trade rather than looking broken.
-    outcomePill.className = 'px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold flex items-center gap-1.5 ' +
+    outcomePill.className = 'px-3 py-1 rounded-full font-metric-md text-metric-md font-semibold flex items-center gap-1.5 ' +
       (trade.outcome === 'win' ? 'bg-surface-container-low text-tertiary' : trade.outcome === 'loss' ? 'bg-error-container text-error' : 'bg-surface-container text-on-surface-variant');
 
     var sourceBadge = section.querySelector('#cs-source-badge');
@@ -4331,12 +4413,22 @@
 
     var ret = computeTradeReturn(trade);
 
+    // The freeform Setup Name only - the confluence-summary fallback used by
+    // the Setup Used tile below would just repeat the checklist in the header.
+    var setupNameWrap = section.querySelector('#cs-setup-name-wrap');
+    var setupNameEl = section.querySelector('#cs-setup-name');
+    var setupName = trade.setupName && trade.setupName.trim();
+    if (setupNameWrap && setupNameEl) {
+      setupNameEl.textContent = setupName || '';
+      setupNameEl.title = setupName || '';
+      setupNameWrap.hidden = !setupName;
+    }
+    renderCaseStudyReturnBadges(section, ret);
+    renderCaseStudyStats(section, trade, ret);
+
     // Metadata tiles
-    setMetaTile(section, 'entry', trade.entryPrice ? ('$' + trade.entryPrice) : '', '', 'Not recorded');
-    setMetaTile(section, 'exit', trade.exitPrice ? ('$' + trade.exitPrice) : '', '', 'Not recorded');
     var hasR = ret && ret.rMultiple !== null;
     setMetaTile(section, 'r', hasR ? formatSignedR(ret.rMultiple) : '', hasR ? (ret.rMultiple >= 0 ? 'text-tertiary' : 'text-error') : '', ret ? 'No stop-loss logged' : 'Not recorded');
-    setMetaTile(section, 'duration', tradeDurationLabel(trade) || '', '', 'Not recorded');
     // No dedicated Playbook entity exists yet - fall back to a confluence-tag
     // summary for trades logged before the Setup Name field existed.
     setMetaTile(section, 'setup', caseStudySetupSummary(trade) || '', '', 'Not recorded');
@@ -4399,26 +4491,69 @@
       notionalEl.className = NOT_RECORDED_CLASS;
     }
 
-    var stopLossEl = section.querySelector('#cs-detail-stop-loss');
-    if (trade.stopLoss) {
-      stopLossEl.textContent = '$' + trade.stopLoss;
-      stopLossEl.className = 'font-metric-sm text-metric-sm font-medium text-on-surface';
-    } else {
-      stopLossEl.textContent = 'Not recorded';
-      stopLossEl.className = NOT_RECORDED_CLASS;
-    }
-
-    var pnlEl = section.querySelector('#cs-detail-pnl');
-    if (ret && ret.dollarPnl !== null) {
-      pnlEl.textContent = formatSignedDollars(ret.dollarPnl);
-      pnlEl.className = 'font-metric-sm text-metric-sm font-semibold ' + (ret.dollarPnl >= 0 ? 'text-tertiary' : 'text-error');
-    } else {
-      pnlEl.textContent = 'Not recorded';
-      pnlEl.className = NOT_RECORDED_CLASS;
-    }
-
     section.querySelector('#cs-btn-edit').setAttribute('data-trade-id', trade.id);
     section.querySelector('#cs-btn-delete').setAttribute('data-trade-id', trade.id);
+  }
+
+  // Larger P&L and R badges in the header; each only when it can be computed.
+  function renderCaseStudyReturnBadges(section, ret) {
+    var el = section.querySelector('#cs-return-badges');
+    if (!el) return;
+    var badges = [];
+    function add(label, positive) {
+      badges.push('<span class="' + (positive ? 'bg-tertiary/10 text-tertiary' : 'bg-error/10 text-error') +
+        ' font-metric-lg text-metric-lg font-bold px-3 py-1 rounded-lg">' + label + '</span>');
+    }
+    if (ret && ret.dollarPnl !== null) add(formatSignedDollars(ret.dollarPnl), ret.dollarPnl >= 0);
+    if (ret && ret.rMultiple !== null) add(formatSignedR(ret.rMultiple), ret.rMultiple >= 0);
+    el.innerHTML = badges.join('');
+  }
+
+  // Horizontal stat cells under the header. A cell is only built when real
+  // data backs it - there are no placeholders, so the row shrinks per trade.
+  function renderCaseStudyStats(section, trade, ret) {
+    var row = section.querySelector('#cs-stats-row');
+    if (!row) return;
+
+    var cells = [];
+    function cell(label, icon, value, sub, tone) {
+      cells.push(
+        '<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">' +
+          '<div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase gap-2">' +
+            '<span class="truncate">' + label + '</span>' +
+            '<span class="material-symbols-outlined text-primary text-[18px] shrink-0">' + icon + '</span>' +
+          '</div>' +
+          '<div class="mt-2 min-w-0">' +
+            '<div class="font-metric-lg text-metric-lg font-semibold truncate ' + (tone || 'text-on-surface') + '" title="' + escapeHtml(value) + '">' + escapeHtml(value) + '</div>' +
+            (sub ? '<div class="font-metric-sm text-metric-sm text-secondary">' + escapeHtml(sub) + '</div>' : '') +
+          '</div>' +
+        '</div>'
+      );
+    }
+    function present(raw) { return parsePriceValue(raw || '') !== null; }
+
+    if (present(trade.entryPrice)) cell('Entry Price', 'login', '$' + trade.entryPrice);
+    if (present(trade.exitPrice)) cell('Exit Price', 'logout', '$' + trade.exitPrice);
+    if (present(trade.stopLoss)) cell('Stop Loss', 'block', '$' + trade.stopLoss);
+    if (present(trade.takeProfit)) cell('Take Profit', 'flag', '$' + trade.takeProfit);
+
+    var rr = computeRiskReward(trade);
+    if (rr) cell('Risk : Reward', 'balance', formatRiskReward(rr), rr.basis);
+
+    if (ret && ret.dollarPnl !== null) {
+      cell('P&L', 'payments', formatSignedDollars(ret.dollarPnl),
+        (ret.pctChange >= 0 ? '+' : '') + ret.pctChange.toFixed(2) + '%',
+        ret.dollarPnl >= 0 ? 'text-tertiary' : 'text-error');
+    }
+
+    var hold = tradeDurationLabel(trade);
+    if (hold) cell('Hold Time', 'timelapse', hold);
+
+    var fee = tradeFeeAmount(trade);
+    if (fee !== null) cell('Fees', 'receipt_long', formatMoney(fee));
+
+    row.innerHTML = cells.join('');
+    row.hidden = cells.length === 0;
   }
 
   // Numeric tiles use the large metric size; Setup and Session hold text
@@ -4444,6 +4579,35 @@
     }
   }
 
+  // Bold "X / Y" score: parameters logged on this trade against the size of
+  // the whole known vocabulary. A parameter since removed from the vocabulary
+  // still counts toward Y, so X can never exceed it.
+  function renderCaseStudyScore(section, trade, checklist) {
+    var valueEl = section.querySelector('#cs-score-value');
+    var unitEl = section.querySelector('#cs-score-unit');
+    var subEl = section.querySelector('#cs-score-sub');
+    var barEl = section.querySelector('#cs-score-bar');
+    if (!valueEl || !unitEl || !subEl || !barEl) return;
+
+    var known = {};
+    getAllKnownParameters().forEach(function (name) { known[name.toLowerCase()] = true; });
+    nonEmptyConfluence(trade).forEach(function (name) { known[name.toLowerCase()] = true; });
+    var total = Object.keys(known).length;
+    var filled = checklist.filledCount;
+
+    if (!filled) {
+      valueEl.textContent = '0';
+      unitEl.textContent = 'parameters';
+      subEl.textContent = total ? 'of ' + total + ' known' : '';
+      barEl.style.width = '0%';
+      return;
+    }
+    valueEl.textContent = filled + ' / ' + total;
+    unitEl.textContent = 'parameters';
+    subEl.textContent = checklist.passedCount + ' passed';
+    barEl.style.width = Math.round((filled / total) * 100) + '%';
+  }
+
   // Grade and badge count only Passed factors, so a Pending or Failed one
   // lowers the tier. Re-rendered on its own when a status tag is clicked.
   function renderCaseStudyChecklist(section, trade) {
@@ -4453,6 +4617,7 @@
       : 'None logged';
     section.querySelector('#cs-confluence-categories').innerHTML = checklist.categoriesHtml || '';
     section.querySelector('#cs-confluence-list').innerHTML = checklist.html;
+    renderCaseStudyScore(section, trade, checklist);
 
     var grade = computeTradeGrade(trade, checklist.passedCount);
     var gradeEl = section.querySelector('#cs-trade-grade');
@@ -4491,9 +4656,22 @@
       });
     }
 
-    var exportPdfBtn = section.querySelector('#cs-btn-export-pdf');
-    if (exportPdfBtn) {
-      exportPdfBtn.addEventListener('click', function () { window.print(); });
+    // Export uses the browser's print dialog ("Save as PDF"); the print
+    // stylesheet in index.html hides the app chrome and action buttons. The
+    // tab title becomes the default PDF filename, so it's set for the print.
+    var exportBtn = section.querySelector('#cs-btn-export');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', function () {
+        var trade = csCurrentTradeId ? TradeStore.getById(csCurrentTradeId) : null;
+        if (!trade) return;
+        var originalTitle = document.title;
+        document.title = 'Case Study - ' + trade.pair + ' - ' + trade.date;
+        window.addEventListener('afterprint', function restore() {
+          document.title = originalTitle;
+          window.removeEventListener('afterprint', restore);
+        });
+        window.print();
+      });
     }
 
     var prevBtn = section.querySelector('#cs-btn-prev');
@@ -5400,6 +5578,21 @@
       stopLoss: section.querySelector('#input-stop-loss').value
     });
 
+    // Planned R:R (Entry / Stop / Take-Profit) shows as soon as a Take-Profit
+    // is typed; with only an Exit it reflects the realized reward instead.
+    var rrDisplay = section.querySelector('#target-risk-reward');
+    if (rrDisplay) {
+      var rr = computeRiskReward({
+        entryPrice: section.querySelector('#input-entry').value,
+        exitPrice: section.querySelector('#input-exit').value,
+        stopLoss: section.querySelector('#input-stop-loss').value,
+        takeProfit: section.querySelector('#input-take-profit').value,
+        direction: directionInput ? directionInput.value : 'long'
+      });
+      rrDisplay.textContent = rr ? formatRiskReward(rr) + ' (' + rr.basis.toLowerCase() + ')' : 'Pending Values';
+      rrDisplay.className = 'font-metric-md text-metric-md font-semibold ' + (rr ? 'text-on-surface' : 'text-on-surface-variant');
+    }
+
     if (ret) {
       deltaDisplay.textContent = (ret.pctChange >= 0 ? '+' + ret.pctChange.toFixed(2) : ret.pctChange.toFixed(2)) + '% spread';
       deltaDisplay.className = ret.pctChange >= 0
@@ -5444,7 +5637,7 @@
     if (!countEl || !barEl) return;
 
     var textFields = ['#input-date', '#input-entry-time', '#input-pair', '#input-leverage-multiplier',
-      '#input-entry', '#input-exit', '#input-position-size', '#input-stop-loss', '#input-notes'];
+      '#input-entry', '#input-exit', '#input-position-size', '#input-stop-loss', '#input-take-profit', '#input-notes'];
     var filled = textFields.filter(function (sel) {
       var el = section.querySelector(sel);
       return el && el.value && el.value.trim();
@@ -5582,6 +5775,8 @@
     var stopLossInputEl = section.querySelector('#input-stop-loss');
     if (positionSizeInputEl) positionSizeInputEl.addEventListener('input', updateDelta);
     if (stopLossInputEl) stopLossInputEl.addEventListener('input', updateDelta);
+    var takeProfitInputEl = section.querySelector('#input-take-profit');
+    if (takeProfitInputEl) takeProfitInputEl.addEventListener('input', updateDelta);
     form.querySelectorAll('input[name="direction"]').forEach(function (r) { r.addEventListener('change', updateDelta); });
     var leverageMultiplierEl = section.querySelector('#input-leverage-multiplier');
     if (leverageMultiplierEl) leverageMultiplierEl.addEventListener('change', updateDelta);
@@ -5608,6 +5803,7 @@
       var marginModeInput = form.querySelector('input[name="margin_mode"]:checked');
       var positionSizeInput = section.querySelector('#input-position-size');
       var stopLossInput = section.querySelector('#input-stop-loss');
+      var takeProfitInput = section.querySelector('#input-take-profit');
       var entryTimeInput = section.querySelector('#input-entry-time');
       var notesInput = section.querySelector('#input-notes');
       var setupNameInput = section.querySelector('#input-setup-name');
@@ -5630,6 +5826,7 @@
         exitPrice: exitInput ? exitInput.value.trim() : '',
         positionSize: positionSizeInput ? positionSizeInput.value.trim() : '',
         stopLoss: stopLossInput ? stopLossInput.value.trim() : '',
+        takeProfit: takeProfitInput ? takeProfitInput.value.trim() : '',
         outcome: outcomeInput ? outcomeInput.value : 'open',
         parameters: nteSelectedParameters.slice(),
         charts: CHART_TIMEFRAMES.reduce(function (acc, tf) { acc[tf.key] = nteChartImages[tf.key]; return acc; }, {}),
@@ -5773,6 +5970,7 @@
       section.querySelector('#input-exit').value = trade.exitPrice || '';
       section.querySelector('#input-position-size').value = trade.positionSize || '';
       section.querySelector('#input-stop-loss').value = trade.stopLoss || '';
+      section.querySelector('#input-take-profit').value = trade.takeProfit || '';
       section.querySelector('#input-notes').value = trade.notes || '';
       ['direction', 'prev_candle', 'outcome'].forEach(function (name) {
         var value = name === 'direction' ? trade.direction : name === 'prev_candle' ? trade.prevCandle : trade.outcome;

@@ -61,6 +61,19 @@
       body {
         background: #fff;
       }
+
+      /* Single case study export: keep badge/bar colours, swap the (dropped)
+         card shadows for hairlines, and don't split a card across pages. */
+      #cs-content {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      #cs-content .shadow-sm {
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb;
+        break-inside: avoid;
+      }
     }
   </style>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -1984,10 +1997,10 @@
     </div>
 
     <div id="cs-content">
-      <!-- Header row: title, date, outcome, actions -->
-      <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex flex-col gap-2 min-w-0">
-          <div class="flex items-center gap-3">
+      <!-- Header row: pair, direction, setup, return badges, outcome, actions -->
+      <div class="bg-surface-container-lowest rounded-xl p-space-xl shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-5">
+        <div class="flex flex-col gap-3 min-w-0">
+          <div class="flex items-center gap-3 no-print">
             <a class="text-secondary hover:text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" href="#case-studies">
               <span class="material-symbols-outlined text-[16px]">arrow_back</span>
               All Case Studies
@@ -2005,23 +2018,34 @@
               </button>
             </div>
           </div>
-          <div class="flex flex-wrap items-center gap-3">
-            <h1 class="font-metric-display text-metric-display text-on-surface font-semibold tracking-tight" id="cs-pair">--</h1>
-            <span class="bg-surface-container-low text-primary px-2.5 py-0.5 rounded text-[11px] font-headline-sm font-bold uppercase tracking-wider" id="cs-direction">--</span>
-            <span class="bg-surface-container-low text-tertiary px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold flex items-center gap-1.5" id="cs-outcome-pill">
-              <span class="w-1.5 h-1.5 rounded-full bg-tertiary" id="cs-outcome-dot"></span>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <h1 class="font-metric-display text-[2.25rem] leading-[2.75rem] text-on-surface font-bold tracking-tight" id="cs-pair">--</h1>
+            <span class="bg-surface-container-low text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-bold uppercase tracking-wider" id="cs-direction">--</span>
+            <span class="bg-surface-container-low text-tertiary px-3 py-1 rounded-full font-metric-md text-metric-md font-semibold flex items-center gap-1.5" id="cs-outcome-pill">
+              <span class="w-2 h-2 rounded-full bg-tertiary" id="cs-outcome-dot"></span>
               <span id="cs-outcome-text">--</span>
             </span>
             <span class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold" id="cs-source-badge" hidden>
               <span class="material-symbols-outlined text-[13px] align-middle mr-1">sync_alt</span><span class="align-middle">Imported</span>
             </span>
           </div>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div class="flex items-center gap-1.5 min-w-0" id="cs-setup-name-wrap" hidden>
+              <span class="material-symbols-outlined text-primary text-[18px]">strategy</span>
+              <span class="font-headline-md text-headline-md text-on-surface font-semibold truncate" id="cs-setup-name"></span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2" id="cs-return-badges"></div>
+          </div>
           <div class="flex items-center gap-2 text-secondary font-body-sm text-body-sm">
             <span class="material-symbols-outlined text-[16px] text-secondary">calendar_today</span>
             <span id="cs-logged-date">--</span>
           </div>
         </div>
-        <div class="flex items-center gap-2 self-start md:self-center">
+        <div class="flex items-center gap-2 self-start no-print">
+          <button type="button" class="bg-surface-container-low hover:bg-surface-container text-on-surface px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 transition-all duration-150" id="cs-btn-export" title="Save this case study as a PDF">
+            <span class="material-symbols-outlined text-[18px]">download</span>
+            Export
+          </button>
           <button class="bg-primary hover:bg-primary-container text-on-primary px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 shadow-sm transition-all duration-150" id="cs-btn-edit">
             <span class="material-symbols-outlined text-[18px]">edit_note</span>
             Edit Entry
@@ -2032,6 +2056,9 @@
           </button>
         </div>
       </div>
+
+      <!-- Stats row: cells are rendered by JS and only exist when real data backs them -->
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 mt-6" id="cs-stats-row" hidden></div>
 
       <!-- Two-Column Main Layout: chart evidence | execution details + trade detail + checklist -->
       <div class="grid grid-cols-12 gap-6 mt-6">
@@ -2046,13 +2073,16 @@
             <div id="cs-chart-container"></div>
           </div>
           <!-- Trade Notes Card -->
-          <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-              <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Trade Notes</h2>
+          <div class="bg-surface-container-lowest rounded-xl p-space-xl shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-5">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[22px]">edit_note</span>
+                <h2 class="font-headline-lg text-headline-lg text-on-surface font-semibold">Trade Notes</h2>
+              </div>
               <span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">RETROSPECTIVE ANALYSIS</span>
             </div>
-            <div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-3">
-              <p class="font-body-md text-body-md text-on-surface leading-relaxed" id="cs-notes-text">--</p>
+            <div class="bg-surface-container-low px-space-xl py-6 rounded-xl min-h-[8rem]">
+              <p class="font-body-lg text-body-lg text-on-surface leading-7 whitespace-pre-wrap" id="cs-notes-text">--</p>
             </div>
           </div>
         </div>
@@ -2100,38 +2130,10 @@
                 <span class="font-body-md text-body-md text-secondary">Notional</span>
                 <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-notional">Not recorded</span>
               </div>
-              <div class="flex items-center justify-between py-2 border-b border-surface-container">
-                <span class="font-body-md text-body-md text-secondary">Stop-Loss</span>
-                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-stop-loss">Not recorded</span>
-              </div>
-              <div class="flex items-center justify-between py-2 border-b border-surface-container">
-                <span class="font-body-md text-body-md text-secondary">P&amp;L ($)</span>
-                <span class="font-metric-sm text-metric-sm font-medium" id="cs-detail-pnl">Not recorded</span>
-              </div>
             </div>
           </div>
           <!-- Metadata tiles -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-4">
-          <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">
-            <div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
-              <span>Entry Price</span>
-              <span class="material-symbols-outlined text-primary text-[18px]">login</span>
-            </div>
-            <div class="mt-2 min-w-0">
-              <div class="font-metric-lg text-metric-lg font-semibold text-on-surface truncate" id="cs-meta-entry">--</div>
-              <div class="font-metric-sm text-metric-sm text-secondary min-h-[1rem]" id="cs-meta-entry-sub"></div>
-            </div>
-          </div>
-          <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">
-            <div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
-              <span>Exit Price</span>
-              <span class="material-symbols-outlined text-primary text-[18px]">logout</span>
-            </div>
-            <div class="mt-2 min-w-0">
-              <div class="font-metric-lg text-metric-lg font-semibold text-on-surface truncate" id="cs-meta-exit">--</div>
-              <div class="font-metric-sm text-metric-sm text-secondary min-h-[1rem]" id="cs-meta-exit-sub"></div>
-            </div>
-          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">
             <div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
               <span>Result R</span>
@@ -2140,16 +2142,6 @@
             <div class="mt-2 min-w-0">
               <div class="font-metric-lg text-metric-lg font-semibold text-on-surface truncate" id="cs-meta-r">--</div>
               <div class="font-metric-sm text-metric-sm text-secondary min-h-[1rem]" id="cs-meta-r-sub"></div>
-            </div>
-          </div>
-          <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">
-            <div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase">
-              <span>Duration</span>
-              <span class="material-symbols-outlined text-primary text-[18px]">timelapse</span>
-            </div>
-            <div class="mt-2 min-w-0">
-              <div class="font-metric-lg text-metric-lg font-semibold text-on-surface truncate" id="cs-meta-duration">--</div>
-              <div class="font-metric-sm text-metric-sm text-secondary min-h-[1rem]" id="cs-meta-duration-sub"></div>
             </div>
           </div>
           <div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">
@@ -2175,6 +2167,22 @@
           </div>
           <!-- Confluence Checklist Card -->
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
+            <!-- Score panel: parameters logged on this trade vs. the whole known vocabulary -->
+            <div class="bg-surface-container-low rounded-xl p-4 mb-4">
+              <div class="flex items-end justify-between gap-3">
+                <div class="flex flex-col min-w-0">
+                  <span class="font-label-eyebrow text-label-eyebrow uppercase text-secondary tracking-wider">Confluence Score</span>
+                  <div class="flex items-baseline gap-2 mt-1">
+                    <span class="font-metric-display text-[2.25rem] leading-[2.75rem] font-bold text-primary" id="cs-score-value">--</span>
+                    <span class="font-metric-sm text-metric-sm text-secondary" id="cs-score-unit"></span>
+                  </div>
+                </div>
+                <span class="font-metric-sm text-metric-sm text-secondary text-right" id="cs-score-sub"></span>
+              </div>
+              <div class="h-1.5 rounded-full bg-surface-container mt-3 overflow-hidden">
+                <div class="h-full rounded-full bg-primary" id="cs-score-bar" style="width:0%"></div>
+              </div>
+            </div>
             <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-1">
               <h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold whitespace-nowrap">Confluence Checklist</h3>
               <div class="flex items-center gap-2">
@@ -2194,11 +2202,10 @@
         <button type="button" id="cs-btn-duplicate" class="bg-surface-container-low text-on-surface hover:bg-surface-container px-3 py-1.5 rounded-lg font-headline-sm text-[12px] font-medium transition-colors">
           Duplicate
         </button>
-        <button type="button" id="cs-btn-export-pdf" class="bg-primary text-on-primary hover:bg-primary-container px-4 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
-          <span class="material-symbols-outlined text-[16px]">download</span>
-          Export PDF Study
-        </button>
       </div>
+
+      <!-- Previous / Next trade, following the Case Studies list's current filter and sort -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 no-print" id="cs-adjacent" hidden></div>
     </div>
   </div>
 </div>
@@ -3213,6 +3220,27 @@
                           <input
                             class="w-full h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                             id="input-stop-loss" placeholder="$0.0000" type="text" />
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Take-Profit (optional) + live planned R:R -->
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="flex flex-col gap-1.5">
+                        <label
+                          class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Take-Profit
+                          Price</label>
+                        <div class="relative">
+                          <input
+                            class="w-full h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            id="input-take-profit" placeholder="$0.0000" type="text" />
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <span
+                          class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Risk : Reward</span>
+                        <div class="h-[38px] px-3 rounded-lg bg-surface-container-low flex items-center">
+                          <span class="font-metric-md text-metric-md text-on-surface-variant font-semibold"
+                            id="target-risk-reward">Pending Values</span>
                         </div>
                       </div>
                     </div>
