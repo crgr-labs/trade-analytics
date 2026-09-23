@@ -3037,51 +3037,63 @@
     return usingPositions ? ' · ' + formatSignedMoney(net) : '';
   }
 
-  // Option C: Frosted Neo-Fintech Light Design
-  // High-contrast, crisp white surfaces, vibrant 4px left-accent stripes,
-  // modern status micro-pills, and punchy typography.
-  var NFT_LIGHT = {
+  // Option A: Neon Fintech Dark Design
+  // Charcoal dark surfaces (#0e1320), electric neon glow borders,
+  // luminous status pills, crisp white metrics, and glowing cyber accents.
+  var NEON_DARK = {
     profit: {
-      card: 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(16, 185, 129, 0.22); border-left: 4px solid #10b981; box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
-      name: 'color: #0f172a;',
-      pill: 'background: rgba(16, 185, 129, 0.12); color: #047857; border: 1px solid rgba(16, 185, 129, 0.3);',
-      dot: '#10b981',
-      rate: 'color: #059669;',
-      pnl: 'color: #047857; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);',
-      bar: 'linear-gradient(180deg, #34d399 0%, #059669 100%)',
-      barLabel: 'color: #047857;',
+      card: 'background: linear-gradient(145deg, #101626 0%, #090d16 100%); border: 1.5px solid rgba(0, 255, 163, 0.7); box-shadow: 0 0 20px rgba(0, 255, 163, 0.2), 0 4px 12px rgba(0, 0, 0, 0.35);',
+      name: 'color: #f1f5f9;',
+      pill: 'background: rgba(0, 255, 163, 0.12); color: #00ffa3; border: 1px solid rgba(0, 255, 163, 0.5); text-shadow: 0 0 8px rgba(0, 255, 163, 0.4);',
+      dot: '#00ffa3; box-shadow: 0 0 8px #00ffa3;',
+      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);',
+      pnl: 'color: #00ffa3; background: rgba(0, 255, 163, 0.10); border: 1px solid rgba(0, 255, 163, 0.35); text-shadow: 0 0 8px rgba(0, 255, 163, 0.3);',
+      counts: 'color: #94a3b8;',
+      divider: 'border-color: rgba(255, 255, 255, 0.1);',
+      bar: 'linear-gradient(180deg, #00ffa3 0%, #059669 100%)',
+      barGlow: '0 0 10px rgba(0, 255, 163, 0.45)',
+      barLabel: 'color: #059669;',
       tag: 'PROFIT'
     },
     loss: {
-      card: 'background: linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(244, 63, 94, 0.22); border-left: 4px solid #f43f5e; box-shadow: 0 1px 3px rgba(244, 63, 94, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
-      name: 'color: #0f172a;',
-      pill: 'background: rgba(244, 63, 94, 0.10); color: #be123c; border: 1px solid rgba(244, 63, 94, 0.25);',
-      dot: '#f43f5e',
-      rate: 'color: #e11d48;',
-      pnl: 'color: #be123c; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2);',
-      bar: 'linear-gradient(180deg, #fb7185 0%, #e11d48 100%)',
-      barLabel: 'color: #be123c;',
+      card: 'background: linear-gradient(145deg, #101626 0%, #090d16 100%); border: 1.5px solid rgba(255, 80, 100, 0.7); box-shadow: 0 0 20px rgba(255, 80, 100, 0.2), 0 4px 12px rgba(0, 0, 0, 0.35);',
+      name: 'color: #f1f5f9;',
+      pill: 'background: rgba(255, 80, 100, 0.12); color: #ff5064; border: 1px solid rgba(255, 80, 100, 0.5); text-shadow: 0 0 8px rgba(255, 80, 100, 0.4);',
+      dot: '#ff5064; box-shadow: 0 0 8px #ff5064;',
+      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);',
+      pnl: 'color: #ff5064; background: rgba(255, 80, 100, 0.10); border: 1px solid rgba(255, 80, 100, 0.35); text-shadow: 0 0 8px rgba(255, 80, 100, 0.3);',
+      counts: 'color: #94a3b8;',
+      divider: 'border-color: rgba(255, 255, 255, 0.1);',
+      bar: 'linear-gradient(180deg, #ff5064 0%, #e11d48 100%)',
+      barGlow: '0 0 10px rgba(255, 80, 100, 0.45)',
+      barLabel: 'color: #e11d48;',
       tag: 'LOSS'
     },
     mixed: {
-      card: 'background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, #ffffff 80%); border: 1px solid rgba(99, 102, 241, 0.22); border-left: 4px solid #6366f1; box-shadow: 0 1px 3px rgba(99, 102, 241, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);',
-      name: 'color: #0f172a;',
-      pill: 'background: rgba(99, 102, 241, 0.10); color: #4338ca; border: 1px solid rgba(99, 102, 241, 0.25);',
-      dot: '#6366f1',
-      rate: 'color: #4f46e5;',
-      pnl: 'color: #4338ca; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2);',
-      bar: 'linear-gradient(180deg, #a5b4fc 0%, #4f46e5 100%)',
-      barLabel: 'color: #4338ca;',
+      card: 'background: linear-gradient(145deg, #101626 0%, #090d16 100%); border: 1.5px solid rgba(130, 100, 255, 0.7); box-shadow: 0 0 20px rgba(130, 100, 255, 0.2), 0 4px 12px rgba(0, 0, 0, 0.35);',
+      name: 'color: #f1f5f9;',
+      pill: 'background: rgba(130, 100, 255, 0.12); color: #a78bfa; border: 1px solid rgba(130, 100, 255, 0.5); text-shadow: 0 0 8px rgba(130, 100, 255, 0.4);',
+      dot: '#8264ff; box-shadow: 0 0 8px #8264ff;',
+      rate: 'color: #ffffff; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);',
+      pnl: 'color: #a78bfa; background: rgba(130, 100, 255, 0.10); border: 1px solid rgba(130, 100, 255, 0.35);',
+      counts: 'color: #94a3b8;',
+      divider: 'border-color: rgba(255, 255, 255, 0.1);',
+      bar: 'linear-gradient(180deg, #a78bfa 0%, #6366f1 100%)',
+      barGlow: '0 0 10px rgba(130, 100, 255, 0.45)',
+      barLabel: 'color: #6366f1;',
       tag: 'MIXED'
     },
     empty: {
-      card: 'background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #cbd5e1;',
-      name: 'color: #94a3b8;',
-      pill: 'color: #94a3b8;',
-      dot: '#cbd5e1',
-      rate: 'color: #cbd5e1;',
+      card: 'background: #090d16; border: 1px solid #1e293b;',
+      name: 'color: #64748b;',
+      pill: 'color: #475569;',
+      dot: '#334155;',
+      rate: 'color: #334155;',
       pnl: '',
-      bar: '#cbd5e1',
+      counts: 'color: #475569;',
+      divider: 'border-color: #1e293b;',
+      bar: '#1e293b',
+      barGlow: 'none',
       barLabel: 'color: #94a3b8;',
       tag: 'NO DATA'
     }
@@ -3092,30 +3104,30 @@
     var unprofitable = usingPositions && s.net < 0;
 
     if (s.total === 0) {
-      var emptyCfg = NFT_LIGHT.empty;
+      var emptyCfg = NEON_DARK.empty;
       return (
         '<div class="group relative rounded-xl p-4 text-left flex flex-col justify-between h-36 transition-all duration-200" style="' + emptyCfg.card + '">' +
           '<div class="flex items-center justify-between">' +
             '<span class="text-xs font-bold uppercase tracking-wider" style="' + emptyCfg.name + '">' + escapeHtml(s.name) + '</span>' +
-            '<span class="text-[10px] font-semibold text-slate-400">NO DATA</span>' +
+            '<span class="text-[10px] font-semibold text-slate-500">NO DATA</span>' +
           '</div>' +
           '<div class="my-auto py-1">' +
             '<span class="text-3xl font-extrabold tracking-tight block leading-none" style="' + emptyCfg.rate + '">—</span>' +
           '</div>' +
-          '<div class="text-xs font-medium text-slate-400">no ' + noun + 's</div>' +
+          '<div class="text-xs font-medium text-slate-500">no ' + noun + 's</div>' +
         '</div>'
       );
     }
 
     var cfg;
     if (usingPositions) {
-      if (profitable)        cfg = NFT_LIGHT.profit;
-      else if (unprofitable) cfg = NFT_LIGHT.loss;
-      else                   cfg = NFT_LIGHT.mixed;
+      if (profitable)        cfg = NEON_DARK.profit;
+      else if (unprofitable) cfg = NEON_DARK.loss;
+      else                   cfg = NEON_DARK.mixed;
     } else {
-      if (s.wins > 0 && s.losses > 0) cfg = NFT_LIGHT.mixed;
-      else if (s.losses > 0)           cfg = NFT_LIGHT.loss;
-      else                             cfg = NFT_LIGHT.profit;
+      if (s.wins > 0 && s.losses > 0) cfg = NEON_DARK.mixed;
+      else if (s.losses > 0)           cfg = NEON_DARK.loss;
+      else                             cfg = NEON_DARK.profit;
     }
 
     var rateLabel = s.wins > 0 && s.losses > 0 ? s.rate + '%' : s.losses > 0 ? '0%' : '100%';
@@ -3123,17 +3135,17 @@
     var pnlBadge = '';
     if (usingPositions) {
       var netSign = s.net >= 0 ? '+' : '';
-      pnlBadge = '<span class="text-xs font-bold font-mono px-2 py-0.5 rounded-md shadow-xs" style="' + cfg.pnl + '">' +
+      pnlBadge = '<span class="text-xs font-bold font-mono px-2 py-0.5 rounded-md" style="' + cfg.pnl + '">' +
         netSign + '$' + Math.abs(s.net).toFixed(2) + '</span>';
     }
 
-    var countsLabel = '<span class="text-xs font-semibold text-slate-600">' + s.wins + 'W <span class="text-slate-400">/</span> ' + s.losses + 'L</span>' +
-      (s.total ? ' <span class="text-[11px] text-slate-400 font-normal">(' + s.total + ' ' + noun + (s.total === 1 ? '' : 's') + ')</span>' : '');
+    var countsLabel = '<span class="text-xs font-semibold" style="' + cfg.counts + '">' + s.wins + 'W <span style="opacity:0.4">/</span> ' + s.losses + 'L</span>' +
+      (s.total ? ' <span class="text-[11px]" style="opacity:0.6">(' + s.total + ' ' + noun + (s.total === 1 ? '' : 's') + ')</span>' : '');
 
     return (
-      '<div class="th-session-card group relative rounded-xl p-4 text-left flex flex-col justify-between h-36 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer" style="' + cfg.card + '">' +
+      '<div class="th-session-card group relative rounded-xl p-4 text-left flex flex-col justify-between h-36 transition-all duration-200 hover:-translate-y-1 hover:brightness-110 cursor-pointer" style="' + cfg.card + '">' +
         '<div class="flex items-center justify-between">' +
-          '<div class="flex items-center gap-1.5">' +
+          '<div class="flex items-center gap-2">' +
             '<span class="w-2 h-2 rounded-full" style="background:' + cfg.dot + '"></span>' +
             '<span class="text-xs font-bold uppercase tracking-wider" style="' + cfg.name + '">' + escapeHtml(s.name) + '</span>' +
           '</div>' +
@@ -3144,7 +3156,7 @@
         '<div class="my-auto py-1">' +
           '<div class="text-3xl font-black tracking-tight" style="' + cfg.rate + '">' + rateLabel + '</div>' +
         '</div>' +
-        '<div class="flex items-center justify-between pt-2 border-t border-slate-100/90">' +
+        '<div class="flex items-center justify-between pt-2 border-t" style="' + cfg.divider + '">' +
           countsLabel +
           pnlBadge +
         '</div>' +
@@ -3164,11 +3176,11 @@
     }
     var rate = pct(h.wins, h.total);
     var cfg = h.losses === 0
-      ? NFT_LIGHT.profit
-      : (h.wins === 0 ? NFT_LIGHT.loss : NFT_LIGHT.mixed);
+      ? NEON_DARK.profit
+      : (h.wins === 0 ? NEON_DARK.loss : NEON_DARK.mixed);
 
     var heightPct = Math.max(14, Math.round((h.total / maxCount) * 100));
-    var barStyle = 'background:' + cfg.bar + '; border-radius: 4px 4px 1px 1px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);';
+    var barStyle = 'background:' + cfg.bar + '; border-radius: 4px 4px 1px 1px; box-shadow: ' + cfg.barGlow + ';';
 
     return (
       '<div class="flex-1 flex flex-col items-center gap-1.5 transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer" title="' + hourLabel + ':00 UTC — ' + timingCountLabel(h.total, noun) + ', ' + rate + '% win">' +
