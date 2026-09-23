@@ -167,11 +167,7 @@
   </aside>
   <div class="pl-[260px]" id="app-shell">
     <header id="app-header"
-      class="fixed top-0 left-[260px] right-0 h-16 bg-ground/80 backdrop-blur-xl shadow-[0_1px_0_rgba(11,28,48,0.06),0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-xl">
-      <div class="flex items-center gap-2"><span
-          class="font-metric-sm text-metric-sm text-secondary uppercase tracking-wider">Operational Mode:</span><span
-          class="font-metric-sm text-metric-sm px-2.5 py-0.5 rounded-full bg-secondary-container text-on-secondary-fixed font-semibold">Paper
-          Retrospective</span></div>
+      class="fixed top-0 left-[260px] right-0 h-16 bg-ground/80 backdrop-blur-xl shadow-[0_1px_0_rgba(11,28,48,0.06),0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-end px-space-xl">
       <div class="flex items-center gap-4">
         <div class="relative">
           <button type="button" id="header-search-toggle" aria-expanded="false" aria-haspopup="true"
@@ -243,8 +239,6 @@
             </button>
           </div>
         </div>
-        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span
-            class="material-symbols-outlined text-on-primary text-[18px]">person</span></div>
       </div>
     </header>
     <main class="pt-16 bg-ground min-h-screen">
@@ -1942,12 +1936,6 @@
         <span class="material-symbols-outlined text-[14px]">arrow_back</span>
         <span>JOURNAL / TRADE JOURNAL / <span class="text-primary font-semibold" id="cs-breadcrumb-pair">CASE STUDIES</span></span>
       </a>
-      <div id="cs-archive-id-wrap" hidden>
-        <div class="inline-flex items-center gap-2">
-          <span class="font-metric-sm text-metric-sm text-secondary">ARCHIVE ID:</span>
-          <span class="font-metric-sm text-metric-sm px-2 py-0.5 rounded-lg bg-surface-container-lowest shadow-sm text-on-surface-variant font-medium" id="cs-archive-id">--</span>
-        </div>
-      </div>
     </div>
 
     <!-- List state (no trade selected / trade not found): browse all case studies -->

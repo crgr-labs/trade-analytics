@@ -3711,12 +3711,6 @@
     return p;
   }
 
-  function archiveIdFor(trade) {
-    var parts = (trade.date || '').split('-');
-    if (parts.length !== 3) return '#CS-' + trade.id;
-    return '#CS-' + parts[0] + '-' + parts[1] + parts[2];
-  }
-
   function formatLongDate(dateStr) {
     var d = parseDate(dateStr);
     return d.toLocaleDateString('en-US', { weekday: 'long' }) + ', ' + d.getDate() + ' ' +
@@ -4475,8 +4469,6 @@
       if (content) content.hidden = true;
       var breadcrumbEmpty = section.querySelector('#cs-breadcrumb-pair');
       if (breadcrumbEmpty) breadcrumbEmpty.textContent = 'CASE STUDIES';
-      var archiveWrapEmpty = section.querySelector('#cs-archive-id-wrap');
-      if (archiveWrapEmpty) archiveWrapEmpty.hidden = true;
       renderCaseStudyList();
       return;
     }
@@ -4485,9 +4477,6 @@
     if (content) content.hidden = false;
 
     section.querySelector('#cs-breadcrumb-pair').textContent = trade.pair;
-    var archiveWrap = section.querySelector('#cs-archive-id-wrap');
-    if (archiveWrap) archiveWrap.hidden = false;
-    section.querySelector('#cs-archive-id').textContent = archiveIdFor(trade);
     renderCaseStudyPrevNext(section, trade.id);
     section.querySelector('#cs-pair').textContent = trade.pair;
     section.querySelector('#cs-direction').textContent = trade.direction.toUpperCase();
