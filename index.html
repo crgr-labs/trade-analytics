@@ -2068,16 +2068,17 @@
         </div>
         <!-- The title side takes whatever width the right side leaves (basis 0, floor 21rem) and
              the setup badge truncates, so the badges and actions stay on this row instead of wrapping. -->
-        <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <div class="flex items-center gap-x-3 flex-1 basis-0 min-w-[21rem]">
-            <h1 class="font-metric-display text-[2rem] leading-9 text-on-surface font-bold tracking-tight shrink-0" id="cs-pair">--</h1>
+        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 flex-1 basis-0 min-w-[21rem]">
+            <span class="w-8 h-8 rounded-lg bg-on-surface text-surface-container-lowest flex items-center justify-center font-metric-lg text-metric-lg font-bold shrink-0" id="cs-pair-avatar" aria-hidden="true">?</span>
+            <h1 class="font-metric-display text-[1.75rem] leading-8 text-on-surface font-bold tracking-tight shrink-0" id="cs-pair">--</h1>
             <span class="bg-surface-container-low text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-bold uppercase tracking-wider shrink-0" id="cs-direction">--</span>
-            <span class="inline-flex items-center gap-1.5 min-w-0 shrink bg-primary/10 text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-semibold" id="cs-setup-name-wrap" hidden>
+            <span class="inline-flex items-center gap-1.5 min-w-0 max-w-full bg-primary/10 text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-semibold" id="cs-setup-name-wrap" hidden>
               <span class="material-symbols-outlined text-[15px] shrink-0">strategy</span>
               <span class="truncate" id="cs-setup-name"></span>
             </span>
           </div>
-          <div class="flex flex-wrap items-center justify-end gap-x-5 gap-y-3 ml-auto">
+          <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-3 ml-auto">
             <div class="flex flex-wrap items-center justify-end gap-2">
               <div class="flex flex-wrap items-center gap-2" id="cs-return-badges"></div>
               <span class="bg-surface-container-low text-tertiary px-2.5 py-1 rounded-full font-metric-md text-metric-md font-semibold flex items-center gap-1.5" id="cs-outcome-pill">
@@ -3109,7 +3110,7 @@
                     <span class="font-metric-sm text-metric-sm text-secondary">METADATA</span>
                   </div>
                   <div class="space-y-4">
-                    <!-- Row 1: Date, Entry Time & Pair -->
+                    <!-- Row 1: Date, Entry Time & Exit Time -->
                     <div class="grid grid-cols-3 gap-3">
                       <div class="flex flex-col gap-1.5">
                         <label
@@ -3128,11 +3129,20 @@
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label
-                          class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Pair</label>
+                          class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Exit
+                          Time <span class="normal-case tracking-normal text-outline">(optional)</span></label>
                         <input
-                          class="h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase transition-all"
-                          id="input-pair" placeholder="e.g. HNTUSDT.P" type="text" />
+                          class="h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                          id="input-exit-time" type="time" />
                       </div>
+                    </div>
+                    <!-- Row 1a: Pair -->
+                    <div class="flex flex-col gap-1.5">
+                      <label
+                        class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Pair</label>
+                      <input
+                        class="h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase transition-all"
+                        id="input-pair" placeholder="e.g. HNTUSDT.P" type="text" />
                     </div>
                     <!-- Row 1b: Setup Name (optional, freeform - distinct from the confluence checklist) -->
                     <div class="flex flex-col gap-1.5">
@@ -3251,18 +3261,8 @@
                         </div>
                       </div>
                     </div>
-                    <!-- Risk Inputs -->
+                    <!-- Risk Inputs: Stop-Loss beside Take-Profit -->
                     <div class="grid grid-cols-2 gap-3">
-                      <div class="flex flex-col gap-1.5">
-                        <label
-                          class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Margin
-                          ($)</label>
-                        <div class="relative">
-                          <input
-                            class="w-full h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                            id="input-position-size" placeholder="e.g. 500" type="text" />
-                        </div>
-                      </div>
                       <div class="flex flex-col gap-1.5">
                         <label
                           class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Stop-Loss
@@ -3273,9 +3273,6 @@
                             id="input-stop-loss" placeholder="$0.0000" type="text" />
                         </div>
                       </div>
-                    </div>
-                    <!-- Take-Profit (optional) + live planned R:R -->
-                    <div class="grid grid-cols-2 gap-3">
                       <div class="flex flex-col gap-1.5">
                         <label
                           class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Take-Profit
@@ -3284,6 +3281,19 @@
                           <input
                             class="w-full h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                             id="input-take-profit" placeholder="$0.0000" type="text" />
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Margin (optional) + live R:R -->
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="flex flex-col gap-1.5">
+                        <label
+                          class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Margin
+                          ($)</label>
+                        <div class="relative">
+                          <input
+                            class="w-full h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            id="input-position-size" placeholder="e.g. 500" type="text" />
                         </div>
                       </div>
                       <div class="flex flex-col gap-1.5">

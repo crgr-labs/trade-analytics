@@ -172,6 +172,8 @@
       trade.parameters = (trade.confluence || []).map(function (v) { return (v || '').trim(); }).filter(Boolean);
     }
     if (!trade.source) trade.source = 'manual';
+    // Optional "HH:mm" exit time, same frame as entryTime; older trades have none.
+    if (typeof trade.exitTime !== 'string') trade.exitTime = '';
 
     // A chart used to be a single base64 upload (chartImage/chartFileName).
     // It's now { type, value } so a TradingView snapshot link can live in
@@ -1903,6 +1905,18 @@
       date: shifted.getUTCFullYear() + '-' + pad2(shifted.getUTCMonth() + 1) + '-' + pad2(shifted.getUTCDate()),
       time: pad2(shifted.getUTCHours()) + ':' + pad2(shifted.getUTCMinutes())
     };
+  }
+
+  // The position's close as a time of day in that same journal timezone frame,
+  // for prefilling Exit Time when promoting. Blank when the hold is 24h or
+  // longer: a bare time of day can't represent that, and the linked position's
+  // real timestamps are what the case study uses anyway.
+  function positionLocalCloseTime(p) {
+    var openMs = Date.parse(p.openTime);
+    var closeMs = Date.parse(p.closeTime);
+    if (isNaN(openMs) || isNaN(closeMs) || closeMs < openMs || closeMs - openMs >= 86400000) return '';
+    var shifted = new Date(closeMs + getEntryTzOffsetMinutes() * 60000);
+    return pad2(shifted.getUTCHours()) + ':' + pad2(shifted.getUTCMinutes());
   }
 
   function positionDurationMs(p) {
@@ -3828,6 +3842,23 @@
     return label === '—' ? null : label;
   }
 
+  function parseClockMinutes(str) {
+    var m = /^(\d{1,2}):(\d{2})$/.exec(str || '');
+    return m ? (+m[1]) * 60 + (+m[2]) : null;
+  }
+
+  // A manually-logged trade has one date (the entry's) plus optional entry and
+  // exit times of day, so the hold time is the gap between the two clock times:
+  // an exit at or after the entry is the same day, an earlier one the next day.
+  // That caps it at under 24h - the caller labels it as such. Identical times
+  // are ambiguous (0 or 24h), so they yield nothing rather than a guess.
+  function manualHoldMinutes(trade) {
+    var entry = parseClockMinutes(trade.entryTime);
+    var exit = parseClockMinutes(trade.exitTime);
+    if (entry === null || exit === null || entry === exit) return null;
+    return (exit - entry + 1440) % 1440;
+  }
+
   // Fees only exist for exchange-sourced data: the linked Position History
   // record, or the fee carried on a trade imported straight from MEXC. A zero
   // is treated as unknown (the importers default a missing fee to 0).
@@ -4484,6 +4515,7 @@
     section.querySelector('#cs-crumb-pair').textContent = trade.pair;
     renderCaseStudyPrevNext(section, trade.id);
     section.querySelector('#cs-pair').textContent = trade.pair;
+    section.querySelector('#cs-pair-avatar').textContent = (trade.pair || '?').charAt(0).toUpperCase();
     section.querySelector('#cs-direction').textContent = trade.direction.toUpperCase();
     section.querySelector('#cs-logged-date').textContent = formatLongDate(trade.date);
     // Session only when the entry time makes it real - omitted entirely otherwise.
@@ -4629,6 +4661,12 @@
       : (entry ? formatMediumDate(trade.date) : null);
 
     var closeMs = position && position.closeTime ? Date.parse(position.closeTime) : NaN;
+    // No linked close timestamp: fall back to the manually entered exit time,
+    // placed after the entry by the same same-day / next-day rule as Hold Time.
+    if (isNaN(closeMs) && entry && entry.hasTime) {
+      var heldMinutes = manualHoldMinutes(trade);
+      if (heldMinutes !== null) closeMs = entry.ms + heldMinutes * 60000;
+    }
     var isOpen = trade.outcome === 'open';
     var exitStamp = !isNaN(closeMs) ? formatTimelineMoment(closeMs) : null;
 
@@ -4726,8 +4764,29 @@
         ret.dollarPnl >= 0 ? 'text-tertiary' : 'text-error');
     }
 
+    // Position Size: notional (margin x leverage, only when leverage is actually
+    // recorded) and/or the contract quantity from the linked Position History
+    // record. Margin alone is already in Execution Details, so it isn't repeated.
+    var margin = parsePriceValue(trade.positionSize || '');
+    var leverageX = parseFloat((trade.leverage || '').match(/[\d.]+/) || 0);
+    var notional = margin !== null && leverageX ? margin * leverageX : null;
+    var linkedPosition = linkedPositionForTrade(trade);
+    var qty = linkedPosition && linkedPosition.qty ? String(linkedPosition.qty).trim() : '';
+    if (notional !== null) cell('Position Size', 'account_balance_wallet', formatMoney(notional), qty ? 'Notional · ' + qty + ' cont.' : 'Notional');
+    else if (qty) cell('Position Size', 'account_balance_wallet', qty, 'Contracts');
+
+    // Hold Time: exact from a linked Position History record; otherwise from
+    // the manually entered entry + exit times (under 24h by construction).
     var hold = tradeDurationLabel(trade);
-    if (hold) cell('Hold Time', 'timelapse', hold);
+    var holdSub = '';
+    if (!hold) {
+      var manualMinutes = manualHoldMinutes(trade);
+      if (manualMinutes !== null) {
+        hold = formatDurationMs(manualMinutes * 60000);
+        holdSub = 'Assumes exit within 24h';
+      }
+    }
+    if (hold) cell('Hold Time', 'timelapse', hold, holdSub);
 
     var fee = tradeFeeAmount(trade);
     if (fee !== null) cell('Fees', 'receipt_long', formatMoney(fee));
@@ -5835,15 +5894,15 @@
     }
   }
 
-  // 11 fields: the 8 free-text/select inputs below, plus confluence
-  // parameters, a chart (image or link), and notes - each counted once
-  // regardless of how many sub-values it holds.
+  // Counts the text/select inputs listed below, plus confluence parameters and
+  // a chart (image or link) - each counted once regardless of how many
+  // sub-values it holds.
   function updateFieldsCompleted(section) {
     var countEl = section.querySelector('#fields-completed-count');
     var barEl = section.querySelector('#fields-completed-bar');
     if (!countEl || !barEl) return;
 
-    var textFields = ['#input-date', '#input-entry-time', '#input-pair', '#input-leverage-multiplier',
+    var textFields = ['#input-date', '#input-entry-time', '#input-exit-time', '#input-pair', '#input-leverage-multiplier',
       '#input-entry', '#input-exit', '#input-position-size', '#input-stop-loss', '#input-take-profit', '#input-notes'];
     var filled = textFields.filter(function (sel) {
       var el = section.querySelector(sel);
@@ -6010,6 +6069,7 @@
       var stopLossInput = section.querySelector('#input-stop-loss');
       var takeProfitInput = section.querySelector('#input-take-profit');
       var entryTimeInput = section.querySelector('#input-entry-time');
+      var exitTimeInput = section.querySelector('#input-exit-time');
       var notesInput = section.querySelector('#input-notes');
       var setupNameInput = section.querySelector('#input-setup-name');
 
@@ -6019,6 +6079,7 @@
         id: nteEditingTradeId || ('trade-' + Date.now()),
         date: dateInput && dateInput.value ? dateInput.value : todayDateString(),
         entryTime: entryTimeInput && entryTimeInput.value ? entryTimeInput.value : '',
+        exitTime: exitTimeInput && exitTimeInput.value ? exitTimeInput.value : '',
         pair: normalizePairSymbol(pairField.value),
         setupName: setupNameInput ? setupNameInput.value.trim() : '',
         direction: directionInput ? directionInput.value : 'long',
@@ -6164,6 +6225,7 @@
       nteEditingTradeId = trade.id;
       section.querySelector('#input-date').value = trade.date || '';
       section.querySelector('#input-entry-time').value = trade.entryTime || '';
+      section.querySelector('#input-exit-time').value = trade.exitTime || '';
       section.querySelector('#input-pair').value = trade.pair || '';
       var setupNameField = section.querySelector('#input-setup-name');
       if (setupNameField) setupNameField.value = trade.setupName || '';
@@ -6199,6 +6261,7 @@
       var local = positionLocalDateTime(promotingPosition);
       section.querySelector('#input-date').value = local.date;
       section.querySelector('#input-entry-time').value = local.time;
+      section.querySelector('#input-exit-time').value = positionLocalCloseTime(promotingPosition);
       section.querySelector('#input-pair').value = normalizePairSymbol(promotingPosition.pair);
       section.querySelector('#input-entry').value = promotingPosition.entryPrice === null ? '' : String(promotingPosition.entryPrice);
       section.querySelector('#input-exit').value = promotingPosition.closePrice === null ? '' : String(promotingPosition.closePrice);
