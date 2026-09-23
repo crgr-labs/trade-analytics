@@ -1930,12 +1930,34 @@
       <section data-screen="case-studies" hidden>
 <div class="w-full max-w-7xl mx-auto p-space-xl">
   <div class="flex flex-col w-full">
-    <!-- Breadcrumb and Quick Metadata -->
-    <div class="flex items-center justify-between gap-4 pb-4">
-      <a class="inline-flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#trade-journal">
+    <!-- Breadcrumb / back row. List state keeps its original breadcrumb link; the detail
+         state gets ONE back control plus the trail and the previous / next pager. -->
+    <div class="flex items-center justify-between gap-4 pb-3 no-print">
+      <a id="cs-crumb-list" class="inline-flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#trade-journal">
         <span class="material-symbols-outlined text-[14px]">arrow_back</span>
         <span>JOURNAL / TRADE JOURNAL / <span class="text-primary font-semibold" id="cs-breadcrumb-pair">CASE STUDIES</span></span>
       </a>
+      <div id="cs-crumb-detail" class="flex items-center justify-between gap-4 w-full min-w-0" hidden>
+        <div class="flex items-center gap-3 min-w-0">
+          <a id="cs-back-link" class="inline-flex items-center gap-1.5 shrink-0 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#case-studies">
+            <span class="material-symbols-outlined text-[14px]">arrow_back</span>
+            <span>BACK TO ALL CASE STUDIES</span>
+          </a>
+          <span class="text-outline-variant shrink-0">&bull;</span>
+          <span class="font-label-eyebrow text-label-eyebrow text-secondary tracking-wider truncate">JOURNAL / CASE STUDIES / <span class="text-primary font-semibold" id="cs-crumb-pair">--</span></span>
+        </div>
+        <div class="flex items-center gap-1 shrink-0" id="cs-pager">
+          <button type="button" id="cs-btn-prev" title="Previous case study"
+            class="w-5 h-5 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
+            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+          </button>
+          <span class="font-metric-sm text-metric-sm text-secondary" id="cs-position-label">--</span>
+          <button type="button" id="cs-btn-next" title="Next case study"
+            class="w-5 h-5 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
+            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- List state (no trade selected / trade not found): browse all case studies -->
@@ -2027,69 +2049,62 @@
     </div>
 
     <div id="cs-content">
-      <!-- Header row: nav strip, title line (pair, direction, outcome, P&L / R badges), caption line, actions -->
-      <div class="bg-surface-container-lowest rounded-xl px-space-xl py-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex flex-col gap-1.5 min-w-0">
-          <div class="flex items-center gap-2 no-print">
-            <a class="text-secondary hover:text-on-surface font-metric-sm text-metric-sm flex items-center gap-1 transition-colors" href="#case-studies">
-              <span class="material-symbols-outlined text-[14px]">arrow_back</span>
-              All Case Studies
-            </a>
-            <span class="text-outline-variant">•</span>
-            <div class="flex items-center gap-1">
-              <button type="button" id="cs-btn-prev" title="Previous case study"
-                class="w-5 h-5 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
-                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+      <!-- Header card: meta row (session, date), then ONE title row - pair, direction, setup on the
+           left; P&L / R / outcome badges and the actions on the right. -->
+      <div class="bg-surface-container-lowest rounded-xl px-5 py-4 shadow-sm flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-secondary font-metric-sm text-metric-sm">
+          <span class="flex items-center gap-1.5" id="cs-session-wrap" hidden>
+            <span class="material-symbols-outlined text-[14px]">schedule</span>
+            <span>SESSION:</span>
+            <span class="text-on-surface font-semibold" id="cs-session-text"></span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[14px]">calendar_today</span>
+            <span id="cs-logged-date">--</span>
+          </span>
+          <span class="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold" id="cs-source-badge" hidden>
+            <span class="material-symbols-outlined text-[13px] align-middle mr-1">sync_alt</span><span class="align-middle">Imported</span>
+          </span>
+        </div>
+        <!-- The title side takes whatever width the right side leaves (basis 0, floor 21rem) and
+             the setup badge truncates, so the badges and actions stay on this row instead of wrapping. -->
+        <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div class="flex items-center gap-x-3 flex-1 basis-0 min-w-[21rem]">
+            <h1 class="font-metric-display text-[2rem] leading-9 text-on-surface font-bold tracking-tight shrink-0" id="cs-pair">--</h1>
+            <span class="bg-surface-container-low text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-bold uppercase tracking-wider shrink-0" id="cs-direction">--</span>
+            <span class="inline-flex items-center gap-1.5 min-w-0 shrink bg-primary/10 text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-semibold" id="cs-setup-name-wrap" hidden>
+              <span class="material-symbols-outlined text-[15px] shrink-0">strategy</span>
+              <span class="truncate" id="cs-setup-name"></span>
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-x-5 gap-y-3 ml-auto">
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <div class="flex flex-wrap items-center gap-2" id="cs-return-badges"></div>
+              <span class="bg-surface-container-low text-tertiary px-2.5 py-1 rounded-full font-metric-md text-metric-md font-semibold flex items-center gap-1.5" id="cs-outcome-pill">
+                <span class="w-2 h-2 rounded-full bg-tertiary" id="cs-outcome-dot"></span>
+                <span id="cs-outcome-text">--</span>
+              </span>
+            </div>
+            <div class="flex items-center gap-2 no-print">
+              <button type="button" class="bg-surface-container-low hover:bg-surface-container text-on-surface px-3 py-1.5 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 transition-all duration-150" id="cs-btn-export" title="Save this case study as a PDF">
+                <span class="material-symbols-outlined text-[18px]">download</span>
+                Export
               </button>
-              <span class="font-metric-sm text-metric-sm text-secondary" id="cs-position-label">--</span>
-              <button type="button" id="cs-btn-next" title="Next case study"
-                class="w-5 h-5 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
-                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+              <button class="bg-primary hover:bg-primary-container text-on-primary px-3 py-1.5 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 shadow-sm transition-all duration-150" id="cs-btn-edit">
+                <span class="material-symbols-outlined text-[18px]">edit_note</span>
+                Edit Entry
+              </button>
+              <button class="bg-surface-container-lowest border border-error/60 text-error hover:bg-error-container/30 px-3 py-1.5 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 transition-all duration-150" id="cs-btn-delete">
+                <span class="material-symbols-outlined text-[18px]">delete_outline</span>
+                Delete Log
               </button>
             </div>
           </div>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h1 class="font-metric-display text-[2.25rem] leading-10 text-on-surface font-bold tracking-tight" id="cs-pair">--</h1>
-            <span class="bg-surface-container-low text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-bold uppercase tracking-wider" id="cs-direction">--</span>
-            <span class="bg-surface-container-low text-tertiary px-3 py-1 rounded-full font-metric-md text-metric-md font-semibold flex items-center gap-1.5" id="cs-outcome-pill">
-              <span class="w-2 h-2 rounded-full bg-tertiary" id="cs-outcome-dot"></span>
-              <span id="cs-outcome-text">--</span>
-            </span>
-            <span class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold" id="cs-source-badge" hidden>
-              <span class="material-symbols-outlined text-[13px] align-middle mr-1">sync_alt</span><span class="align-middle">Imported</span>
-            </span>
-            <div class="flex flex-wrap items-center gap-2" id="cs-return-badges"></div>
-          </div>
-          <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-secondary font-metric-sm text-metric-sm">
-            <span class="flex items-center gap-1 min-w-0" id="cs-setup-name-wrap" hidden>
-              <span class="material-symbols-outlined text-primary text-[15px]">strategy</span>
-              <span class="text-on-surface font-semibold truncate" id="cs-setup-name"></span>
-              <span class="text-outline-variant ml-1">•</span>
-            </span>
-            <span class="flex items-center gap-1">
-              <span class="material-symbols-outlined text-[14px]">calendar_today</span>
-              <span id="cs-logged-date">--</span>
-            </span>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 self-start md:self-center no-print">
-          <button type="button" class="bg-surface-container-low hover:bg-surface-container text-on-surface px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 transition-all duration-150" id="cs-btn-export" title="Save this case study as a PDF">
-            <span class="material-symbols-outlined text-[18px]">download</span>
-            Export
-          </button>
-          <button class="bg-primary hover:bg-primary-container text-on-primary px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 shadow-sm transition-all duration-150" id="cs-btn-edit">
-            <span class="material-symbols-outlined text-[18px]">edit_note</span>
-            Edit Entry
-          </button>
-          <button class="bg-surface-container-lowest border border-error/60 text-error hover:bg-error-container/30 px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 transition-all duration-150" id="cs-btn-delete">
-            <span class="material-symbols-outlined text-[18px]">delete_outline</span>
-            Delete Log
-          </button>
         </div>
       </div>
 
       <!-- Stats row: cells are rendered by JS and only exist when real data backs them -->
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 mt-6" id="cs-stats-row" hidden></div>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 mt-4" id="cs-stats-row" hidden></div>
 
       <!-- Two-Column Main Layout: chart evidence | execution details + trade detail + checklist -->
       <div class="grid grid-cols-12 gap-6 mt-6">

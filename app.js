@@ -4469,6 +4469,9 @@
       if (content) content.hidden = true;
       var breadcrumbEmpty = section.querySelector('#cs-breadcrumb-pair');
       if (breadcrumbEmpty) breadcrumbEmpty.textContent = 'CASE STUDIES';
+      // The list keeps its own breadcrumb; the detail row (back link + pager) is for a single trade.
+      section.querySelector('#cs-crumb-list').hidden = false;
+      section.querySelector('#cs-crumb-detail').hidden = true;
       renderCaseStudyList();
       return;
     }
@@ -4476,11 +4479,17 @@
     if (listState) listState.hidden = true;
     if (content) content.hidden = false;
 
-    section.querySelector('#cs-breadcrumb-pair').textContent = trade.pair;
+    section.querySelector('#cs-crumb-list').hidden = true;
+    section.querySelector('#cs-crumb-detail').hidden = false;
+    section.querySelector('#cs-crumb-pair').textContent = trade.pair;
     renderCaseStudyPrevNext(section, trade.id);
     section.querySelector('#cs-pair').textContent = trade.pair;
     section.querySelector('#cs-direction').textContent = trade.direction.toUpperCase();
-    section.querySelector('#cs-logged-date').textContent = 'Logged ' + formatLongDate(trade.date);
+    section.querySelector('#cs-logged-date').textContent = formatLongDate(trade.date);
+    // Session only when the entry time makes it real - omitted entirely otherwise.
+    var sessionLabel = tradeSessionLabel(trade);
+    section.querySelector('#cs-session-text').textContent = sessionLabel || '';
+    section.querySelector('#cs-session-wrap').hidden = !sessionLabel;
 
     var outcomeDot = section.querySelector('#cs-outcome-dot');
     var outcomeText = section.querySelector('#cs-outcome-text');
@@ -4673,7 +4682,7 @@
     var badges = [];
     function add(label, positive) {
       badges.push('<span class="' + (positive ? 'bg-tertiary/10 text-tertiary' : 'bg-error/10 text-error') +
-        ' font-metric-lg text-metric-lg font-bold px-3 py-1 rounded-lg">' + label + '</span>');
+        ' font-metric-md text-metric-md font-bold px-2.5 py-1 rounded-lg">' + label + '</span>');
     }
     if (ret && ret.dollarPnl !== null) add(formatSignedDollars(ret.dollarPnl), ret.dollarPnl >= 0);
     if (ret && ret.rMultiple !== null) add(formatSignedR(ret.rMultiple), ret.rMultiple >= 0);
