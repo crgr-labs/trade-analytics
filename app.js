@@ -3757,6 +3757,15 @@
     return sign + n.toFixed(2) + 'R';
   }
 
+  // A short, human setup label for a trade: the freeform Setup Name field
+  // when logged, otherwise a summary of its first confluence tags (the same
+  // summarizeCombo() the confluence stats copy already uses) - so older
+  // trades logged before Setup Name existed still show something useful.
+  function caseStudySetupSummary(trade) {
+    if (trade.setupName && trade.setupName.trim()) return trade.setupName.trim();
+    return summarizeCombo(trade);
+  }
+
   // The session windows overlap (e.g. 07:00-08:00 UTC is both Asia and
   // London), so a trade can sit in more than one. Uses the same UTC
   // conversion as the Timing & Heatmap stats, mexc-import special case included.
@@ -4012,7 +4021,7 @@
     return { html: html, categoriesHtml: categoriesHtml, filledCount: params.length, passedCount: passedCount };
   }
 
-  var csListState = { search: '', sort: 'date-desc' };
+  var csListState = { search: '', sort: 'date-desc', filter: 'all' };
 
   var OUTCOME_SORT_RANK = { win: 0, loss: 1, open: 2 };
 
@@ -4042,11 +4051,34 @@
     return sorted;
   }
 
+  // Same badge the Execution Details / Result R tiles on the detail page use
+  // (formatSignedDollars/formatSignedR, tertiary for gains, error for
+  // losses) - prefers $P&L (needs entry+exit+position size), falls back to
+  // R-multiple (needs entry+exit+stop-loss) when only that is recorded, and
+  // renders nothing when neither can be computed rather than a placeholder.
+  function caseStudyReturnBadgeHtml(trade) {
+    var ret = computeTradeReturn(trade);
+    if (!ret) return '';
+    var label = null, positive = true;
+    if (ret.dollarPnl !== null) {
+      label = formatSignedDollars(ret.dollarPnl);
+      positive = ret.dollarPnl >= 0;
+    } else if (ret.rMultiple !== null) {
+      label = formatSignedR(ret.rMultiple);
+      positive = ret.rMultiple >= 0;
+    }
+    if (!label) return '';
+    var tone = positive ? 'bg-tertiary/10 text-tertiary' : 'bg-error/10 text-error';
+    return '<span class="' + tone + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + label + '</span>';
+  }
+
   function caseStudyListRowHtml(trade) {
     var dot = OUTCOME_DOT_CLASS[trade.outcome] || OUTCOME_DOT_CLASS.open;
     var pillClass = OUTCOME_PILL_CLASS[trade.outcome] || OUTCOME_PILL_CLASS.open;
     var directionClass = DIRECTION_BADGE_CLASS[trade.direction] || DIRECTION_BADGE_CLASS.long;
     var filledCount = nonEmptyConfluence(trade).length;
+    var sessionLabel = tradeSessionLabel(trade);
+    var setupSummary = caseStudySetupSummary(trade);
     return (
       '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="block px-5 py-3.5 hover:bg-surface-container-low/60 transition-colors">' +
       '<div class="flex items-center justify-between gap-4">' +
@@ -4055,8 +4087,10 @@
             '<span class="font-headline-sm text-headline-sm text-on-surface">' + formatDateLabel(trade.date) + '</span>' +
             '<span class="font-metric-sm text-metric-sm text-secondary">' + weekdayLabel(trade.date) + '</span>' +
           '</div>' +
+          (sessionLabel ? '<span class="shrink-0 font-metric-sm text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-surface-container-low text-secondary" title="Session">' + escapeHtml(sessionLabel) + '</span>' : '') +
           '<span class="font-metric-md text-metric-md font-bold text-on-surface truncate">' + escapeHtml(trade.pair) + '</span>' +
           '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + trade.direction.toUpperCase() + '</span>' +
+          caseStudyReturnBadgeHtml(trade) +
         '</div>' +
         '<div class="flex items-center gap-3 shrink-0">' +
           '<span class="font-metric-sm text-metric-sm text-secondary">' + filledCount + ' parameter' + (filledCount === 1 ? '' : 's') + '</span>' +
@@ -4066,33 +4100,16 @@
           '<span class="material-symbols-outlined text-secondary text-[18px]">chevron_right</span>' +
         '</div>' +
       '</div>' +
-      // Aligned under the pair (date column w-16 + gap-3), so the strip reads
-      // as part of the row's content rather than a separate footer.
-      '<div class="flex items-center gap-2 mt-2 pl-[4.75rem]">' + chartStripHtml(trade) + '</div>' +
+      // Aligned under the pair (date column w-16 + gap-3), matching the
+      // header row's indent so it reads as part of the same trade's content.
+      (setupSummary
+        ? '<div class="flex items-center gap-1.5 mt-1.5 pl-[4.75rem] min-w-0">' +
+            '<span class="material-symbols-outlined text-secondary text-[14px] shrink-0">strategy</span>' +
+            '<span class="font-metric-sm text-metric-sm text-secondary truncate">' + escapeHtml(setupSummary) + '</span>' +
+          '</div>'
+        : '') +
       '</a>'
     );
-  }
-
-  // Always three boxes, so a missing timeframe reads as "not logged" rather
-  // than leaving a gap.
-  function chartStripHtml(trade) {
-    var charts = tradeCharts(trade);
-    return CHART_TIMEFRAMES.map(function (tf) {
-      var image = charts[tf.key];
-      var badge = '<span class="absolute top-0.5 left-0.5 bg-surface-container-lowest/90 text-primary font-metric-sm text-[9px] font-semibold leading-none px-1 py-0.5 rounded">' + tf.short + '</span>';
-      if (image) {
-        return (
-          '<div class="relative w-14 h-9 rounded-lg overflow-hidden bg-surface-container-low" title="' + tf.label + ' chart">' +
-            '<img src="' + image.value + '" alt="" class="w-full h-full object-cover" />' + badge +
-          '</div>'
-        );
-      }
-      return (
-        '<div class="relative w-14 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-secondary opacity-40" title="No ' + tf.label + ' chart">' +
-          '<span class="material-symbols-outlined text-[14px]">image</span>' + badge +
-        '</div>'
-      );
-    }).join('');
   }
 
   // Same filter+sort the case study list renders with, shared so Prev/Next
@@ -4100,8 +4117,67 @@
   function orderedCaseStudyTrades() {
     var trades = TradeStore.getAll();
     var query = csListState.search.trim().toLowerCase();
-    var filtered = query ? trades.filter(function (t) { return (t.pair || '').toLowerCase().indexOf(query) !== -1; }) : trades;
+    var filtered = trades.filter(function (t) {
+      var matchesQuery = !query || (t.pair || '').toLowerCase().indexOf(query) !== -1;
+      var matchesFilter = csListState.filter === 'all' || t.outcome === csListState.filter;
+      return matchesQuery && matchesFilter;
+    });
     return sortCaseStudyTrades(filtered, csListState.sort);
+  }
+
+  function setActiveCsPill(section) {
+    section.querySelectorAll('#cs-filter-pill-group .filter-pill').forEach(function (pill) {
+      var isActive = pill.getAttribute('data-filter') === csListState.filter;
+      if (isActive) {
+        pill.classList.remove('bg-surface-container-lowest', 'text-on-surface-variant');
+        pill.classList.add('bg-on-surface', 'text-surface-container-lowest');
+      } else {
+        pill.classList.remove('bg-on-surface', 'text-surface-container-lowest');
+        pill.classList.add('bg-surface-container-lowest', 'text-on-surface-variant');
+      }
+    });
+  }
+
+  // KPI ribbon above the list reuses the exact numbers the Trade Journal
+  // P&L breakdown already computes - every trade in TradeStore has a Case
+  // Study (there's no separate "promoted" flag), so the scope is identical.
+  function renderCaseStudyKpis(section, allTrades) {
+    var stats = computeStats(allTrades);
+    var winrateEl = section.querySelector('#cs-kpi-winrate');
+    var winrateSubEl = section.querySelector('#cs-kpi-winrate-sub');
+    if (winrateEl) winrateEl.textContent = (stats.wins + stats.losses) > 0 ? stats.winRate.toFixed(1) + '%' : '--';
+    if (winrateSubEl) winrateSubEl.textContent = stats.wins + ' wins, ' + stats.losses + ' losses';
+
+    var pnlStats = computeTradeJournalPnl(allTrades);
+    var hasPnl = pnlStats.covered > 0;
+    var netEl = section.querySelector('#cs-kpi-netpnl');
+    var netSubEl = section.querySelector('#cs-kpi-netpnl-sub');
+    if (netEl) {
+      netEl.textContent = hasPnl ? formatSignedMoney(pnlStats.total) : 'Not recorded';
+      netEl.className = 'text-metric-display font-metric-display ' + (hasPnl ? (pnlStats.total >= 0 ? 'text-tertiary' : 'text-error') : 'text-secondary');
+    }
+    if (netSubEl) {
+      netSubEl.textContent = hasPnl
+        ? 'across ' + pnlStats.covered + ' trade' + (pnlStats.covered === 1 ? '' : 's') + ' with P&L'
+        : 'no entry/exit prices yet';
+    }
+
+    var bestLinkEl = section.querySelector('#cs-kpi-best-link');
+    var bestSubEl = section.querySelector('#cs-kpi-best-sub');
+    if (bestLinkEl && bestSubEl) {
+      if (hasPnl) {
+        var best = pnlStats.best;
+        bestLinkEl.textContent = best.trade.pair;
+        bestLinkEl.className = 'text-metric-display font-metric-display hover:text-primary transition-colors truncate block ' + (best.pnl >= 0 ? 'text-tertiary' : 'text-error');
+        bestLinkEl.setAttribute('href', '#case-studies/' + encodeURIComponent(best.trade.id));
+        bestSubEl.textContent = formatMediumDate(best.trade.date) + ' · ' + formatSignedDollars(best.pnl);
+      } else {
+        bestLinkEl.textContent = '--';
+        bestLinkEl.className = 'text-metric-display font-metric-display text-secondary truncate block';
+        bestLinkEl.setAttribute('href', '#case-studies');
+        bestSubEl.textContent = 'no entry/exit prices yet';
+      }
+    }
   }
 
   function renderCaseStudyList() {
@@ -4110,11 +4186,24 @@
     var listEl = section.querySelector('#cs-list');
     if (!listEl) return;
 
+    var allTrades = TradeStore.getAll();
+    var allStats = computeStats(allTrades);
+    var countAll = section.querySelector('#cs-filter-pill-group [data-pill-count="all"]');
+    var countWin = section.querySelector('#cs-filter-pill-group [data-pill-count="win"]');
+    var countLoss = section.querySelector('#cs-filter-pill-group [data-pill-count="loss"]');
+    var countOpen = section.querySelector('#cs-filter-pill-group [data-pill-count="open"]');
+    if (countAll) countAll.textContent = allStats.total;
+    if (countWin) countWin.textContent = allStats.wins;
+    if (countLoss) countLoss.textContent = allStats.losses;
+    if (countOpen) countOpen.textContent = allStats.open;
+    setActiveCsPill(section);
+    renderCaseStudyKpis(section, allTrades);
+
     var sorted = orderedCaseStudyTrades();
 
     listEl.innerHTML = sorted.length
       ? sorted.map(caseStudyListRowHtml).join('')
-      : '<div class="px-5 py-8 text-center font-body-sm text-body-sm text-secondary">No trades match "' + escapeHtml(csListState.search) + '".</div>';
+      : '<div class="px-5 py-8 text-center font-body-sm text-body-sm text-secondary">No trades match the current filters.</div>';
   }
 
   // Populates the Prev/Next buttons and "N of M" label based on where this
@@ -4161,6 +4250,12 @@
     if (!section) return;
     var searchInput = section.querySelector('#cs-search-input');
     var sortSelect = section.querySelector('#cs-sort-select');
+    section.querySelectorAll('#cs-filter-pill-group .filter-pill').forEach(function (pill) {
+      pill.addEventListener('click', function () {
+        csListState.filter = pill.getAttribute('data-filter');
+        renderCaseStudyList();
+      });
+    });
     if (searchInput) {
       searchInput.addEventListener('input', function (e) {
         csListState.search = e.target.value || '';
@@ -4202,9 +4297,9 @@
       if (listState) listState.hidden = false;
       if (content) content.hidden = true;
       var breadcrumbEmpty = section.querySelector('#cs-breadcrumb-pair');
-      if (breadcrumbEmpty) breadcrumbEmpty.textContent = '--';
-      var archiveEmpty = section.querySelector('#cs-archive-id');
-      if (archiveEmpty) archiveEmpty.textContent = '--';
+      if (breadcrumbEmpty) breadcrumbEmpty.textContent = 'CASE STUDIES';
+      var archiveWrapEmpty = section.querySelector('#cs-archive-id-wrap');
+      if (archiveWrapEmpty) archiveWrapEmpty.hidden = true;
       renderCaseStudyList();
       return;
     }
@@ -4213,6 +4308,8 @@
     if (content) content.hidden = false;
 
     section.querySelector('#cs-breadcrumb-pair').textContent = trade.pair;
+    var archiveWrap = section.querySelector('#cs-archive-id-wrap');
+    if (archiveWrap) archiveWrap.hidden = false;
     section.querySelector('#cs-archive-id').textContent = archiveIdFor(trade);
     renderCaseStudyPrevNext(section, trade.id);
     section.querySelector('#cs-pair').textContent = trade.pair;
@@ -4240,8 +4337,9 @@
     var hasR = ret && ret.rMultiple !== null;
     setMetaTile(section, 'r', hasR ? formatSignedR(ret.rMultiple) : '', hasR ? (ret.rMultiple >= 0 ? 'text-tertiary' : 'text-error') : '', ret ? 'No stop-loss logged' : 'Not recorded');
     setMetaTile(section, 'duration', tradeDurationLabel(trade) || '', '', 'Not recorded');
-    // No Playbook / setup entity exists yet, so there is nothing to show.
-    setMetaTile(section, 'setup', '', '', 'Not recorded');
+    // No dedicated Playbook entity exists yet - fall back to a confluence-tag
+    // summary for trades logged before the Setup Name field existed.
+    setMetaTile(section, 'setup', caseStudySetupSummary(trade) || '', '', 'Not recorded');
     setMetaTile(section, 'session', tradeSessionLabel(trade) || '', '', 'No entry time logged');
 
     csCurrentTradeId = trade.id;
@@ -5512,6 +5610,7 @@
       var stopLossInput = section.querySelector('#input-stop-loss');
       var entryTimeInput = section.querySelector('#input-entry-time');
       var notesInput = section.querySelector('#input-notes');
+      var setupNameInput = section.querySelector('#input-setup-name');
 
       var originalTrade = nteEditingTradeId ? TradeStore.getById(nteEditingTradeId) : null;
 
@@ -5520,6 +5619,7 @@
         date: dateInput && dateInput.value ? dateInput.value : todayDateString(),
         entryTime: entryTimeInput && entryTimeInput.value ? entryTimeInput.value : '',
         pair: normalizePairSymbol(pairField.value),
+        setupName: setupNameInput ? setupNameInput.value.trim() : '',
         direction: directionInput ? directionInput.value : 'long',
         leverage: buildLeverageString(
           leverageMultiplierInput ? leverageMultiplierInput.value : '10',
@@ -5661,6 +5761,8 @@
       section.querySelector('#input-date').value = trade.date || '';
       section.querySelector('#input-entry-time').value = trade.entryTime || '';
       section.querySelector('#input-pair').value = trade.pair || '';
+      var setupNameField = section.querySelector('#input-setup-name');
+      if (setupNameField) setupNameField.value = trade.setupName || '';
       var editLeverageMultiplier = parseFloat((trade.leverage || '').match(/[\d.]+/) || 10);
       var multiplierSelect = section.querySelector('#input-leverage-multiplier');
       var hasOption = Array.prototype.some.call(multiplierSelect.options, function (o) { return Number(o.value) === editLeverageMultiplier; });
@@ -5708,6 +5810,8 @@
       ntePromotingPositionId = null;
       section.querySelector('#input-date').value = todayDateString();
       section.querySelector('#input-pair').value = duplicatingTrade.pair || '';
+      var dupSetupNameField = section.querySelector('#input-setup-name');
+      if (dupSetupNameField) dupSetupNameField.value = duplicatingTrade.setupName || '';
       var dupLeverageMultiplier = parseFloat((duplicatingTrade.leverage || '').match(/[\d.]+/) || 10);
       var dupMultiplierSelect = section.querySelector('#input-leverage-multiplier');
       var dupHasOption = Array.prototype.some.call(dupMultiplierSelect.options, function (o) { return Number(o.value) === dupLeverageMultiplier; });

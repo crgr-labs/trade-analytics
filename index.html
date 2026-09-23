@@ -1885,11 +1885,13 @@
     <div class="flex items-center justify-between gap-4 pb-4">
       <a class="inline-flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#trade-journal">
         <span class="material-symbols-outlined text-[14px]">arrow_back</span>
-        <span>JOURNAL / TRADE JOURNAL / <span id="cs-breadcrumb-pair">--</span></span>
+        <span>JOURNAL / TRADE JOURNAL / <span class="text-primary font-semibold" id="cs-breadcrumb-pair">CASE STUDIES</span></span>
       </a>
-      <div class="inline-flex items-center gap-2">
-        <span class="font-metric-sm text-metric-sm text-secondary">ARCHIVE ID:</span>
-        <span class="font-metric-sm text-metric-sm px-2 py-0.5 rounded-lg bg-surface-container-lowest shadow-sm text-on-surface-variant font-medium" id="cs-archive-id">--</span>
+      <div id="cs-archive-id-wrap" hidden>
+        <div class="inline-flex items-center gap-2">
+          <span class="font-metric-sm text-metric-sm text-secondary">ARCHIVE ID:</span>
+          <span class="font-metric-sm text-metric-sm px-2 py-0.5 rounded-lg bg-surface-container-lowest shadow-sm text-on-surface-variant font-medium" id="cs-archive-id">--</span>
+        </div>
       </div>
     </div>
 
@@ -1900,7 +1902,33 @@
           <h1 class="font-headline-lg text-headline-lg text-on-surface font-semibold">All Case Studies</h1>
           <p class="font-body-sm text-body-sm text-on-surface-variant">Pick a logged trade to open its retrospective.</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="flex items-center gap-2" id="cs-filter-pill-group">
+            <button
+              class="filter-pill bg-on-surface text-surface-container-lowest font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              data-filter="all">
+              <span>All</span>
+              <span class="opacity-75 text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full" data-pill-count="all">0</span>
+            </button>
+            <button
+              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              data-filter="win">
+              <span>Wins</span>
+              <span class="text-tertiary font-semibold" data-pill-count="win">0</span>
+            </button>
+            <button
+              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              data-filter="loss">
+              <span>Losses</span>
+              <span class="text-error font-semibold" data-pill-count="loss">0</span>
+            </button>
+            <button
+              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              data-filter="open">
+              <span>Open</span>
+              <span class="text-secondary font-semibold" data-pill-count="open">0</span>
+            </button>
+          </div>
           <div class="relative flex items-center">
             <span class="material-symbols-outlined absolute left-3 text-secondary text-[16px]">search</span>
             <input class="pl-9 pr-3 py-1.5 h-8 w-48 lg:w-60 bg-surface-container-lowest rounded-lg font-metric-sm text-metric-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-low transition-colors shadow-sm" id="cs-search-input" placeholder="Search pair (e.g. HNT, 0G)..." type="text" />
@@ -1914,6 +1942,39 @@
               <option value="pair">Pair (A-Z)</option>
               <option value="confluence">Confluence filled</option>
             </select>
+          </div>
+        </div>
+      </div>
+      <!-- KPI Ribbon: same real numbers already computed for the Trade Journal P&L breakdown -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4">
+        <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Win Rate</span>
+            <span class="material-symbols-outlined text-[18px] text-tertiary">verified</span>
+          </div>
+          <div class="mt-4">
+            <div class="text-metric-display font-metric-display text-on-surface" id="cs-kpi-winrate">--</div>
+            <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="cs-kpi-winrate-sub">--</div>
+          </div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Total Net P&amp;L</span>
+            <span class="material-symbols-outlined text-[18px] text-secondary">payments</span>
+          </div>
+          <div class="mt-4">
+            <div class="text-metric-display font-metric-display text-on-surface" id="cs-kpi-netpnl">--</div>
+            <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="cs-kpi-netpnl-sub">--</div>
+          </div>
+        </div>
+        <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between min-w-0">
+          <div class="flex items-center justify-between">
+            <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Best Case Study</span>
+            <span class="material-symbols-outlined text-[18px] text-tertiary">military_tech</span>
+          </div>
+          <div class="mt-4 min-w-0">
+            <a class="text-metric-display font-metric-display text-on-surface hover:text-primary transition-colors truncate block" id="cs-kpi-best-link" href="#case-studies">--</a>
+            <div class="text-metric-sm font-metric-sm text-secondary mt-1 truncate" id="cs-kpi-best-sub">--</div>
           </div>
         </div>
       </div>
@@ -3014,6 +3075,15 @@
                           class="h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 uppercase transition-all"
                           id="input-pair" placeholder="e.g. HNTUSDT.P" type="text" />
                       </div>
+                    </div>
+                    <!-- Row 1b: Setup Name (optional, freeform - distinct from the confluence checklist) -->
+                    <div class="flex flex-col gap-1.5">
+                      <label
+                        class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Setup
+                        Name <span class="normal-case text-outline-variant">(optional)</span></label>
+                      <input
+                        class="h-[38px] px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        id="input-setup-name" maxlength="80" placeholder="e.g. 15m Range Breakout &amp; Retest" type="text" />
                     </div>
                     <!-- Row 2: Direction & Leverage -->
                     <div class="grid grid-cols-2 gap-3">
