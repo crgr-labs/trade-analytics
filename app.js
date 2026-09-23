@@ -3145,6 +3145,11 @@
   }
 
   function dayCellHtml(d, noun, usingPositions) {
+    // Whether this day is net profitable (only meaningful when using positions)
+    var hasPnl  = usingPositions && d.total > 0;
+    var netPos  = hasPnl && d.net > 0;
+    var netNeg  = hasPnl && d.net < 0;
+
     if (d.total === 0) {
       return (
         '<div class="group relative rounded-lg bg-surface-container p-4 text-center flex flex-col justify-between h-32 opacity-75 transition-all duration-200">' +
@@ -3157,55 +3162,103 @@
         '</div>'
       );
     }
-    if (d.wins > 0 && d.losses > 0) {
-      return (
-        '<div class="th-day-cell group relative rounded-lg bg-secondary-fixed p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" data-day="' + d.day + '" role="button" tabindex="0">' +
-          '<div class="flex items-center justify-between">' +
-            '<span class="font-label-eyebrow text-label-eyebrow text-on-secondary-fixed font-bold">' + d.abbr + '</span>' +
-            '<span class="w-2 h-2 rounded-full bg-error"></span>' +
-          '</div>' +
-          '<div class="my-auto"><span class="font-metric-display text-metric-display text-on-surface font-bold block leading-none">' + d.rate + '%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-on-secondary-fixed-variant font-medium">' + timingCountLabel(d.total, noun) + timingNetLabel(d.net, usingPositions) + ' <span class="text-error font-semibold">(' + d.losses + ' loss' + (d.losses === 1 ? '' : 'es') + ')</span></div>' +
-        '</div>'
-      );
+
+    // Pick background and text colours based on profitability (positions) or win rate (trades)
+    var bgClass, labelClass, rateTextClass, dotClass;
+    if (usingPositions) {
+      // Profitability-first colouring
+      if (netPos) {
+        bgClass       = 'bg-tertiary-fixed/40 border-l-4 border-tertiary';
+        labelClass    = 'text-tertiary font-bold';
+        rateTextClass = 'text-tertiary';
+        dotClass      = 'bg-tertiary';
+      } else if (netNeg) {
+        bgClass       = 'bg-error-container/40 border-l-4 border-error';
+        labelClass    = 'text-error font-bold';
+        rateTextClass = 'text-error';
+        dotClass      = 'bg-error';
+      } else {
+        // Exactly break-even
+        bgClass       = 'bg-secondary-fixed border-l-4 border-outline-variant';
+        labelClass    = 'text-on-secondary-fixed font-bold';
+        rateTextClass = 'text-on-surface';
+        dotClass      = 'bg-outline-variant';
+      }
+    } else {
+      // Trade mode: colour by win rate only (no P&L)
+      if (d.wins > 0 && d.losses > 0) {
+        bgClass = 'bg-secondary-fixed'; labelClass = 'text-on-secondary-fixed font-bold';
+        rateTextClass = 'text-on-surface'; dotClass = 'bg-error';
+      } else if (d.losses > 0) {
+        bgClass = 'bg-error-container/40'; labelClass = 'text-error font-bold';
+        rateTextClass = 'text-error'; dotClass = 'bg-error';
+      } else {
+        bgClass = 'bg-tertiary-fixed/40'; labelClass = 'text-on-tertiary-fixed font-bold';
+        rateTextClass = 'text-tertiary'; dotClass = 'bg-tertiary-container';
+      }
     }
-    if (d.losses > 0) {
-      return (
-        '<div class="th-day-cell group relative rounded-lg bg-error-container/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" data-day="' + d.day + '" role="button" tabindex="0">' +
-          '<div class="flex items-center justify-between">' +
-            '<span class="font-label-eyebrow text-label-eyebrow text-error font-bold">' + d.abbr + '</span>' +
-            '<span class="w-2 h-2 rounded-full bg-error"></span>' +
-          '</div>' +
-          '<div class="my-auto"><span class="font-metric-display text-metric-display text-error font-bold block leading-none">0%</span></div>' +
-          '<div class="font-metric-sm text-metric-sm text-error font-medium">' + timingCountLabel(d.total, noun) + timingNetLabel(d.net, usingPositions) + '</div>' +
-        '</div>'
-      );
+
+    var rateLabel = d.wins > 0 && d.losses > 0 ? d.rate + '%'
+                  : d.losses > 0 ? '0%' : '100%';
+
+    // Bottom line: show wins/losses count + net P&L when available
+    var bottomLine = d.wins + 'W / ' + d.losses + 'L';
+    if (usingPositions) {
+      var netSign = d.net >= 0 ? '+' : '';
+      bottomLine += ' · <span class="' + (d.net >= 0 ? 'text-tertiary' : 'text-error') + ' font-semibold">' + netSign + '$' + Math.abs(d.net).toFixed(2) + '</span>';
     }
+
     return (
-      '<div class="th-day-cell group relative rounded-lg bg-tertiary-fixed/40 p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" data-day="' + d.day + '" role="button" tabindex="0">' +
+      '<div class="th-day-cell group relative rounded-lg ' + bgClass + ' p-4 text-center flex flex-col justify-between h-32 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer" data-day="' + d.day + '" role="button" tabindex="0">' +
         '<div class="flex items-center justify-between">' +
-          '<span class="font-label-eyebrow text-label-eyebrow text-on-tertiary-fixed font-bold">' + d.abbr + '</span>' +
-          '<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>' +
+          '<span class="font-label-eyebrow text-label-eyebrow ' + labelClass + '">' + d.abbr + '</span>' +
+          '<span class="w-2 h-2 rounded-full ' + dotClass + '"></span>' +
         '</div>' +
-        '<div class="my-auto"><span class="font-metric-display text-metric-display text-tertiary font-bold block leading-none">100%</span></div>' +
-        '<div class="font-metric-sm text-metric-sm text-on-tertiary-fixed-variant font-medium">' + timingCountLabel(d.total, noun) + timingNetLabel(d.net, usingPositions) + '</div>' +
+        '<div class="my-auto"><span class="font-metric-display text-metric-display ' + rateTextClass + ' font-bold block leading-none">' + rateLabel + '</span></div>' +
+        '<div class="font-metric-sm text-metric-sm font-medium ' + (usingPositions ? '' : labelClass) + '">' + bottomLine + '</div>' +
       '</div>'
     );
   }
 
   function detailRowHtml(d, noun, usingPositions) {
-    var dotColor = d.losses > 0 ? 'bg-error' : 'bg-tertiary-container';
-    var rateColor = d.losses > 0 ? 'text-error' : 'text-tertiary-container';
+    var profitable = usingPositions && d.net > 0;
+    var unprofitable = usingPositions && d.net < 0;
+
+    // Dot and rate colouring: positions → net P&L, trades → win/loss presence
+    var dotColor  = usingPositions
+      ? (profitable ? 'bg-tertiary' : (unprofitable ? 'bg-error' : 'bg-outline-variant'))
+      : (d.losses > 0 ? 'bg-error' : 'bg-tertiary-container');
+    var rateColor = usingPositions
+      ? (profitable ? 'text-tertiary' : (unprofitable ? 'text-error' : 'text-secondary'))
+      : (d.losses > 0 ? 'text-error' : 'text-tertiary-container');
     var pillClass = (d.wins > 0 && d.losses > 0) ? 'bg-secondary-fixed text-on-secondary-fixed' : 'bg-surface-container text-on-surface-variant';
-    var netCell = usingPositions
-      ? '<td class="py-3 px-3 font-metric-md text-metric-md font-semibold text-right ' + (d.net >= 0 ? 'text-tertiary' : 'text-error') + '">' + formatSignedMoney(d.net) + '</td>'
-      : '';
+
+    // Net P&L cell (shown for positions; in trade mode show wins/losses breakdown instead)
+    var extraCell;
+    if (usingPositions) {
+      var netSign = d.net >= 0 ? '+' : '';
+      extraCell = '<td class="py-3 px-3 font-metric-md text-metric-md font-semibold text-right ' +
+        (profitable ? 'text-tertiary' : (unprofitable ? 'text-error' : 'text-secondary')) + '">' +
+        netSign + '$' + Math.abs(d.net).toFixed(2) + '</td>';
+    } else {
+      extraCell = '<td class="py-3 px-3 font-metric-sm text-metric-sm text-secondary text-right">' +
+        d.wins + 'W / ' + d.losses + 'L</td>';
+    }
+
+    // Rate label with profit/loss tag
+    var rateLabel = d.rate + '%';
+    if (usingPositions && d.total > 0) {
+      rateLabel += '<span class="ml-1.5 text-[10px] font-semibold px-1 py-0.5 rounded ' +
+        (profitable ? 'bg-tertiary/15 text-tertiary' : (unprofitable ? 'bg-error/15 text-error' : 'bg-surface-container text-secondary')) + '">' +
+        (profitable ? 'PROFIT' : (unprofitable ? 'LOSS' : 'EVEN')) + '</span>';
+    }
+
     return (
       '<tr class="th-day-row hover:bg-surface-container-low/50 transition-colors cursor-pointer" data-day="' + d.day + '">' +
         '<td class="py-3 px-3 font-medium text-on-surface flex items-center gap-2"><span class="w-2 h-2 rounded-full ' + dotColor + '"></span>' + d.day + '</td>' +
         '<td class="py-3 px-3 font-metric-sm text-metric-sm text-on-surface-variant text-right">' + timingCountLabel(d.total, noun) + '</td>' +
-        '<td class="py-3 px-3 font-metric-md text-metric-md font-bold ' + rateColor + ' text-right">' + d.rate + '%</td>' +
-        netCell +
+        '<td class="py-3 px-3 font-metric-md text-metric-md font-bold ' + rateColor + ' text-right">' + rateLabel + '</td>' +
+        extraCell +
         '<td class="py-3 px-3 text-secondary font-medium"><span class="px-2 py-0.5 rounded ' + pillClass + ' font-metric-sm text-metric-sm">' + escapeHtml(d.dominantSetup || '—') + '</span></td>' +
       '</tr>'
     );
