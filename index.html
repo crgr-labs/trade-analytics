@@ -42,6 +42,42 @@
       display: none;
     }
 
+    /* Case study chart panel, browser full screen: the image fills the screen,
+       the zoom modal (a body-level element) can't open above it, so the image
+       stops being click-to-zoom and gets its own exit button. */
+    #cs-chart-container:fullscreen {
+      background: #fff;
+      padding: 1.5rem;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #cs-chart-container:fullscreen img {
+      width: auto;
+      max-width: 100%;
+      max-height: calc(100vh - 8rem);
+      margin: 0 auto;
+      object-fit: contain;
+    }
+
+    #cs-chart-container:fullscreen .chart-preview-btn {
+      pointer-events: none;
+    }
+
+    .cs-fs-exit {
+      display: none;
+    }
+
+    #cs-chart-container:fullscreen .cs-fs-exit {
+      display: flex;
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 10;
+    }
+
     /* Tailwind's reset hides [hidden] with normal specificity, so a display
        utility (flex / grid) on the same element would win and show it. */
     [hidden] {
@@ -2076,7 +2112,11 @@
             <h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Chart Evidence (Multi-Timeframe)</h2>
           </div>
           <div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm">
-            <div class="flex items-center gap-2 mb-4" id="cs-chart-tabs"></div>
+            <!-- Panel chrome: timeframe tabs left, view actions (Full screen) right -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div class="flex items-center gap-2" id="cs-chart-tabs"></div>
+              <div class="flex items-center gap-4 no-print" id="cs-chart-actions"></div>
+            </div>
             <div id="cs-chart-container"></div>
           </div>
           <!-- Trade Notes Card -->
@@ -3392,20 +3432,8 @@
                 <!-- Slots are rendered from the draft state by renderChartSlots(). -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4" id="chart-slots"></div>
                 <p class="font-metric-sm text-metric-sm text-secondary mt-3">PNG or JPG, up to 10MB. Images are resized
-                  to fit local storage.</p>
-                <div class="mt-4 pt-4 border-t border-surface-container">
-                  <label
-                    class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider block mb-1.5"
-                    for="input-chart-link">TradingView Snapshot Link (optional)</label>
-                  <input
-                    class="h-[38px] w-full px-3.5 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                    id="input-chart-link" type="text" placeholder="https://www.tradingview.com/x/XXXXXXXX/"
-                    autocomplete="off" />
-                  <p class="font-metric-sm text-metric-sm text-error mt-1.5" id="chart-link-warning" hidden>This
-                    doesn't look like a TradingView link</p>
-                  <p class="font-metric-sm text-metric-sm text-secondary mt-1.5">In TradingView, press Alt+S or use
-                    the camera icon to generate a shareable snapshot link.</p>
-                </div>
+                  to fit local storage. Each timeframe takes its own image, its own TradingView snapshot link, or both
+                  &mdash; in TradingView, press Alt+S or use the camera icon to generate a shareable link.</p>
               </div>
             </form>
             <!-- Visual Analytical Status Bar -->

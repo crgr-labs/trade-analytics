@@ -198,6 +198,21 @@
     }
     trade.charts = charts;
 
+    // TradingView snapshot links are per timeframe too (`chartLinks`, plain
+    // strings). The old trade-wide link (`chart`) has no known timeframe, so
+    // it moves to the first empty slot - Daily in practice - and is cleared.
+    var links = trade.chartLinks && typeof trade.chartLinks === 'object' ? trade.chartLinks : {};
+    CHART_TIMEFRAMES.forEach(function (tf) {
+      links[tf.key] = typeof links[tf.key] === 'string' ? links[tf.key].trim() : '';
+    });
+    if (trade.chart && trade.chart.type === 'link') {
+      var legacyLink = String(trade.chart.value || '').trim();
+      var freeSlot = CHART_TIMEFRAMES.filter(function (tf) { return !links[tf.key]; })[0];
+      if (legacyLink && freeSlot) links[freeSlot.key] = legacyLink;
+      trade.chart = null;
+    }
+    trade.chartLinks = links;
+
     // Per-factor checklist status. Only non-default states are stored, so a
     // missing key means Passed and older trades need no migration beyond this.
     var statuses = {};
@@ -222,6 +237,29 @@
       if (charts[CHART_TIMEFRAMES[i].key]) return CHART_TIMEFRAMES[i].key;
     }
     return null;
+  }
+
+  function tradeChartLinks(trade) {
+    return trade && trade.chartLinks ? trade.chartLinks : { daily: '', h4: '', m15: '' };
+  }
+
+  // First timeframe holding an image or a link - the tab the case study opens on.
+  function firstAttachedChartKey(trade) {
+    var charts = tradeCharts(trade);
+    var links = tradeChartLinks(trade);
+    for (var i = 0; i < CHART_TIMEFRAMES.length; i++) {
+      var key = CHART_TIMEFRAMES[i].key;
+      if (charts[key] || links[key]) return key;
+    }
+    return null;
+  }
+
+  function firstChartLink(trade) {
+    var links = tradeChartLinks(trade);
+    for (var i = 0; i < CHART_TIMEFRAMES.length; i++) {
+      if (links[CHART_TIMEFRAMES[i].key]) return links[CHART_TIMEFRAMES[i].key];
+    }
+    return '';
   }
 
   function chartTimeframe(key) {
@@ -419,9 +457,9 @@
   // A link-backed chart can't be previewed in the modal - there's no image
   // file behind the URL - so it opens TradingView in a new tab instead.
   function tradeChartCellHtml(trade) {
-    var chart = trade.chart;
-    if (chart && chart.type === 'link' && chart.value && !firstChartKey(trade)) {
-      var href = safeUrl(chart.value);
+    var link = firstChartLink(trade);
+    if (link && !firstChartKey(trade)) {
+      var href = safeUrl(link);
       if (href === '#') return '';
       return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" ' +
         'class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors" ' +
@@ -3859,16 +3897,17 @@
     return text.slice(0, head) + '…' + text.slice(text.length - (max - 1 - head));
   }
 
-  // Tab pills reuse the All / Wins / Losses pill treatment. Inside a white card
-  // the inactive pill uses surface-container-low so it stays visible.
+  // Tab pills are the All / Wins / Losses filter chips: active is the solid
+  // dark pill, inactive is a light pill outlined by the card shadow's hairline.
   function chartTabsHtml(trade, activeKey) {
     var charts = tradeCharts(trade);
+    var links = tradeChartLinks(trade);
     return CHART_TIMEFRAMES.map(function (tf) {
       // An empty timeframe is dimmed with a lighter text token, not opacity:
       // opacity-60 dropped the label to 3:1 contrast, secondary keeps 5.9:1.
       var stateClass = tf.key === activeKey
         ? 'bg-on-surface text-surface-container-lowest'
-        : 'bg-surface-container-low hover:bg-surface-container ' + (charts[tf.key] ? 'text-on-surface-variant' : 'text-secondary');
+        : 'bg-surface-container-lowest hover:bg-surface-container-low ' + (charts[tf.key] || links[tf.key] ? 'text-on-surface-variant' : 'text-secondary');
       return (
         '<button type="button" data-tf="' + tf.key + '" class="cs-chart-tab font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all ' + stateClass + '">' +
           tf.label +
@@ -3880,18 +3919,19 @@
   function chartEvidenceHtml(trade, tfKey) {
     var tf = chartTimeframe(tfKey);
     var image = tradeCharts(trade)[tf.key];
-    var link = trade.chart && trade.chart.type === 'link' && trade.chart.value ? trade.chart : null;
+    var linkValue = tradeChartLinks(trade)[tf.key] || '';
+    var link = linkValue ? { value: linkValue } : null;
     var safeLink = link ? safeUrl(link.value) : '#';
 
     // A TradingView snapshot URL is a web page, not an image file, and those
     // pages aren't guaranteed to permit framing - so it's presented as a
     // link card sized like the placeholder rather than embedded. It only
-    // takes the body when there is no uploaded screenshot to show instead.
-    if (link && !firstChartKey(trade)) {
+    // takes the body when this timeframe has no uploaded screenshot.
+    if (link && !image) {
       return (
         '<div class="rounded-xl bg-surface-container-low p-10 flex flex-col items-center justify-center text-center gap-2">' +
           '<span class="material-symbols-outlined text-primary text-[32px]">candlestick_chart</span>' +
-          '<span class="font-headline-sm text-headline-sm text-on-surface font-medium">TradingView snapshot</span>' +
+          '<span class="font-headline-sm text-headline-sm text-on-surface font-medium">TradingView ' + tf.label + ' snapshot</span>' +
           '<span class="font-metric-sm text-metric-sm text-secondary break-all max-w-full" title="' + escapeHtml(link.value) + '">' + escapeHtml(truncateMiddle(link.value, 52)) + '</span>' +
           (safeLink !== '#'
             ? '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-container text-on-primary px-3.5 py-1.5 rounded-lg font-headline-sm text-[12px] font-semibold shadow-sm transition-colors">' +
@@ -3913,6 +3953,7 @@
       // rather than straight on the white card padding.
       return (
         '<div class="bg-surface-container-low rounded-xl p-3">' +
+          '<button type="button" class="cs-fs-exit items-center gap-1.5 bg-on-surface text-surface-container-lowest px-3.5 py-1.5 rounded-full font-metric-sm text-metric-sm font-semibold shadow-sm"><span class="material-symbols-outlined text-[16px]">fullscreen_exit</span>Exit full screen</button>' +
           '<div class="chart-preview-btn relative rounded-lg overflow-hidden shadow-sm cursor-zoom-in" data-trade-id="' + escapeHtml(trade.id) + '" data-tf="' + tf.key + '" title="Click to zoom">' +
             '<img src="' + safeImageUrl(image.value) + '" alt="' + tf.label + ' chart for ' + escapeHtml(trade.pair) + '" class="w-full h-auto block" />' +
             '<span class="absolute top-3 left-3 bg-surface-container-lowest/90 text-primary font-metric-sm text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">' + tf.short + '</span>' +
@@ -3926,13 +3967,15 @@
       );
     }
 
+    // Empty timeframe: the same dashed dropzone the entry form shows for an
+    // empty slot, linking straight to that trade's Edit Entry to fill it.
     return (
-      '<div class="rounded-xl bg-surface-container-low p-10 flex flex-col items-center justify-center text-center gap-2">' +
-        '<span class="material-symbols-outlined text-secondary text-[32px]">image</span>' +
+      '<a href="#new-trade-entry/' + encodeURIComponent(trade.id) + '" class="group rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low hover:bg-surface-container hover:border-primary transition-all p-10 flex flex-col items-center justify-center text-center gap-2 no-underline">' +
+        '<span class="bg-primary/10 text-primary font-metric-sm text-[10px] font-semibold px-1.5 py-0.5 rounded">' + tf.short + '</span>' +
+        '<span class="material-symbols-outlined text-[32px] text-secondary group-hover:text-primary transition-colors">add_a_photo</span>' +
         '<span class="font-headline-sm text-headline-sm text-on-surface font-medium">No ' + tf.label + ' chart attached</span>' +
-        '<span class="font-metric-sm text-metric-sm text-secondary">Attach one from Edit Entry</span>' +
-      '</div>' +
-      (link ? '<div class="flex items-center px-1 pt-2">' + linkButton + '</div>' : '')
+        '<span class="font-metric-sm text-metric-sm text-secondary">Add an image or TradingView link in Edit Entry</span>' +
+      '</a>'
     );
   }
 
@@ -4363,6 +4406,58 @@
     var container = section.querySelector('#cs-chart-container');
     if (tabs) tabs.innerHTML = chartTabsHtml(trade, csActiveChartTf);
     if (container) container.innerHTML = chartEvidenceHtml(trade, csActiveChartTf);
+    renderCaseStudyChartActions(section, trade);
+  }
+
+  var CS_CHART_ACTION_CLASS = 'inline-flex items-center gap-1.5 text-secondary hover:text-primary font-metric-sm text-metric-sm font-semibold transition-colors';
+
+  function chartFullscreenLabelHtml() {
+    var active = !!document.fullscreenElement;
+    return '<span class="material-symbols-outlined text-[16px]">' + (active ? 'fullscreen_exit' : 'fullscreen') + '</span>' +
+      '<span>' + (active ? 'Exit full screen' : 'Full screen') + '</span>';
+  }
+
+  // Full screen applies to the active timeframe: an uploaded image goes
+  // full screen in place (browser Fullscreen API), a link-only timeframe opens
+  // its TradingView snapshot in a new tab (that page can't be framed), and an
+  // empty timeframe has nothing to expand so shows no action.
+  function renderCaseStudyChartActions(section, trade) {
+    var el = section.querySelector('#cs-chart-actions');
+    if (!el) return;
+    var image = tradeCharts(trade)[csActiveChartTf];
+    var linkValue = tradeChartLinks(trade)[csActiveChartTf];
+    var href = linkValue ? safeUrl(linkValue) : '#';
+    if (image) {
+      el.innerHTML = '<button type="button" id="cs-chart-fullscreen" class="' + CS_CHART_ACTION_CLASS + '" title="Show this chart full screen">' + chartFullscreenLabelHtml() + '</button>';
+    } else if (href !== '#') {
+      el.innerHTML = '<a href="' + href + '" target="_blank" rel="noopener noreferrer" class="' + CS_CHART_ACTION_CLASS + '" title="Open this snapshot in TradingView">' +
+        '<span class="material-symbols-outlined text-[16px]">open_in_new</span><span>Open in TradingView</span></a>';
+    } else {
+      el.innerHTML = '';
+    }
+  }
+
+  function toggleChartFullscreen(section, trade) {
+    var container = section.querySelector('#cs-chart-container');
+    if (!container) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+      return;
+    }
+    var request = container.requestFullscreen || container.webkitRequestFullscreen;
+    if (request) {
+      var result = request.call(container);
+      if (result && result.catch) result.catch(function () { openChartPreviewFallback(section); });
+    } else {
+      openChartPreviewFallback(section);
+    }
+  }
+
+  // No Fullscreen API (or the browser refused): the existing zoom viewer
+  // opens the same image, through the delegated .chart-preview-btn handler.
+  function openChartPreviewFallback(section) {
+    var target = section.querySelector('#cs-chart-container .chart-preview-btn');
+    if (target) target.click();
   }
 
   function renderCaseStudy(tradeIdParam) {
@@ -4435,7 +4530,7 @@
     setMetaTile(section, 'session', tradeSessionLabel(trade) || '', '', 'No entry time logged');
 
     csCurrentTradeId = trade.id;
-    csActiveChartTf = firstChartKey(trade) || 'daily';
+    csActiveChartTf = firstAttachedChartKey(trade) || 'daily';
     renderCaseStudyChart(section, trade);
     renderCaseStudyChecklist(section, trade);
     section.querySelector('#cs-notes-text').textContent = trade.notes && trade.notes.trim() ? trade.notes : 'No notes recorded for this trade.';
@@ -4640,6 +4735,24 @@
         renderCaseStudyChart(section, trade);
       });
     }
+
+    // The Full screen button is re-rendered with the tabs, and the exit button
+    // lives inside the fullscreen element itself, so both are delegated.
+    section.addEventListener('click', function (e) {
+      var target = e.target.closest ? e.target : null;
+      if (!target || !csCurrentTradeId) return;
+      var trade = TradeStore.getById(csCurrentTradeId);
+      if (!trade) return;
+      if (target.closest('#cs-chart-fullscreen') || target.closest('.cs-fs-exit')) toggleChartFullscreen(section, trade);
+    });
+    document.addEventListener('fullscreenchange', function () {
+      var btn = section.querySelector('#cs-chart-fullscreen');
+      if (btn) btn.innerHTML = chartFullscreenLabelHtml();
+    });
+    // Leaving the page (or picking another trade) mustn't strand a fullscreen panel.
+    document.addEventListener('screenchange', function () {
+      if (document.fullscreenElement) document.exitFullscreen();
+    });
 
     var editBtn = section.querySelector('#cs-btn-edit');
     if (editBtn) {
@@ -4943,6 +5056,7 @@
   var nteEditingTradeId = null;
   var ntePromotingPositionId = null;
   var nteChartImages = { daily: null, h4: null, m15: null };
+  var nteChartLinks = { daily: '', h4: '', m15: '' };
   var nteChartErrors = {};
   var nteChartTargetTf = null;
   // Bumped whenever the form is reset, so an image still being compressed
@@ -4983,16 +5097,24 @@
     });
   }
 
+  // A timeframe counts as attached with an image, a link, or both.
+  function renderChartAttachedCount(section) {
+    var counter = section.querySelector('#chart-attached-count');
+    if (!counter) return;
+    var attached = CHART_TIMEFRAMES.filter(function (tf) { return nteChartImages[tf.key] || nteChartLinks[tf.key]; }).length;
+    counter.textContent = attached + ' / ' + CHART_TIMEFRAMES.length + ' ATTACHED';
+  }
+
+  // Each timeframe is its own image slot plus its own TradingView link input
+  // (either, or both, may be filled).
   function renderChartSlots(section) {
     var container = section.querySelector('#chart-slots');
     if (!container) return;
-    var attached = 0;
     container.innerHTML = CHART_TIMEFRAMES.map(function (tf) {
       var image = nteChartImages[tf.key];
       var error = nteChartErrors[tf.key];
       var slot;
       if (image) {
-        attached += 1;
         slot =
           '<div class="chart-slot relative aspect-[16/10] rounded-xl overflow-hidden bg-surface-container-low cursor-pointer transition-all" data-tf="' + tf.key + '" role="button" tabindex="0" title="Click to replace">' +
             '<img src="' + image.value + '" alt="' + tf.label + ' chart" class="absolute inset-0 w-full h-full object-cover" />' +
@@ -5009,10 +5131,17 @@
             '<span class="font-metric-sm text-metric-sm text-secondary">Drop image or click to upload</span>' +
           '</div>';
       }
-      return '<div>' + slot + (error ? '<p class="font-metric-sm text-metric-sm text-error mt-1.5">' + escapeHtml(error) + '</p>' : '') + '</div>';
+      var linkValue = nteChartLinks[tf.key] || '';
+      var linkInput =
+        '<div class="mt-2">' +
+          '<label class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider block mb-1" for="chart-link-' + tf.key + '">' + tf.label + ' TradingView link (optional)</label>' +
+          '<input class="chart-link-input h-[34px] w-full px-3 rounded-lg bg-surface-container-low text-on-surface font-metric-sm text-metric-sm placeholder:text-outline-variant focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" ' +
+            'id="chart-link-' + tf.key + '" data-tf="' + tf.key + '" type="text" placeholder="https://www.tradingview.com/x/XXXXXXXX/" autocomplete="off" value="' + escapeHtml(linkValue) + '" />' +
+          '<p class="chart-link-warning font-metric-sm text-metric-sm text-error mt-1" data-tf="' + tf.key + '"' + (chartLinkLooksOff(linkValue) ? '' : ' hidden') + '>This doesn’t look like a TradingView link</p>' +
+        '</div>';
+      return '<div>' + slot + (error ? '<p class="font-metric-sm text-metric-sm text-error mt-1.5">' + escapeHtml(error) + '</p>' : '') + linkInput + '</div>';
     }).join('');
-    var counter = section.querySelector('#chart-attached-count');
-    if (counter) counter.textContent = attached + ' / ' + CHART_TIMEFRAMES.length + ' ATTACHED';
+    renderChartAttachedCount(section);
     updateFieldsCompleted(section);
   }
 
@@ -5645,9 +5774,10 @@
 
     if (nteSelectedParameters.length) filled++;
 
-    var hasChartImage = CHART_TIMEFRAMES.some(function (tf) { return nteChartImages[tf.key] && nteChartImages[tf.key].value; });
-    var chartLinkInput = section.querySelector('#input-chart-link');
-    if (hasChartImage || (chartLinkInput && chartLinkInput.value.trim())) filled++;
+    var hasChart = CHART_TIMEFRAMES.some(function (tf) {
+      return (nteChartImages[tf.key] && nteChartImages[tf.key].value) || nteChartLinks[tf.key];
+    });
+    if (hasChart) filled++;
 
     var total = textFields.length + 2;
     countEl.textContent = filled + ' / ' + total;
@@ -5656,18 +5786,11 @@
 
   // Deliberately advisory only - a snapshot can live on a shortened or
   // regional domain, so an unexpected host is flagged but never blocks a save.
-  function validateChartLink(section) {
-    var input = section.querySelector('#input-chart-link');
-    var warning = section.querySelector('#chart-link-warning');
-    if (!input || !warning) return;
-    var value = input.value.trim();
-    if (!value) {
-      warning.hidden = true;
-      return;
-    }
+  function chartLinkLooksOff(value) {
+    if (!value) return false;
     var isHttp = /^https?:\/\//i.test(value);
     var isTV = value.toLowerCase().indexOf('tradingview.com') !== -1;
-    warning.hidden = isHttp && isTV;
+    return !(isHttp && isTV);
   }
 
   function initNewTradeEntry() {
@@ -5683,13 +5806,23 @@
 
     initConfluencePicker(section);
 
-    var chartLinkInput = section.querySelector('#input-chart-link');
-    if (chartLinkInput) {
-      chartLinkInput.addEventListener('input', function () { validateChartLink(section); });
-    }
-
     var slotsEl = section.querySelector('#chart-slots');
     var slotInput = section.querySelector('#chart-slot-input');
+
+    // Each timeframe's link input is re-rendered with the slots, so what's
+    // typed lives in nteChartLinks rather than in the DOM. Typing doesn't
+    // re-render (that would drop focus); it only toggles the advisory note.
+    if (slotsEl) {
+      slotsEl.addEventListener('input', function (e) {
+        var input = e.target.closest ? e.target.closest('.chart-link-input') : null;
+        if (!input) return;
+        var tfKey = input.getAttribute('data-tf');
+        nteChartLinks[tfKey] = input.value.trim();
+        var warning = slotsEl.querySelector('.chart-link-warning[data-tf="' + tfKey + '"]');
+        if (warning) warning.hidden = !chartLinkLooksOff(nteChartLinks[tfKey]);
+        renderChartAttachedCount(section);
+      });
+    }
 
     function attachChartFile(tfKey, file) {
       if (!file) return;
@@ -5788,12 +5921,6 @@
     form.addEventListener('input', function () { updateFieldsCompleted(section); });
     form.addEventListener('change', function () { updateFieldsCompleted(section); });
 
-    function collectChartLink() {
-      var linkInput = section.querySelector('#input-chart-link');
-      var url = linkInput ? linkInput.value.trim() : '';
-      return url ? { type: 'link', value: url } : null;
-    }
-
     function collectTrade() {
       var directionInput = form.querySelector('input[name="direction"]:checked');
       var prevCandleInput = form.querySelector('input[name="prev_candle"]:checked');
@@ -5830,7 +5957,8 @@
         outcome: outcomeInput ? outcomeInput.value : 'open',
         parameters: nteSelectedParameters.slice(),
         charts: CHART_TIMEFRAMES.reduce(function (acc, tf) { acc[tf.key] = nteChartImages[tf.key]; return acc; }, {}),
-        chart: collectChartLink(),
+        chartLinks: CHART_TIMEFRAMES.reduce(function (acc, tf) { acc[tf.key] = (nteChartLinks[tf.key] || '').trim(); return acc; }, {}),
+        chart: null,
         notes: notesInput ? notesInput.value.trim() : ''
       };
 
@@ -5938,6 +6066,7 @@
     form.reset();
     nteChartEpoch += 1;
     nteChartImages = { daily: null, h4: null, m15: null };
+    nteChartLinks = { daily: '', h4: '', m15: '' };
     nteChartErrors = {};
     nteChartTargetTf = null;
     ntePromotingPositionId = null;
@@ -5980,8 +6109,9 @@
       CHART_TIMEFRAMES.forEach(function (tf) {
         nteChartImages[tf.key] = tradeCharts(trade)[tf.key];
       });
-      var linkField = section.querySelector('#input-chart-link');
-      if (linkField) linkField.value = trade.chart && trade.chart.type === 'link' ? (trade.chart.value || '') : '';
+      CHART_TIMEFRAMES.forEach(function (tf) {
+        nteChartLinks[tf.key] = tradeChartLinks(trade)[tf.key] || '';
+      });
       if (headingEl) headingEl.textContent = 'Edit Trade';
       if (stageBadgeEl) { stageBadgeEl.textContent = 'STAGE: EDIT'; }
       if (saveBtn) saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span> Save Changes';
@@ -6034,7 +6164,6 @@
     }
 
     renderChartSlots(section);
-    validateChartLink(section);
     updateDeltaDisplay(section);
   }
 
