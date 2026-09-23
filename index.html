@@ -320,6 +320,25 @@
                     <div class="font-metric-sm text-metric-sm text-secondary mt-0.5" id="ins-acct-winrate-sub"></div>
                   </div>
                 </div>
+                <!-- Second row: Expectancy + Avg Hold Time -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                  <div class="bg-surface-container-low rounded-xl p-4 flex flex-col">
+                    <div class="flex items-center justify-between">
+                      <div class="text-label-eyebrow font-label-eyebrow uppercase text-secondary tracking-wider">Expectancy</div>
+                      <span class="material-symbols-outlined text-[16px] text-secondary" title="(Win Rate × Avg Win$) − (Loss Rate × Avg Loss$)">info</span>
+                    </div>
+                    <div class="font-metric-lg text-metric-lg font-bold mt-1 text-secondary" id="ins-acct-expectancy">—</div>
+                    <div class="font-metric-sm text-metric-sm text-secondary mt-0.5" id="ins-acct-expectancy-sub">avg net per closed trade</div>
+                  </div>
+                  <div class="bg-surface-container-low rounded-xl p-4 flex flex-col">
+                    <div class="flex items-center justify-between">
+                      <div class="text-label-eyebrow font-label-eyebrow uppercase text-secondary tracking-wider">Avg Hold Time</div>
+                      <span class="material-symbols-outlined text-[16px] text-secondary" title="Average duration of winning vs losing positions">timer</span>
+                    </div>
+                    <div class="font-metric-md text-metric-md font-bold mt-1 text-on-surface" id="ins-acct-hold">—</div>
+                    <div class="font-metric-sm text-metric-sm text-secondary mt-0.5" id="ins-acct-hold-sub">avg duration by outcome</div>
+                  </div>
+                </div>
                 <div class="mt-4" id="ins-acct-equity"></div>
               </div>
             </div>

@@ -2104,7 +2104,16 @@
         '<span>' + formatIsoDateTime(new Date(points[0].t).toISOString()) + '</span>' +
         '<span>Peak ' + formatSignedMoney(peakCum) + ' · Trough ' + formatSignedMoney(troughCum) + '</span>' +
         '<span>' + formatIsoDateTime(new Date(points[points.length - 1].t).toISOString()) + '</span>' +
-      '</div>'
+      '</div>' +
+      (function () {
+        var dd = computeMaxDrawdown(ordered.map(function (it) { return { t: it.t, amount: it.amount }; }));
+        if (!dd) return '';
+        var pct = dd.peakCum > 0 ? ' (' + (Math.abs(dd.drawdown / dd.peakCum) * 100).toFixed(1) + '%)' : '';
+        return '<div class="text-center font-metric-sm text-metric-sm text-error mt-1 opacity-80">' +
+          'Max drawdown: ' + formatSignedMoney(dd.drawdown) + pct +
+          ' <span class="text-secondary">peak ' + formatSignedMoney(dd.peakCum) + ' → trough ' + formatSignedMoney(dd.troughCum) + '</span>' +
+        '</div>';
+      })()
     );
   }
 
@@ -5617,6 +5626,69 @@
     return longest;
   }
 
+  // Returns { count, direction } for the current active streak in the most
+  // recent trades.  direction = 'win' | 'loss' | 'none'.
+  function computeCurrentStreak(trades) {
+    var sorted = trades.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    var closed = sorted.filter(function (t) { return t.outcome === 'win' || t.outcome === 'loss'; });
+    if (!closed.length) return { count: 0, direction: 'none' };
+    var dir = closed[closed.length - 1].outcome;
+    var count = 0;
+    for (var i = closed.length - 1; i >= 0; i--) {
+      if (closed[i].outcome === dir) count++;
+      else break;
+    }
+    return { count: count, direction: dir };
+  }
+
+  // Expectancy = (Win Rate × Avg Win $) − (Loss Rate × Avg Loss $)
+  // Returns null when there isn't enough data.
+  function computeExpectancy(positions) {
+    var wins   = positions.filter(function (p) { return positionNet(p) > 0; });
+    var losses = positions.filter(function (p) { return positionNet(p) < 0; });
+    if (!wins.length || !losses.length) return null;
+    var total = wins.length + losses.length;
+    var avgWin  = wins.reduce(function (s, p) { return s + positionNet(p); }, 0) / wins.length;
+    var avgLoss = losses.reduce(function (s, p) { return s + positionNet(p); }, 0) / losses.length; // negative
+    var winRate  = wins.length / total;
+    var lossRate = losses.length / total;
+    return winRate * avgWin + lossRate * avgLoss; // avgLoss is negative so this subtracts
+  }
+
+  // Avg hold duration (ms) split by position outcome.
+  // Returns { avgWinMs, avgLossMs, winCount, lossCount }.
+  function computeAvgHoldTimes(positions) {
+    var winMs = 0, lossMs = 0, winN = 0, lossN = 0;
+    positions.forEach(function (p) {
+      var dur = positionDurationMs(p);
+      if (!isFinite(dur) || dur < 0) return;
+      var net = positionNet(p);
+      if (net > 0) { winMs += dur; winN++; }
+      else if (net < 0) { lossMs += dur; lossN++; }
+    });
+    return {
+      avgWinMs:  winN  > 0 ? winMs  / winN  : null,
+      avgLossMs: lossN > 0 ? lossMs / lossN : null,
+      winCount:  winN,
+      lossCount: lossN
+    };
+  }
+
+  // Max drawdown from an ordered { t, amount } series.
+  // Returns { drawdown (negative $), peakCum, troughCum } or null.
+  function computeMaxDrawdown(items) {
+    var ordered = items.slice().sort(function (a, b) { return a.t - b.t; });
+    if (ordered.length < 2) return null;
+    var cum = 0, peak = 0, maxDD = 0, ddPeak = 0, ddTrough = 0;
+    ordered.forEach(function (it) {
+      cum += it.amount;
+      if (cum > peak) peak = cum;
+      var dd = cum - peak;
+      if (dd < maxDD) { maxDD = dd; ddPeak = peak; ddTrough = cum; }
+    });
+    return maxDD < 0 ? { drawdown: maxDD, peakCum: ddPeak, troughCum: ddTrough } : null;
+  }
+
   // Win rate grouped by each trade's Daily-context tag (the first logged
   // confluence parameter, e.g. "Daily Uptrend & Momentum").
   function computeDailyContextStats(trades) {
@@ -5732,6 +5804,45 @@
     if (winEl) winEl.textContent = posStats.winRate.toFixed(1) + '%';
     if (winSubEl) winSubEl.textContent = posStats.wins + ' wins, ' + posStats.losses + ' losses';
 
+    // --- Expectancy ---
+    var expectEl = section.querySelector('#ins-acct-expectancy');
+    var expectSubEl = section.querySelector('#ins-acct-expectancy-sub');
+    var expectancy = computeExpectancy(positions);
+    if (expectEl) {
+      if (expectancy !== null) {
+        expectEl.textContent = formatSignedMoney(expectancy);
+        expectEl.className = 'font-metric-lg text-metric-lg font-bold mt-1 ' + (expectancy >= 0 ? 'text-tertiary' : 'text-error');
+      } else {
+        expectEl.textContent = '—';
+        expectEl.className = 'font-metric-lg text-metric-lg font-bold mt-1 text-secondary';
+      }
+    }
+    if (expectSubEl) {
+      expectSubEl.textContent = expectancy !== null
+        ? 'avg net per closed trade'
+        : 'need wins & losses to calculate';
+    }
+
+    // --- Avg Hold Time ---
+    var holdEl = section.querySelector('#ins-acct-hold');
+    var holdSubEl = section.querySelector('#ins-acct-hold-sub');
+    var holds = computeAvgHoldTimes(positions);
+    if (holdEl) {
+      var parts = [];
+      if (holds.avgWinMs !== null)  parts.push('W ' + formatDurationMs(holds.avgWinMs));
+      if (holds.avgLossMs !== null) parts.push('L ' + formatDurationMs(holds.avgLossMs));
+      holdEl.textContent = parts.length ? parts.join(' · ') : '—';
+      // Flag if average loss is held longer than average win (ride losers / cut winners)
+      var holdWarning = holds.avgWinMs !== null && holds.avgLossMs !== null && holds.avgLossMs > holds.avgWinMs;
+      holdEl.className = 'font-metric-md text-metric-md font-bold mt-1 ' + (holdWarning ? 'text-error' : 'text-on-surface');
+    }
+    if (holdSubEl) {
+      var holdWarning2 = holds.avgWinMs !== null && holds.avgLossMs !== null && holds.avgLossMs > holds.avgWinMs;
+      holdSubEl.textContent = holdWarning2
+        ? 'losses held longer than wins ⚠'
+        : (holds.avgWinMs !== null || holds.avgLossMs !== null ? 'avg duration by outcome' : 'no duration data yet');
+    }
+
     var equityEl = section.querySelector('#ins-acct-equity');
     if (equityEl) {
       var equityItems = positions.filter(function (p) { return p.closeTime; }).map(function (p) {
@@ -5794,10 +5905,22 @@
     if (winRateBarEl) winRateBarEl.style.width = winRate + '%';
 
     var longestStreak = computeLongestWinStreak(allTrades);
+    var currentStreak = computeCurrentStreak(allTrades);
     var streakValueEl = section.querySelector('#ins-kpi-streak-value');
-    var streakBarEl = section.querySelector('#ins-kpi-streak-bar');
+    var streakSubEl   = section.querySelector('#ins-kpi-streak-sub');
+    var streakBarEl   = section.querySelector('#ins-kpi-streak-bar');
     if (streakValueEl) streakValueEl.textContent = longestStreak;
     if (streakBarEl) streakBarEl.style.width = (closed.length ? Math.min(100, Math.round((longestStreak / closed.length) * 100)) : 0) + '%';
+    if (streakSubEl) {
+      if (currentStreak.direction === 'none') {
+        streakSubEl.textContent = 'consecutive wins';
+      } else {
+        var streakLabel = currentStreak.direction === 'win' ? '🔥 ' : '❄️ ';
+        streakLabel += 'Now: ' + currentStreak.count + ' ' + currentStreak.direction + (currentStreak.count === 1 ? '' : 's') + ' · Best: ' + longestStreak;
+        streakSubEl.textContent = streakLabel;
+        streakSubEl.className = 'text-body-sm font-body-sm mt-1 ' + (currentStreak.direction === 'win' ? 'text-tertiary' : 'text-error');
+      }
+    }
 
     // --- What Stands Out - reuses the Confluence Matrix screen's own
     // narrative computation, so the two screens can never disagree. ---
