@@ -4847,13 +4847,6 @@
       });
     }
 
-    var duplicateBtn = section.querySelector('#cs-btn-duplicate');
-    if (duplicateBtn) {
-      duplicateBtn.addEventListener('click', function () {
-        if (csCurrentTradeId) window.AppRouter.navigate('new-trade-entry', 'duplicate:' + csCurrentTradeId);
-      });
-    }
-
     // Export uses the browser's print dialog ("Save as PDF"); the print
     // stylesheet in index.html hides the app chrome and action buttons. The
     // tab title becomes the default PDF filename, so it's set for the print.
