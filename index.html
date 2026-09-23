@@ -42,6 +42,12 @@
       display: none;
     }
 
+    /* Tailwind's reset hides [hidden] with normal specificity, so a display
+       utility (flex / grid) on the same element would win and show it. */
+    [hidden] {
+      display: none !important;
+    }
+
     @media print {
 
       aside,
@@ -1997,29 +2003,29 @@
     </div>
 
     <div id="cs-content">
-      <!-- Header row: pair, direction, setup, return badges, outcome, actions -->
-      <div class="bg-surface-container-lowest rounded-xl p-space-xl shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-5">
-        <div class="flex flex-col gap-3 min-w-0">
-          <div class="flex items-center gap-3 no-print">
-            <a class="text-secondary hover:text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" href="#case-studies">
-              <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+      <!-- Header row: nav strip, title line (pair, direction, outcome, P&L / R badges), caption line, actions -->
+      <div class="bg-surface-container-lowest rounded-xl px-space-xl py-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex flex-col gap-1.5 min-w-0">
+          <div class="flex items-center gap-2 no-print">
+            <a class="text-secondary hover:text-on-surface font-metric-sm text-metric-sm flex items-center gap-1 transition-colors" href="#case-studies">
+              <span class="material-symbols-outlined text-[14px]">arrow_back</span>
               All Case Studies
             </a>
             <span class="text-outline-variant">•</span>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1">
               <button type="button" id="cs-btn-prev" title="Previous case study"
-                class="w-6 h-6 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
-                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                class="w-5 h-5 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
               </button>
               <span class="font-metric-sm text-metric-sm text-secondary" id="cs-position-label">--</span>
               <button type="button" id="cs-btn-next" title="Next case study"
-                class="w-6 h-6 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
-                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                class="w-5 h-5 rounded-lg flex items-center justify-center text-secondary hover:bg-surface-container-low hover:text-on-surface transition-colors disabled:opacity-30 disabled:pointer-events-none">
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
               </button>
             </div>
           </div>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <h1 class="font-metric-display text-[2.25rem] leading-[2.75rem] text-on-surface font-bold tracking-tight" id="cs-pair">--</h1>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h1 class="font-metric-display text-[2.25rem] leading-10 text-on-surface font-bold tracking-tight" id="cs-pair">--</h1>
             <span class="bg-surface-container-low text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-bold uppercase tracking-wider" id="cs-direction">--</span>
             <span class="bg-surface-container-low text-tertiary px-3 py-1 rounded-full font-metric-md text-metric-md font-semibold flex items-center gap-1.5" id="cs-outcome-pill">
               <span class="w-2 h-2 rounded-full bg-tertiary" id="cs-outcome-dot"></span>
@@ -2028,20 +2034,21 @@
             <span class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold" id="cs-source-badge" hidden>
               <span class="material-symbols-outlined text-[13px] align-middle mr-1">sync_alt</span><span class="align-middle">Imported</span>
             </span>
-          </div>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div class="flex items-center gap-1.5 min-w-0" id="cs-setup-name-wrap" hidden>
-              <span class="material-symbols-outlined text-primary text-[18px]">strategy</span>
-              <span class="font-headline-md text-headline-md text-on-surface font-semibold truncate" id="cs-setup-name"></span>
-            </div>
             <div class="flex flex-wrap items-center gap-2" id="cs-return-badges"></div>
           </div>
-          <div class="flex items-center gap-2 text-secondary font-body-sm text-body-sm">
-            <span class="material-symbols-outlined text-[16px] text-secondary">calendar_today</span>
-            <span id="cs-logged-date">--</span>
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-secondary font-metric-sm text-metric-sm">
+            <span class="flex items-center gap-1 min-w-0" id="cs-setup-name-wrap" hidden>
+              <span class="material-symbols-outlined text-primary text-[15px]">strategy</span>
+              <span class="text-on-surface font-semibold truncate" id="cs-setup-name"></span>
+              <span class="text-outline-variant ml-1">•</span>
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">calendar_today</span>
+              <span id="cs-logged-date">--</span>
+            </span>
           </div>
         </div>
-        <div class="flex items-center gap-2 self-start no-print">
+        <div class="flex items-center gap-2 self-start md:self-center no-print">
           <button type="button" class="bg-surface-container-low hover:bg-surface-container text-on-surface px-4 py-2 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 transition-all duration-150" id="cs-btn-export" title="Save this case study as a PDF">
             <span class="material-symbols-outlined text-[18px]">download</span>
             Export
