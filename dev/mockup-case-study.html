@@ -93,6 +93,7 @@
     <div class="tabs" id="src-tabs"></div>
     <div class="tabs" id="tf-tabs"></div>
     <div id="chart-info" class="note" style="margin:0 0 8px"></div>
+    <div id="align-info" class="note" style="margin:0 0 8px;color:#0b1c30"></div>
     <div id="chart-msg" hidden></div>
     <div id="chart" hidden></div>
   </section>
@@ -321,6 +322,36 @@
   // ------------------------------------------------------------------
   // Journal cases
   // ------------------------------------------------------------------
+  // Manually-logged trades store entryTime as LOCAL wall-clock in the user's
+  // configured timezone (app key tj_entry_tz_offset_minutes; defaults to the
+  // browser's offset). MEXC-imported trades are already true UTC. Treating a
+  // manual time as UTC shifts the whole trade by the user's offset.
+  function journalTzOffsetMinutes() {
+    try {
+      var raw = localStorage.getItem('tj_entry_tz_offset_minutes');
+      if (raw !== null && raw !== '') { var v = parseInt(raw, 10); if (!isNaN(v)) return v; }
+    } catch (e) { /* ignore */ }
+    return Math.round(-new Date().getTimezoneOffset() / 30) * 30;
+  }
+
+  function tzLabel(min) {
+    var a = Math.abs(min);
+    return 'UTC' + (min < 0 ? '-' : '+') + String(Math.floor(a / 60)).padStart(2, '0') + ':' + String(a % 60).padStart(2, '0');
+  }
+
+  function tradeOpenUtc(t) {
+    var ms = Date.parse(t.date + 'T' + (t.entryTime || '00:00') + ':00Z');
+    if (isNaN(ms)) return null;
+    var off = t.source === 'mexc-import' ? 0 : journalTzOffsetMinutes();
+    return Math.floor(ms / 1000) - off * 60;
+  }
+
+  function tradeTimeSource(t) {
+    if (t.source === 'mexc-import') return 'MEXC import (entry time already UTC)' + (t.entryTime ? '' : ', no time logged');
+    if (!t.entryTime) return 'manual trade with NO entry time - date only, assumed 00:00 ' + tzLabel(journalTzOffsetMinutes()) + ' (position on the chart is a guess)';
+    return 'manual entry time ' + t.entryTime + ' read as ' + tzLabel(journalTzOffsetMinutes()) + ' (your journal timezone setting), converted to UTC';
+  }
+
   function buildCases() {
     var trades = readJson('tj_trades');
     var positions = readJson('tj_position_history');
@@ -336,21 +367,21 @@
       var pairN = normPair(t.pair);
       var pos = positions.filter(function (p) { return p.linkedTradeId === t.id; })[0];
       if (!pos) {
-        var tOpen = parseUtc(t.date + 'T' + (t.entryTime || '00:00') + ':00Z');
+        var tOpen = tradeOpenUtc(t);
         pos = positions.filter(function (p) {
           var po = parseUtc(p.openTime);
           return normPair(p.pair).base === pairN.base && po != null && tOpen != null && Math.abs(po - tOpen) <= 86400;
-        })[0];
+        }).sort(function (a, b) { return Math.abs(parseUtc(a.openTime) - tOpen) - Math.abs(parseUtc(b.openTime) - tOpen); })[0];
       }
       var c;
       if (pos) {
         c = posToCase(pos, '');
-        if (c) c.entry = c.entry != null ? c.entry : t.entryPrice;
+        if (c) { c.entry = c.entry != null ? c.entry : t.entryPrice; c.timeSource = 'Position History (exact UTC open/close)' + (pos.linkedTradeId === t.id ? ', linked to this trade' : ', matched by pair and time - not linked'); }
       }
       if (!c) {
-        var o = parseUtc(t.date + 'T' + (t.entryTime || '00:00') + ':00Z');
+        var o = tradeOpenUtc(t);
         if (o == null) return;
-        c = { pair: pairN, open: o, close: null, entry: t.entryPrice, exit: t.exitPrice, direction: t.direction, exact: false };
+        c = { pair: pairN, open: o, close: null, entry: t.entryPrice, exit: t.exitPrice, direction: t.direction, exact: false, timeSource: tradeTimeSource(t) };
       }
       c.label = 'Trade - ' + pairN.label + ' ' + (t.direction || '') + ' ' + t.date + (c.exact ? '' : ' (approx window)');
       c.group = 'Journal trades';
@@ -365,6 +396,7 @@
       if (!c) return;
       c.label = 'Position - ' + c.pair.label + ' ' + (p.direction || '') + ' ' + fmtUtc(c.open);
       c.group = 'Position History (not promoted)';
+      c.timeSource = 'Position History (exact UTC open/close)';
       cases.push(c);
     });
     return cases;
@@ -379,7 +411,7 @@
   // ------------------------------------------------------------------
   // Panel 2: result + chart
   // ------------------------------------------------------------------
-  var state = { c: null, res: null, src: null, tf: 'D', pref: null };
+  var state = { c: null, res: null, src: null, tf: 'D', pref: null, timeSource: 'manual fields (interpreted as UTC)' };
   var chart = null, series = null, markerApi = null, priceLines = [];
 
   function shortCell(cell) {
@@ -451,6 +483,51 @@
     return true;
   }
 
+  function numPrice(v) {
+    var n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-eE]/g, ''));
+    return isFinite(n) ? n : null;
+  }
+
+  // Tests the time source against the price data itself: is the journal's
+  // entry / exit price actually inside the high-low range of the candle at the
+  // recorded time? If not, finds the nearest candle within +-12h that does
+  // contain it - a whole-hour gap points at a timezone problem, a small miss
+  // at plain venue price differences (MEXC fills vs Binance candles).
+  function alignmentReport(c) {
+    var out = [];
+    var ivKey = ['15m', '4H'].filter(function (k) { return state.res[state.src][k].status === 'ok'; })[0];
+    if (!ivKey) return 'Alignment check needs 15m or 4H candles from this source.';
+    var iv = INTERVALS.filter(function (i) { return i.key === ivKey; })[0];
+    var cs = state.res[state.src][ivKey].candles;
+    function check(name, t, px) {
+      if (t == null || px === null) return;
+      var cand = snap(cs, t);
+      if (!cand || t < cs[0].time) { out.push(name + ': time is outside the fetched candles'); return; }
+      var tol = px * 0.001;
+      if (px >= cand.low - tol && px <= cand.high + tol) {
+        out.push('\u2713 ' + name + ' ' + px + ' is inside the ' + fmtUtc(cand.time) + ' ' + iv.label + ' candle (' + cand.low + ' \u2013 ' + cand.high + ')');
+        return;
+      }
+      var best = null;
+      cs.forEach(function (k) {
+        if (Math.abs(k.time - t) > 12 * 3600) return;
+        if (px >= k.low - tol && px <= k.high + tol && (!best || Math.abs(k.time - t) < Math.abs(best.time - t))) best = k;
+      });
+      var msg = '\u2717 ' + name + ' ' + px + ' is OUTSIDE the ' + fmtUtc(cand.time) + ' ' + iv.label + ' candle (' + cand.low + ' \u2013 ' + cand.high + ').';
+      if (best) {
+        var d = best.time - t, sign = d < 0 ? '-' : '+', ad = Math.abs(d);
+        var rem = ad % 3600;
+        var wholeHour = ad >= 1800 && (rem < 900 || rem > 2700);
+        msg += ' Nearest candle containing that price: ' + fmtUtc(best.time) + ' (' + sign + Math.floor(ad / 3600) + 'h' + String(Math.round(rem / 60)).padStart(2, '0') + 'm from the recorded time)' +
+          (wholeHour ? ' - a whole-hour gap like this usually means a timezone problem in the time source.' : '.');
+      } else msg += ' No candle within +-12h contains that price: likely a venue price difference or wrong pair / price.';
+      out.push(msg);
+    }
+    check('Entry', c.open, numPrice(c.entry));
+    check('Exit', c.close, numPrice(c.exit));
+    return out.length ? out.join('  |  ') : 'Alignment check needs an entry/exit price and time.';
+  }
+
   function snap(candles, t) {
     var hit = null;
     for (var i = 0; i < candles.length; i++) { if (candles[i].time <= t) hit = candles[i]; else break; }
@@ -467,6 +544,7 @@
       chartEl.hidden = true; msgEl.hidden = false;
       msgEl.textContent = srcLabel + ' · ' + ivLabel + ' - no chart: ' + cell.message;
       info.textContent = '';
+      $('align-info').textContent = '';
       return;
     }
     msgEl.hidden = true; chartEl.hidden = false;
@@ -484,20 +562,30 @@
 
     var c = state.c, notes = [];
     var marks = [];
+    var entryPx = numPrice(c.entry), exitPx = numPrice(c.exit);
+    // A marker sits at the actual price when one is known (so a wrong time or
+    // a wrong price is visible as a marker floating away from the candle);
+    // otherwise it falls back to above / below the bar.
+    function mark(t, px, isEntry) {
+      var short = c.direction === 'short';
+      var base = { time: t, color: isEntry ? '#1d4ed8' : '#8a5a00', text: isEntry ? 'Entry' : 'Exit' };
+      if (px !== null) { base.position = 'atPriceMiddle'; base.price = px; base.shape = 'circle'; base.size = 1.4; }
+      else { base.position = (isEntry !== short) ? 'belowBar' : 'aboveBar'; base.shape = (isEntry !== short) ? 'arrowUp' : 'arrowDown'; }
+      return base;
+    }
     var entryCandle = snap(cs, c.open);
-    if (entryCandle && c.open >= cs[0].time) marks.push({ time: entryCandle.time, position: c.direction === 'short' ? 'aboveBar' : 'belowBar', color: '#1d4ed8', shape: c.direction === 'short' ? 'arrowDown' : 'arrowUp', text: 'Entry' });
+    if (entryCandle && c.open >= cs[0].time) marks.push(mark(entryCandle.time, entryPx, true));
     else notes.push('entry is outside the fetched window');
     if (c.close != null) {
       var exitCandle = snap(cs, c.close);
-      if (exitCandle && c.close >= cs[0].time) marks.push({ time: exitCandle.time, position: c.direction === 'short' ? 'belowBar' : 'aboveBar', color: '#8a5a00', shape: c.direction === 'short' ? 'arrowUp' : 'arrowDown', text: 'Exit' });
+      if (exitCandle && c.close >= cs[0].time) marks.push(mark(exitCandle.time, exitPx, false));
       else notes.push('exit is outside the fetched window');
     } else notes.push('no close time on record (manual trade without a Position History link) - exit marker omitted');
     marks.sort(function (a, b) { return a.time - b.time; });
     markerApi.setMarkers(marks);
 
-    [['Entry', c.entry, '#1d4ed8'], ['Exit', c.exit, '#8a5a00']].forEach(function (pl) {
-      var price = parseFloat(String(pl[1] == null ? '' : pl[1]).replace(/[^0-9.\-eE]/g, ''));
-      if (isFinite(price)) priceLines.push(series.createPriceLine({ price: price, color: pl[2], lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: pl[0] }));
+    [['Entry', entryPx, '#1d4ed8'], ['Exit', exitPx, '#8a5a00']].forEach(function (pl) {
+      if (pl[1] !== null) priceLines.push(series.createPriceLine({ price: pl[1], color: pl[2], lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: pl[0] }));
     });
 
     chart.timeScale().fitContent();
@@ -509,6 +597,7 @@
     }
     info.textContent = srcLabel + ' · ' + ivLabel + ' · ' + cell.symbol + ' · ' + cell.n + ' candles' + (cell.truncated ? ' (hit the request limit - truncated)' : '') +
       ' · ' + fmtUtc(cell.first) + ' → ' + fmtUtc(cell.last) + ' UTC · ' + cell.ms + ' ms.' + why + (notes.length ? ' Note: ' + notes.join('; ') + '.' : '');
+    $('align-info').textContent = alignmentReport(c);
     document.body.setAttribute('data-chart', JSON.stringify({ source: state.src, tf: state.tf, candles: cs.length, markers: marks.length, priceLines: priceLines.length }));
   }
 
@@ -516,7 +605,7 @@
     var pairN = normPair($('f-pair').value);
     var open = parseUtc($('f-open').value), close = parseUtc($('f-close').value);
     if (!pairN.base || open == null) { $('case-note').textContent = 'Need a pair and an open time.'; return; }
-    var c = { pair: pairN, open: open, close: close, entry: $('f-entry').value, exit: $('f-exit').value, direction: (state.c && state.c.direction) || 'long' };
+    var c = { pair: pairN, open: open, close: close, entry: $('f-entry').value, exit: $('f-exit').value, direction: (state.c && state.c.direction) || 'long', timeSource: state.timeSource };
     state.c = c;
     $('btn-fetch').disabled = true;
     $('case-note').textContent = 'Fetching ' + pairN.label + ' ' + fmtUtc(open) + ' → ' + fmtUtc(close) + ' UTC from 3 sources x 3 intervals…';
@@ -531,7 +620,7 @@
       if (state.pref.tf && res[state.src][state.pref.tf] && res[state.src][state.pref.tf].status === 'ok') state.tf = state.pref.tf;
       state.pref = null;
     }
-    $('case-note').textContent = 'Window: ' + fmtUtc(open) + ' → ' + (close != null ? fmtUtc(close) : 'unknown') + ' UTC' + (close != null ? '' : ' (close time unknown)') + '.';
+    $('case-note').textContent = 'Window: ' + fmtUtc(open) + ' → ' + (close != null ? fmtUtc(close) : 'unknown') + ' UTC' + (close != null ? '' : ' (close time unknown)') + '. Time source: ' + c.timeSource + '.';
     renderSources(); renderTabs(); renderChart();
     $('btn-fetch').disabled = false;
     document.body.setAttribute('data-case-done', '1');
@@ -586,6 +675,7 @@
           $('f-entry').value = jcase && jcase.entry != null ? jcase.entry : '';
           $('f-exit').value = jcase && jcase.exit != null ? jcase.exit : '';
           state.c = jcase ? { direction: jcase.direction } : null;
+          state.timeSource = jcase ? jcase.timeSource : 'synthetic window';
           runCase();
           window.scrollTo({ top: 0, behavior: 'smooth' });
         };
@@ -607,6 +697,7 @@
     $('f-entry').value = c.entry != null ? c.entry : '';
     $('f-exit').value = c.exit != null ? c.exit : '';
     state.c = { direction: c.direction };
+    state.timeSource = c.timeSource || 'journal';
   }
 
   function boot() {
@@ -623,6 +714,7 @@
     if (!cases.length) { var none = document.createElement('option'); none.textContent = '(no trades found in this browser\'s journal - use the fields)'; sel.appendChild(none); }
 
     sel.onchange = function () { var c = cases[+sel.value]; if (c) { fillFields(c); runCase(); } };
+    ['f-open', 'f-close'].forEach(function (id) { $(id).addEventListener('input', function () { state.timeSource = 'manual fields (interpreted as UTC)'; }); });
     $('btn-fetch').onclick = runCase;
     $('btn-cov').onclick = runCoverage;
 
