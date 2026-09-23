@@ -4740,7 +4740,8 @@
     var cells = [];
     function cell(label, icon, value, sub, tone) {
       cells.push(
-        '<div class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col justify-between min-w-0">' +
+        // No card of its own: the row sits inside the header card, under a divider.
+        '<div class="flex flex-col min-w-0">' +
           '<div class="flex items-center justify-between text-secondary font-label-eyebrow text-label-eyebrow uppercase gap-2">' +
             '<span class="truncate">' + label + '</span>' +
             '<span class="material-symbols-outlined text-primary text-[18px] shrink-0">' + icon + '</span>' +

@@ -2055,7 +2055,9 @@
     <div id="cs-content">
       <!-- Header card: meta row (session, date), then ONE title row - pair, direction, setup on the
            left; P&L / R / outcome badges and the actions on the right. -->
-      <div class="bg-surface-container-lowest rounded-xl px-5 py-4 shadow-sm flex flex-col gap-2">
+      <!-- One card for both sections: the header content, then (below a thin divider) the stat row. -->
+      <div class="bg-surface-container-lowest rounded-xl shadow-sm">
+      <div class="px-5 py-4 flex flex-col gap-2">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-secondary font-metric-sm text-metric-sm">
           <span class="flex items-center gap-1.5" id="cs-session-wrap" hidden>
             <span class="material-symbols-outlined text-[14px]">schedule</span>
@@ -2109,7 +2111,8 @@
       </div>
 
       <!-- Stats row: cells are rendered by JS and only exist when real data backs them -->
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-4 mt-4" id="cs-stats-row" hidden></div>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-x-6 gap-y-5 px-5 py-4 border-t border-surface-container" id="cs-stats-row" hidden></div>
+      </div>
 
       <!-- Two-Column Main Layout: chart evidence | execution details + trade detail + checklist -->
       <div class="grid grid-cols-12 gap-6 mt-6">
