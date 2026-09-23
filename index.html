@@ -342,8 +342,8 @@
 </head>
 
 <body class="bg-ground font-body-md text-on-surface">
-  <aside
-    class="fixed left-0 top-0 h-screen w-[260px] bg-surface-container-lowest z-50 flex flex-col justify-between p-4 shadow-[1px_0_0_rgba(11,28,48,0.06),0_1px_8px_rgba(0,0,0,0.04)]">
+  <aside id="app-sidebar"
+    class="fixed left-0 top-0 h-screen w-[260px] bg-surface-container-lowest z-50 flex flex-col justify-between p-4 shadow-[1px_0_0_rgba(11,28,48,0.06),0_1px_8px_rgba(0,0,0,0.04)] transition-transform duration-300 -translate-x-full md:translate-x-0">
     <div class="flex flex-col gap-6">
       <div class="flex items-center gap-3 px-2 pt-1">
         <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary"><span
@@ -383,20 +383,27 @@
       <div class="font-metric-sm text-metric-sm text-secondary mt-0.5">11 trades logged, updated Sep 3</div>
     </div>
   </aside>
-  <div class="pl-[260px]" id="app-shell">
+  <!-- Mobile drawer backdrop -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/50 z-40 md:hidden hidden transition-opacity duration-300" aria-hidden="true"></div>
+  <div class="pl-0 md:pl-[260px]" id="app-shell">
     <header id="app-header"
-      class="fixed top-0 left-[260px] right-0 h-16 bg-ground/80 backdrop-blur-xl shadow-[0_1px_0_rgba(11,28,48,0.06),0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-end px-space-xl">
-      <div class="flex items-center gap-4">
+      class="fixed top-0 left-0 md:left-[260px] right-0 h-16 bg-ground/80 backdrop-blur-xl shadow-[0_1px_0_rgba(11,28,48,0.06),0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between md:justify-end px-4 md:px-space-xl">
+      <!-- Mobile hamburger toggle button -->
+      <button type="button" id="sidebar-toggle" aria-label="Open navigation menu" aria-expanded="false"
+        class="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-on-surface hover:bg-surface-container-low transition-colors">
+        <span class="material-symbols-outlined text-[24px]">menu</span>
+      </button>
+      <div class="flex items-center gap-2 sm:gap-4">
         <div class="relative">
           <button type="button" id="header-search-toggle" aria-expanded="false" aria-haspopup="true"
             aria-controls="header-search-panel" aria-label="Search trades and positions (Cmd or Ctrl + K)" title="Search (&#8984;K or Ctrl+K)"
             class="h-8 pl-1.5 pr-1.5 rounded-lg flex items-center gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
             <span class="material-symbols-outlined text-[20px]">search</span>
-            <!-- Shortcut hint: Cmd+K / Ctrl+K opens this same search (see initHeaderSearch) -->
-            <kbd class="px-1.5 py-0.5 rounded-md border border-outline-variant font-metric-sm text-[10px] leading-none font-semibold text-secondary bg-surface-container-lowest">&#8984;K</kbd>
+            <!-- Shortcut hint: Cmd+K / Ctrl+K opens this same search (see initHeaderSearch), hidden on mobile -->
+            <kbd class="hidden md:inline-block px-1.5 py-0.5 rounded-md border border-outline-variant font-metric-sm text-[10px] leading-none font-semibold text-secondary bg-surface-container-lowest">&#8984;K</kbd>
           </button>
           <div id="header-search-panel" hidden
-            class="absolute right-0 top-full mt-2 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-3">
+            class="absolute right-0 top-full mt-2 w-80 sm:w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-3">
             <div class="relative flex items-center">
               <span class="material-symbols-outlined absolute left-3 text-secondary text-[16px]">search</span>
               <input id="header-search-input" type="text" autocomplete="off" placeholder="Search pair or notes..."
@@ -408,16 +415,16 @@
         <div class="relative">
           <button type="button" id="github-sync-toggle" aria-expanded="false" aria-haspopup="true"
             aria-controls="github-sync-panel" aria-label="GitHub sync settings"
-            class="h-8 pl-1.5 pr-2 rounded-lg flex items-center gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
+            class="h-8 pl-1.5 pr-1.5 sm:pr-2 rounded-lg flex items-center gap-1.5 sm:gap-2 text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
             <span class="material-symbols-outlined text-[20px]">cloud_sync</span>
-            <!-- Status pill (dot + text); colours and wording are set by renderSyncStatusUI() -->
-            <span id="github-sync-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold whitespace-nowrap bg-surface-container text-on-surface-variant">
+            <!-- Status pill (dot + text); colours and wording are set by renderSyncStatusUI(), text hidden on narrow mobile -->
+            <span id="github-sync-pill" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-metric-sm text-metric-sm font-semibold whitespace-nowrap bg-surface-container text-on-surface-variant">
               <span id="github-sync-status-dot" class="w-1.5 h-1.5 rounded-full bg-outline-variant"></span>
               <span id="github-sync-pill-text">Sync off</span>
             </span>
           </button>
           <div id="github-sync-panel" hidden
-            class="absolute right-0 top-full mt-2 w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-4">
+            class="absolute right-0 top-full mt-2 w-80 sm:w-96 max-w-[90vw] bg-surface-container-lowest rounded-xl shadow-lg z-50 p-4">
             <div class="flex items-center justify-between gap-2 mb-3">
               <span class="font-headline-sm text-headline-sm text-on-surface font-semibold">GitHub Sync</span>
               <span id="github-sync-status-text" class="font-metric-sm text-metric-sm text-secondary">GitHub sync not configured</span>
@@ -468,23 +475,23 @@
           class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors">
           <span class="material-symbols-outlined text-[20px]" id="theme-toggle-icon">dark_mode</span>
         </button>
-        <!-- Global primary action, on every page -->
+        <!-- Global primary action, on every page: shrinks to '+' on small screens -->
         <button type="button" id="header-new-trade" data-path="new-trade-entry"
-          class="bg-primary hover:bg-primary-container text-on-primary px-4 py-2 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 shadow-sm transition-all duration-150 whitespace-nowrap">
+          class="bg-primary hover:bg-primary-container text-on-primary px-3 sm:px-4 py-2 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 shadow-sm transition-all duration-150 whitespace-nowrap">
           <span class="material-symbols-outlined text-[18px]">add</span>
-          <span>New Trade</span>
+          <span class="hidden sm:inline">New Trade</span>
         </button>
       </div>
     </header>
     <main class="pt-16 bg-ground min-h-screen">
       <section data-screen="insights-dashboard">
-        <div class="w-full max-w-7xl mx-auto p-space-xl">
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-space-xl">
           <div class="flex flex-col w-full">
             <!-- Top Navigation Context & Action Bar -->
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6">
               <div class="flex flex-col">
                 <div
-                  class="flex items-center gap-1.5 text-label-eyebrow font-label-eyebrow text-secondary uppercase mb-1">
+                  class="flex items-center gap-1.5 text-label-eyebrow font-label-eyebrow text-secondary uppercase mb-1 truncate">
                   <span>Journal</span>
                   <span class="text-outline-variant">/</span>
                   <span class="text-primary font-semibold">Insights</span>
@@ -494,30 +501,30 @@
                   Live snapshot. Win rate is a hit-rate proxy; P&amp;L is not yet recorded.
                 </p>
               </div>
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
                 <button
-                  class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md font-medium shadow-sm hover:bg-surface-container-low transition-colors">
+                  class="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md font-medium shadow-sm hover:bg-surface-container-low transition-colors">
                   <span class="material-symbols-outlined text-[18px] text-secondary">file_download</span>
                   Export View
                 </button>
                 <button
-                  class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary font-body-md text-body-md font-semibold shadow-sm hover:bg-primary-container transition-all active:scale-[0.99]"
+                  class="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary text-on-primary font-body-md text-body-md font-semibold shadow-sm hover:bg-primary-container transition-all active:scale-[0.99]"
                   data-path="new-trade-entry">
                   <span class="material-symbols-outlined text-[18px]">add</span>
                   New Trade
                 </button>
               </div>
             </div>
-            <!-- KPI Quantitative Ledger Ribbon -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+            <!-- KPI Quantitative Ledger Ribbon: 2x2 on mobile, 4 columns on lg -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mt-2">
               <!-- KPI 1: Logged Trades -->
-              <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+              <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                 <div class="flex items-center justify-between">
                   <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Logged Trades</span>
                   <span class="material-symbols-outlined text-[18px] text-secondary">receipt_long</span>
                 </div>
                 <div class="mt-4">
-                  <div class="text-metric-display font-metric-display text-on-surface" id="ins-kpi-trades-value">0</div>
+                  <div class="text-[24px] sm:text-metric-display font-metric-display text-on-surface" id="ins-kpi-trades-value">0</div>
                   <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ins-kpi-trades-sub">0 pairs traded</div>
                 </div>
                 <div class="w-full bg-surface-container h-1 rounded-full mt-3 overflow-hidden">
@@ -525,13 +532,13 @@
                 </div>
               </div>
               <!-- KPI 2: Win Rate -->
-              <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+              <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                 <div class="flex items-center justify-between">
                   <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Win Rate</span>
                   <span class="material-symbols-outlined text-[18px] text-tertiary">verified</span>
                 </div>
                 <div class="mt-4">
-                  <div class="text-metric-display font-metric-display text-tertiary" id="ins-kpi-winrate-value">--</div>
+                  <div class="text-[24px] sm:text-metric-display font-metric-display text-tertiary" id="ins-kpi-winrate-value">--</div>
                   <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ins-kpi-winrate-sub">no closed trades yet</div>
                 </div>
                 <div class="w-full bg-surface-container h-1 rounded-full mt-3 overflow-hidden">
@@ -539,13 +546,13 @@
                 </div>
               </div>
               <!-- KPI 3: Longest Streak -->
-              <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+              <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                 <div class="flex items-center justify-between">
                   <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Longest Streak</span>
                   <span class="material-symbols-outlined text-[18px] text-primary">electric_bolt</span>
                 </div>
                 <div class="mt-4">
-                  <div class="text-metric-display font-metric-display text-on-surface" id="ins-kpi-streak-value">0</div>
+                  <div class="text-[24px] sm:text-metric-display font-metric-display text-on-surface" id="ins-kpi-streak-value">0</div>
                   <div class="text-body-sm font-body-sm text-secondary mt-1" id="ins-kpi-streak-sub">consecutive wins</div>
                 </div>
                 <div class="w-full bg-surface-container h-1 rounded-full mt-3 overflow-hidden">
@@ -553,14 +560,14 @@
                 </div>
               </div>
               <!-- KPI 4: Documented Setups P&L -->
-              <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+              <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Documented Setups
                     P&amp;L</span>
                   <span class="material-symbols-outlined text-[18px] text-error shrink-0" id="ins-profitability-icon">pending_actions</span>
                 </div>
                 <div class="mt-4">
-                  <div class="text-headline-lg font-headline-lg text-secondary" id="ins-profitability-value">Unavailable</div>
+                  <div class="text-[20px] sm:text-headline-lg font-headline-lg text-secondary truncate" id="ins-profitability-value">Unavailable</div>
                   <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ins-profitability-sub">no P&amp;L or R-multiple logged</div>
                 </div>
                 <div class="w-full bg-surface-container h-1 rounded-full mt-3 overflow-hidden">
@@ -715,8 +722,8 @@
               </div>
               <div class="flex flex-col gap-3.5" id="ins-key-findings"></div>
             </div>
-            <!-- Bivariate Correlation Ledgers (2 Columns) -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <!-- Bivariate Correlation Ledgers (2 Columns: single column on mobile, 2 columns on md) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <!-- Context Performance Table Card -->
               <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
                 <div>
@@ -832,13 +839,13 @@
         </div>
       </section>
       <section data-screen="trade-journal" hidden>
-        <div class="w-full max-w-7xl mx-auto p-space-xl">
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-space-xl">
           <div class="flex flex-col w-full gap-6">
             <!-- Header Section with Breadcrumbs and Quick Action -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div class="flex flex-col">
                 <div
-                  class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">
+                  class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider truncate">
                   <span>Journal</span>
                   <span class="text-outline-variant">/</span>
                   <span class="text-blue-600 font-semibold">Trade Log</span>
@@ -847,7 +854,7 @@
                 <p class="font-body-md text-body-md text-on-surface-variant mt-0.5">Every manually logged setup, chart,
                   and outcome across cycles</p>
               </div>
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
                 <div
                   class="hidden xl:flex items-center gap-4 px-4 py-2 bg-surface-container-lowest rounded-xl shadow-sm">
                   <div class="flex flex-col text-right">
@@ -863,14 +870,14 @@
                   </div>
                 </div>
                 <button id="btn-import-mexc"
-                  class="bg-surface-container-lowest hover:bg-surface-container text-on-surface px-4 py-2.5 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 shadow-sm transition-all duration-150"
+                  class="bg-surface-container-lowest hover:bg-surface-container text-on-surface px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-headline-sm text-[13px] sm:text-headline-sm flex items-center gap-1.5 sm:gap-2 shadow-sm transition-all duration-150"
                   type="button">
                   <span class="material-symbols-outlined text-[18px]">upload_file</span>
-                  <span>Import Trade History</span>
+                  <span>Import<span class="hidden sm:inline"> Trade History</span></span>
                 </button>
                 <input type="file" id="mexc-import-file-input" accept=".xlsx,.csv" class="hidden" />
                 <button
-                  class="bg-primary hover:bg-primary-container text-on-primary px-4 py-2.5 rounded-xl font-headline-sm text-headline-sm flex items-center gap-2 shadow-sm transition-all duration-150"
+                  class="bg-primary hover:bg-primary-container text-on-primary px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-headline-sm text-[13px] sm:text-headline-sm flex items-center gap-1.5 sm:gap-2 shadow-sm transition-all duration-150"
                   data-path="new-trade-entry">
                   <span class="material-symbols-outlined text-[18px]">add</span>
                   <span>New Trade</span>
@@ -912,42 +919,42 @@
               </div>
             </div>
 
-            <!-- Documented-setup P&L stats -->
+            <!-- Documented-setup P&L stats: 2x2 grid on mobile, 4 columns on lg -->
             <div class="flex flex-col gap-2">
-              <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+              <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                   <div class="flex items-center justify-between">
                     <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Total P&amp;L</span>
                     <span class="material-symbols-outlined text-[18px] text-secondary">payments</span>
                   </div>
                   <div class="mt-4">
-                    <div class="text-metric-display font-metric-display text-on-surface" id="tj-kpi-pnl">--</div>
+                    <div class="text-[24px] sm:text-metric-display font-metric-display text-on-surface" id="tj-kpi-pnl">--</div>
                     <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="tj-kpi-pnl-sub">documented setups
                     </div>
                   </div>
                 </div>
-                <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                   <div class="flex items-center justify-between">
                     <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Win Rate</span>
                     <span class="material-symbols-outlined text-[18px] text-tertiary">verified</span>
                   </div>
                   <div class="mt-4">
-                    <div class="text-metric-display font-metric-display text-on-surface" id="tj-kpi-winrate">--</div>
+                    <div class="text-[24px] sm:text-metric-display font-metric-display text-on-surface" id="tj-kpi-winrate">--</div>
                     <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="tj-kpi-winrate-sub">--</div>
                   </div>
                 </div>
-                <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                   <div class="flex items-center justify-between">
                     <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Avg P&amp;L /
                       Trade</span>
                     <span class="material-symbols-outlined text-[18px] text-secondary">functions</span>
                   </div>
                   <div class="mt-4">
-                    <div class="text-metric-display font-metric-display text-on-surface" id="tj-kpi-avg">--</div>
+                    <div class="text-[24px] sm:text-metric-display font-metric-display text-on-surface" id="tj-kpi-avg">--</div>
                     <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="tj-kpi-avg-sub">--</div>
                   </div>
                 </div>
-                <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                   <div class="flex items-center justify-between">
                     <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Best / Worst</span>
                     <span class="material-symbols-outlined text-[18px] text-secondary">swap_vert</span>
@@ -970,7 +977,7 @@
             </div>
 
             <!-- Equity curve (documented setups) -->
-            <div class="bg-surface-container-lowest rounded-xl shadow-sm p-6">
+            <div class="bg-surface-container-lowest rounded-xl shadow-sm p-4 sm:p-6">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-2">
                 <div>
                   <span
@@ -985,43 +992,43 @@
             </div>
 
             <!-- Filter & Analytics Control Strip -->
-            <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
-              <div class="flex items-center gap-2" id="filter-pill-group">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full" id="filter-pill-group">
                 <button
-                  class="filter-pill bg-on-surface text-surface-container-lowest font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+                  class="filter-pill bg-on-surface text-surface-container-lowest font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
                   data-filter="all">
                   <span>All</span>
                   <span class="opacity-75 text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full"
                     data-pill-count="all">11</span>
                 </button>
                 <button
-                  class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+                  class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
                   data-filter="win">
                   <span>Wins</span>
                   <span class="text-tertiary font-semibold" data-pill-count="win">8</span>
                 </button>
                 <button
-                  class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+                  class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
                   data-filter="loss">
                   <span>Losses</span>
                   <span class="text-error font-semibold" data-pill-count="loss">1</span>
                 </button>
                 <button
-                  class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+                  class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
                   data-filter="open">
                   <span>Open</span>
                   <span class="text-secondary font-semibold" data-pill-count="open">2</span>
                 </button>
               </div>
               <!-- Quick Ledger Meta / Search View -->
-              <div class="flex items-center gap-3">
-                <div class="relative flex items-center">
+              <div class="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+                <div class="relative flex items-center flex-1 sm:flex-initial">
                   <span class="material-symbols-outlined absolute left-3 text-secondary text-[16px]">filter_list</span>
                   <input
-                    class="pl-9 pr-3 py-1.5 h-8 w-48 lg:w-60 bg-surface-container-lowest rounded-lg font-metric-sm text-metric-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-low transition-colors shadow-sm"
+                    class="pl-9 pr-3 py-1.5 h-8 w-full sm:w-48 lg:w-60 bg-surface-container-lowest rounded-lg font-metric-sm text-metric-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-low transition-colors shadow-sm"
                     id="pairSearchInput" placeholder="Filter pair (e.g. HNT, 0G)..." type="text" />
                 </div>
-                <div class="flex items-center gap-1 bg-surface-container-lowest pl-2.5 pr-1.5 py-1.5 rounded-lg shadow-sm">
+                <div class="flex items-center gap-1 bg-surface-container-lowest pl-2.5 pr-1.5 py-1.5 rounded-lg shadow-sm shrink-0">
                   <span class="material-symbols-outlined text-secondary text-[16px]">tune</span>
                   <label class="sr-only" for="tj-sort-select">Sort by</label>
                   <select id="tj-sort-select"
@@ -1052,8 +1059,8 @@
                   <span class="hidden sm:inline" id="tj-updated-at">Updated --:-- UTC</span>
                 </div>
               </div>
-              <!-- Data Table Container -->
-              <div class="overflow-x-auto">
+              <!-- Desktop Data Table Container (>= 768px) -->
+              <div class="hidden md:block overflow-x-auto">
                 <table class="w-full text-left border-collapse" id="tradesTable">
                   <thead>
                     <tr
@@ -1745,6 +1752,8 @@
                   </tbody>
                 </table>
               </div>
+              <!-- Mobile Stacked Cards Container (< 768px) -->
+              <div class="block md:hidden divide-y divide-surface-container-low" id="tradesCards"></div>
             </div>
             <!-- Per-pair breakdown (documented setups) -->
             <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
@@ -1857,13 +1866,13 @@
         </div>
       </section>
       <section data-screen="position-history" hidden>
-        <div class="w-full max-w-7xl mx-auto p-space-xl">
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-space-xl">
           <div class="flex flex-col w-full gap-6">
             <!-- Header -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div class="flex flex-col">
                 <div
-                  class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">
+                  class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider truncate">
                   <span>Journal</span>
                   <span class="text-outline-variant">/</span>
                   <span class="text-primary font-semibold">Position History</span>
@@ -1927,55 +1936,55 @@
             <div id="ph-content" hidden>
               <div class="flex flex-col gap-6">
                 <!-- KPI ribbon -->
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+                  <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                     <div class="flex items-center justify-between">
                       <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Total P&amp;L</span>
                       <span class="material-symbols-outlined text-[18px] text-secondary">payments</span>
                     </div>
                     <div class="mt-4">
-                      <div class="text-metric-display font-metric-display text-on-surface" id="ph-kpi-pnl">--</div>
+                      <div class="text-[22px] sm:text-metric-display font-semibold sm:font-metric-display text-on-surface" id="ph-kpi-pnl">--</div>
                       <div class="text-metric-sm font-metric-sm text-secondary mt-1">gross realized</div>
                     </div>
                   </div>
-                  <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                  <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                     <div class="flex items-center justify-between">
                       <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Total Fees</span>
                       <span class="material-symbols-outlined text-[18px] text-secondary">receipt</span>
                     </div>
                     <div class="mt-4">
-                      <div class="text-metric-display font-metric-display text-on-surface" id="ph-kpi-fees">--</div>
+                      <div class="text-[22px] sm:text-metric-display font-semibold sm:font-metric-display text-on-surface" id="ph-kpi-fees">--</div>
                       <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ph-kpi-fees-sub">paid to
                         exchange</div>
                     </div>
                   </div>
-                  <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                  <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                     <div class="flex items-center justify-between">
                       <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Net P&amp;L</span>
                       <span class="material-symbols-outlined text-[18px] text-primary">account_balance</span>
                     </div>
                     <div class="mt-4">
-                      <div class="text-metric-display font-metric-display text-on-surface" id="ph-kpi-net">--</div>
+                      <div class="text-[22px] sm:text-metric-display font-semibold sm:font-metric-display text-on-surface" id="ph-kpi-net">--</div>
                       <div class="text-metric-sm font-metric-sm text-secondary mt-1">after fees</div>
                     </div>
                   </div>
-                  <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                  <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
                     <div class="flex items-center justify-between">
                       <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Win Rate</span>
                       <span class="material-symbols-outlined text-[18px] text-tertiary">verified</span>
                     </div>
                     <div class="mt-4">
-                      <div class="text-metric-display font-metric-display text-on-surface" id="ph-kpi-winrate">--</div>
+                      <div class="text-[22px] sm:text-metric-display font-semibold sm:font-metric-display text-on-surface" id="ph-kpi-winrate">--</div>
                       <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ph-kpi-winrate-sub">--</div>
                     </div>
                   </div>
-                  <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                  <div class="bg-surface-container-lowest rounded-xl p-3.5 sm:p-5 shadow-sm flex flex-col justify-between col-span-2 lg:col-span-1">
                     <div class="flex items-center justify-between">
                       <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Positions</span>
                       <span class="material-symbols-outlined text-[18px] text-secondary">functions</span>
                     </div>
                     <div class="mt-4">
-                      <div class="text-metric-display font-metric-display text-on-surface" id="ph-kpi-count">--</div>
+                      <div class="text-[22px] sm:text-metric-display font-semibold sm:font-metric-display text-on-surface" id="ph-kpi-count">--</div>
                       <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="ph-kpi-count-sub">--</div>
                     </div>
                   </div>
@@ -2035,7 +2044,7 @@
                   </select>
                   </div>
                   <div
-                    class="flex items-center gap-2 bg-surface-container-lowest shadow-sm rounded-lg px-2.5 h-9 font-metric-sm text-metric-sm text-secondary">
+                    class="flex items-center gap-2 bg-surface-container-lowest shadow-sm rounded-lg px-2.5 h-9 font-metric-sm text-metric-sm text-secondary max-w-full overflow-x-auto">
                     <span>From</span>
                     <input type="date" id="ph-filter-from"
                       class="bg-transparent text-on-surface font-metric-sm text-metric-sm focus:outline-none" />
@@ -2163,23 +2172,26 @@
         </div>
       </section>
       <section data-screen="case-studies" hidden>
-<div class="w-full max-w-7xl mx-auto p-space-xl">
+<div class="w-full max-w-7xl mx-auto p-4 md:p-space-xl">
   <div class="flex flex-col w-full">
     <!-- Breadcrumb / back row. List state keeps its original breadcrumb link; the detail
          state gets ONE back control plus the trail and the previous / next pager. -->
     <div class="flex items-center justify-between gap-4 pb-3 no-print">
-      <a id="cs-crumb-list" class="inline-flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#trade-journal">
-        <span class="material-symbols-outlined text-[14px]">arrow_back</span>
-        <span>JOURNAL / TRADE JOURNAL / <span class="text-primary font-semibold" id="cs-breadcrumb-pair">CASE STUDIES</span></span>
+      <a id="cs-crumb-list" class="inline-flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider truncate max-w-full" href="#trade-journal">
+        <span class="material-symbols-outlined text-[14px] shrink-0">arrow_back</span>
+        <span class="truncate">JOURNAL <span class="hidden sm:inline">/ TRADE JOURNAL</span><span class="sm:hidden">/ ...</span> / <span class="text-primary font-semibold" id="cs-breadcrumb-pair">CASE STUDIES</span></span>
       </a>
-      <div id="cs-crumb-detail" class="flex items-center justify-between gap-4 w-full min-w-0" hidden>
-        <div class="flex items-center gap-3 min-w-0">
-          <a id="cs-back-link" class="inline-flex items-center gap-1.5 shrink-0 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#case-studies">
+      <div id="cs-crumb-detail" class="flex items-center justify-between gap-2 sm:gap-4 w-full min-w-0" hidden>
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0 overflow-hidden">
+          <a id="cs-back-link" class="inline-flex items-center gap-1 shrink-0 font-label-eyebrow text-label-eyebrow text-secondary hover:text-on-surface transition-colors tracking-wider" href="#case-studies">
             <span class="material-symbols-outlined text-[14px]">arrow_back</span>
-            <span>BACK TO ALL CASE STUDIES</span>
+            <span class="hidden sm:inline">BACK TO ALL CASE STUDIES</span>
+            <span class="sm:hidden">BACK</span>
           </a>
           <span class="text-outline-variant shrink-0">&bull;</span>
-          <span class="font-label-eyebrow text-label-eyebrow text-secondary tracking-wider uppercase truncate">JOURNAL / TRADE JOURNAL / CASE STUDIES / <span class="text-primary font-semibold" id="cs-crumb-pair">--</span></span>
+          <span class="font-label-eyebrow text-label-eyebrow text-secondary tracking-wider uppercase truncate min-w-0">
+            <span class="hidden md:inline">JOURNAL / TRADE JOURNAL / </span><span class="md:hidden">... / </span>CASE STUDIES / <span class="text-primary font-semibold" id="cs-crumb-pair">--</span>
+          </span>
         </div>
         <div class="flex items-center gap-1 shrink-0" id="cs-pager">
           <button type="button" id="cs-btn-prev" title="Previous case study"
@@ -2197,45 +2209,45 @@
 
     <!-- List state (no trade selected / trade not found): browse all case studies -->
     <div id="cs-list-state" hidden>
-      <div class="flex flex-wrap items-center justify-between gap-3 pb-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4">
         <div class="flex flex-col">
           <h1 class="font-headline-lg text-headline-lg text-on-surface font-semibold">All Case Studies</h1>
           <p class="font-body-sm text-body-sm text-on-surface-variant">Pick a logged trade to open its retrospective.</p>
         </div>
-        <div class="flex items-center gap-3 flex-wrap">
-          <div class="flex items-center gap-2" id="cs-filter-pill-group">
+        <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full" id="cs-filter-pill-group">
             <button
-              class="filter-pill bg-on-surface text-surface-container-lowest font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              class="filter-pill bg-on-surface text-surface-container-lowest font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
               data-filter="all">
               <span>All</span>
               <span class="opacity-75 text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full" data-pill-count="all">0</span>
             </button>
             <button
-              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
               data-filter="win">
               <span>Wins</span>
               <span class="text-tertiary font-semibold" data-pill-count="win">0</span>
             </button>
             <button
-              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
               data-filter="loss">
               <span>Losses</span>
               <span class="text-error font-semibold" data-pill-count="loss">0</span>
             </button>
             <button
-              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+              class="filter-pill bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low font-metric-sm text-metric-sm px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all shrink-0"
               data-filter="open">
               <span>Open</span>
               <span class="text-secondary font-semibold" data-pill-count="open">0</span>
             </button>
           </div>
-          <div class="relative flex items-center">
+          <div class="relative flex items-center flex-1 sm:flex-initial">
             <span class="material-symbols-outlined absolute left-3 text-secondary text-[16px]">search</span>
-            <input class="pl-9 pr-3 py-1.5 h-8 w-48 lg:w-60 bg-surface-container-lowest rounded-lg font-metric-sm text-metric-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-low transition-colors shadow-sm" id="cs-search-input" placeholder="Search pair (e.g. HNT, 0G)..." type="text" />
+            <input class="pl-9 pr-3 py-1.5 h-8 w-full sm:w-48 lg:w-60 bg-surface-container-lowest rounded-lg font-metric-sm text-metric-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-low transition-colors shadow-sm" id="cs-search-input" placeholder="Search pair (e.g. HNT, 0G)..." type="text" />
           </div>
-          <div class="flex items-center gap-1 bg-surface-container-lowest px-2.5 py-1.5 rounded-lg shadow-sm">
+          <div class="flex items-center gap-1 bg-surface-container-lowest px-2.5 py-1.5 rounded-lg shadow-sm shrink-0">
             <span class="material-symbols-outlined text-secondary text-[16px]">tune</span>
-            <select class="bg-transparent font-metric-sm text-metric-sm text-on-surface-variant focus:outline-none" id="cs-sort-select">
+            <select class="bg-transparent font-metric-sm text-metric-sm text-on-surface-variant focus:outline-none cursor-pointer" id="cs-sort-select">
               <option value="date-desc">Newest first</option>
               <option value="date-asc">Oldest first</option>
               <option value="outcome">Outcome</option>
@@ -2246,34 +2258,34 @@
         </div>
       </div>
       <!-- KPI Ribbon: same real numbers already computed for the Trade Journal P&L breakdown -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4">
-        <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 pb-4">
+        <div class="bg-surface-container-lowest rounded-xl p-4 sm:p-5 shadow-sm flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Win Rate</span>
             <span class="material-symbols-outlined text-[18px] text-tertiary">verified</span>
           </div>
           <div class="mt-4">
-            <div class="text-metric-display font-metric-display text-on-surface" id="cs-kpi-winrate">--</div>
+            <div class="text-[24px] sm:text-metric-display font-metric-display text-on-surface" id="cs-kpi-winrate">--</div>
             <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="cs-kpi-winrate-sub">--</div>
           </div>
         </div>
-        <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between">
+        <div class="bg-surface-container-lowest rounded-xl p-4 sm:p-5 shadow-sm flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Total Net P&amp;L</span>
             <span class="material-symbols-outlined text-[18px] text-secondary">payments</span>
           </div>
           <div class="mt-4">
-            <div class="text-metric-display font-metric-display text-on-surface" id="cs-kpi-netpnl">--</div>
+            <div class="text-[24px] sm:text-metric-display font-metric-display text-on-surface" id="cs-kpi-netpnl">--</div>
             <div class="text-metric-sm font-metric-sm text-secondary mt-1" id="cs-kpi-netpnl-sub">--</div>
           </div>
         </div>
-        <div class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col justify-between min-w-0">
+        <div class="bg-surface-container-lowest rounded-xl p-4 sm:p-5 shadow-sm flex flex-col justify-between min-w-0">
           <div class="flex items-center justify-between">
             <span class="text-label-eyebrow font-label-eyebrow uppercase text-secondary">Best Case Study</span>
             <span class="material-symbols-outlined text-[18px] text-tertiary">military_tech</span>
           </div>
           <div class="mt-4 min-w-0">
-            <a class="text-metric-display font-metric-display text-on-surface hover:text-primary transition-colors truncate block" id="cs-kpi-best-link" href="#case-studies">--</a>
+            <a class="text-[24px] sm:text-metric-display font-metric-display text-on-surface hover:text-primary transition-colors truncate block" id="cs-kpi-best-link" href="#case-studies">--</a>
             <div class="text-metric-sm font-metric-sm text-secondary mt-1 truncate" id="cs-kpi-best-sub">--</div>
           </div>
         </div>
@@ -2288,7 +2300,7 @@
            left; P&L / R / outcome badges and the actions on the right. -->
       <!-- One card for both sections: the header content, then (below a thin divider) the stat row. -->
       <div class="bg-surface-container-lowest rounded-xl shadow-sm">
-      <div class="px-5 py-4 flex flex-col gap-2">
+      <div class="px-4 sm:px-5 py-4 flex flex-col gap-2">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-secondary font-metric-sm text-metric-sm">
           <span class="flex items-center gap-1.5" id="cs-session-wrap" hidden>
             <span class="material-symbols-outlined text-[14px]">schedule</span>
@@ -2303,10 +2315,9 @@
             <span class="material-symbols-outlined text-[13px] align-middle mr-1">sync_alt</span><span class="align-middle">Imported</span>
           </span>
         </div>
-        <!-- The title side takes whatever width the right side leaves (basis 0, floor 21rem) and
-             the setup badge truncates, so the badges and actions stay on this row instead of wrapping. -->
+        <!-- Responsive header row: wraps gracefully on mobile -->
         <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 flex-1 basis-0 min-w-[21rem]">
+          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 flex-1 basis-0 min-w-0 md:min-w-[21rem]">
             <span class="w-8 h-8 rounded-lg bg-on-surface text-surface-container-lowest flex items-center justify-center font-metric-lg text-metric-lg font-bold shrink-0" id="cs-pair-avatar" aria-hidden="true">?</span>
             <h1 class="font-metric-display text-[1.75rem] leading-8 text-on-surface font-bold tracking-tight shrink-0" id="cs-pair">--</h1>
             <span class="bg-surface-container-low text-primary px-3 py-1 rounded text-[12px] font-headline-sm font-bold uppercase tracking-wider shrink-0" id="cs-direction">--</span>
@@ -2315,7 +2326,7 @@
               <span class="truncate" id="cs-setup-name"></span>
             </span>
           </div>
-          <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-3 ml-auto">
+          <div class="flex flex-wrap items-center justify-between sm:justify-end gap-x-4 gap-y-3 w-full sm:w-auto">
             <div class="flex flex-wrap items-center justify-end gap-2">
               <div class="flex flex-wrap items-center gap-2" id="cs-return-badges"></div>
               <span class="bg-surface-container-low text-tertiary px-2.5 py-1 rounded-full font-metric-md text-metric-md font-semibold flex items-center gap-1.5" id="cs-outcome-pill">
@@ -2326,23 +2337,23 @@
             <div class="flex items-center gap-2 no-print">
               <button type="button" class="bg-surface-container-low hover:bg-surface-container text-on-surface px-3 py-1.5 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 transition-all duration-150" id="cs-btn-export" title="Save this case study as a PDF">
                 <span class="material-symbols-outlined text-[18px]">download</span>
-                Export
+                <span class="hidden sm:inline">Export</span>
               </button>
               <button class="bg-primary hover:bg-primary-container text-on-primary px-3 py-1.5 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 shadow-sm transition-all duration-150" id="cs-btn-edit">
                 <span class="material-symbols-outlined text-[18px]">edit_note</span>
-                Edit Entry
+                <span class="hidden sm:inline">Edit Entry</span>
               </button>
               <button class="bg-surface-container-lowest border border-error/60 text-error hover:bg-error-container/30 px-3 py-1.5 rounded-xl font-headline-sm text-[13px] flex items-center gap-1.5 transition-all duration-150" id="cs-btn-delete">
                 <span class="material-symbols-outlined text-[18px]">delete_outline</span>
-                Delete Log
+                <span class="hidden sm:inline">Delete Log</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Stats row: cells are rendered by JS and only exist when real data backs them -->
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-x-6 gap-y-5 px-5 py-4 border-t border-surface-container" id="cs-stats-row" hidden></div>
+      <!-- Stats row: strictly 2 cells per row on mobile, 3 on sm, auto-fit on md+ -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-x-4 md:gap-x-6 gap-y-4 md:gap-y-5 px-4 md:px-5 py-3 md:py-4 border-t border-surface-container" id="cs-stats-row" hidden></div>
       </div>
 
       <!-- Two-Column Main Layout: chart evidence | execution details + trade detail + checklist -->
@@ -2501,12 +2512,12 @@
 </div>
 </section>
       <section data-screen="confluence-matrix" hidden>
-        <div class="w-full max-w-7xl mx-auto p-space-xl">
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-space-xl">
           <div class="flex flex-col w-full">
             <!-- Header Section -->
             <header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
-                <div class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-secondary uppercase">
+                <div class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-secondary uppercase truncate">
                   <span>Journal</span>
                   <span class="text-outline-variant">/</span>
                   <span class="text-blue-600 font-semibold">Confluence Matrix</span>
@@ -2516,7 +2527,7 @@
                   win, narrowed down from every logged setup</p>
               </div>
               <!-- Active Filter/Tag Indicators -->
-              <div class="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-xl shadow-sm">
+              <div class="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-xl shadow-sm self-start md:self-auto">
                 <span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
                 <span class="font-metric-sm text-metric-sm text-secondary">Cohort:</span>
                 <span class="font-metric-sm text-metric-sm font-semibold text-on-surface" id="cm-cohort-count">11 Logged
@@ -2525,7 +2536,7 @@
             </header>
             <!-- Dark Highlight Banner (Visual Anchor) -->
             <section
-              class="emphasis-dark mt-6 rounded-xl p-6 bg-on-surface text-surface-container-lowest shadow-md relative overflow-hidden">
+              class="emphasis-dark mt-6 rounded-xl p-4 sm:p-6 bg-on-surface text-surface-container-lowest shadow-md relative overflow-hidden">
               <!-- Subtle architectural background glow -->
               <div
                 class="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-primary-container/20 blur-3xl pointer-events-none">
@@ -2550,7 +2561,7 @@
                 </div>
                 <!-- Stat Blocks -->
                 <div
-                  class="flex items-center gap-8 self-start md:self-auto bg-inverse-surface/60 px-6 py-3.5 rounded-xl backdrop-blur-sm">
+                  class="flex items-center gap-4 sm:gap-8 self-start md:self-auto bg-inverse-surface/60 px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl backdrop-blur-sm">
                   <div class="flex flex-col items-center">
                     <span
                       class="font-metric-display text-metric-display font-bold text-surface-container-lowest tracking-tight"
@@ -2878,13 +2889,13 @@
         </div>
       </section>
       <section data-screen="timing-and-heatmap" hidden>
-        <div class="w-full max-w-7xl mx-auto p-space-xl">
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-space-xl">
           <div class="flex flex-col w-full">
             <!-- Top Level Meta Breadcrumb & Header -->
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
                 <div
-                  class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-secondary uppercase tracking-wider">
+                  class="flex items-center gap-2 font-label-eyebrow text-label-eyebrow text-secondary uppercase tracking-wider truncate">
                   <span>JOURNAL</span>
                   <span class="text-outline-variant">/</span>
                   <span class="text-blue-600 font-semibold">TIMING &amp; HEATMAP</span>
@@ -2902,7 +2913,7 @@
                 </div>
               </div>
               <!-- Quick Meta Metrics Pill Group -->
-              <div class="flex items-center gap-2.5">
+              <div class="flex flex-wrap items-center gap-2.5">
                 <div class="bg-surface-container-lowest shadow-sm rounded-xl px-3.5 py-2 flex items-center gap-3">
                   <div class="flex flex-col">
                     <span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">SAMPLE
@@ -3296,12 +3307,12 @@
         </div>
       </section>
       <section data-screen="new-trade-entry" hidden>
-        <div class="w-full max-w-7xl mx-auto p-space-xl">
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-space-xl">
           <div class="flex flex-col w-full">
             <!-- Top Command & Action Bar -->
             <div class="flex flex-col md:flex-row md:items-center justify-between pb-6 gap-4">
               <div class="flex flex-col">
-                <div class="flex items-center gap-2 mb-1">
+                <div class="flex items-center gap-2 mb-1 truncate">
                   <span
                     class="font-label-eyebrow text-label-eyebrow text-secondary uppercase tracking-widest">JOURNAL</span>
                   <span class="text-secondary font-metric-sm text-metric-sm">/</span>
@@ -3349,7 +3360,7 @@
                   </div>
                   <div class="space-y-4">
                     <!-- Row 1: Date, Entry Time & Exit Time -->
-                    <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div class="flex flex-col gap-1.5">
                         <label
                           class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Date</label>

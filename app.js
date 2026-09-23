@@ -71,6 +71,13 @@
       sections[key].hidden = key !== slug;
     });
     setNavActive(slug);
+    if (window.innerWidth < 768) {
+      var sb = document.getElementById('app-sidebar');
+      var bd = document.getElementById('sidebar-backdrop');
+      if (sb) sb.classList.add('-translate-x-full');
+      if (bd) bd.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden', 'md:overflow-auto');
+    }
     window.scrollTo(0, 0);
 
     document.dispatchEvent(new CustomEvent('screenchange', { detail: { screen: slug, param: param || null } }));
@@ -522,17 +529,86 @@
     );
   }
 
+  function tradeCardHtml(trade) {
+    var tags = nonEmptyConfluence(trade);
+    var visibleTags = tags.slice(0, 3);
+    var moreCount = Math.max(tags.length - 3, 0);
+
+    var tagsHtml = visibleTags.map(function (tag) {
+      return '<span class="bg-surface-container-low text-on-surface-variant font-body-sm text-[12px] px-2 py-0.5 rounded shadow-sm">' + escapeHtml(tag) + '</span>';
+    }).join('');
+    if (moreCount > 0) {
+      tagsHtml += '<span class="font-metric-sm text-[11px] text-secondary ml-1 cursor-default">+' + moreCount + ' more</span>';
+    }
+    if (!tagsHtml) {
+      tagsHtml = '<span class="font-metric-sm text-[11px] text-outline-variant">No parameters logged</span>';
+    }
+
+    var dot = OUTCOME_DOT_CLASS[trade.outcome] || OUTCOME_DOT_CLASS.open;
+    var pillClass = OUTCOME_PILL_CLASS[trade.outcome] || OUTCOME_PILL_CLASS.open;
+    var directionClass = DIRECTION_BADGE_CLASS[trade.direction] || DIRECTION_BADGE_CLASS.long;
+
+    return (
+      '<div class="trade-card p-4 hover:bg-surface-container-low/40 transition-colors flex flex-col gap-2.5" data-trade-id="' +
+      escapeHtml(trade.id) + '" data-outcome="' + escapeHtml(trade.outcome) + '" data-pair="' + escapeHtml(trade.pair) + '" data-match-warning="' + (trade.matchWarning ? 'true' : 'false') + '">' +
+        // Row 1: Date & Day on left, Outcome badge on right
+        '<div class="flex items-center justify-between gap-2">' +
+          '<div class="flex items-center gap-2">' +
+            '<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">' + formatDateLabel(trade.date) + '</span>' +
+            '<span class="font-metric-sm text-metric-sm text-secondary">' + weekdayLabel(trade.date) + '</span>' +
+          '</div>' +
+          '<span class="' + pillClass + ' font-metric-sm text-[11px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5">' +
+            '<span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + escapeHtml(trade.outcome.toUpperCase()) +
+          '</span>' +
+        '</div>' +
+        // Row 2: Pair, Direction, Leverage, Chart link
+        '<div class="flex items-center justify-between gap-2">' +
+          '<div class="flex items-center gap-2 min-w-0 flex-wrap">' +
+            '<div class="flex items-center gap-1.5">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' +
+              '<span class="font-metric-md text-metric-md font-bold text-on-surface">' + escapeHtml(trade.pair) + '</span>' +
+            '</div>' +
+            '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded">' + escapeHtml(trade.direction.toUpperCase()) + '</span>' +
+            '<span class="font-metric-sm text-metric-sm text-secondary">' + escapeHtml(trade.leverage || '—') + '</span>' +
+            tradeRowBadgesHtml(trade) +
+          '</div>' +
+          '<div>' + tradeChartCellHtml(trade) + '</div>' +
+        '</div>' +
+        // Row 3: Parameter chips
+        '<div class="flex items-center flex-wrap gap-1">' + tagsHtml + '</div>' +
+        // Row 4: Card actions (Edit, Delete, Case study link)
+        '<div class="flex items-center justify-between pt-2 border-t border-surface-container-low mt-0.5">' +
+          '<div class="flex items-center gap-2">' +
+            '<a class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-secondary hover:text-primary transition-colors" href="#new-trade-entry/' + encodeURIComponent(trade.id) + '" title="Edit trade"><span class="material-symbols-outlined text-[18px]">edit</span></a>' +
+            '<button type="button" class="trade-delete-btn w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-secondary hover:text-error transition-colors" data-trade-id="' + escapeHtml(trade.id) + '" data-trade-pair="' + escapeHtml(trade.pair) + '" title="Delete trade"><span class="material-symbols-outlined text-[18px]">delete</span></button>' +
+          '</div>' +
+          '<a class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" href="#case-studies/' + encodeURIComponent(trade.id) + '">' +
+            '<span>Case study</span>' +
+            '<span class="material-symbols-outlined text-[15px]">arrow_forward</span>' +
+          '</a>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
   function applyTradeJournalFilters(section) {
-    var rows = section.querySelectorAll('.trade-row');
+    var rows = section.querySelectorAll('#tradesBody .trade-row');
+    var cards = section.querySelectorAll('#tradesCards .trade-card');
     var visible = 0;
-    rows.forEach(function (row) {
-      var outcome = row.getAttribute('data-outcome');
-      var pair = (row.getAttribute('data-pair') || '').toLowerCase();
-      var matches = (tjState.filter === 'all' || outcome === tjState.filter) &&
+    function matches(el) {
+      var outcome = el.getAttribute('data-outcome');
+      var pair = (el.getAttribute('data-pair') || '').toLowerCase();
+      return (tjState.filter === 'all' || outcome === tjState.filter) &&
         (!tjState.search || pair.indexOf(tjState.search) !== -1) &&
-        (!tjState.flaggedOnly || row.getAttribute('data-match-warning') === 'true');
-      row.style.display = matches ? '' : 'none';
-      if (matches) visible++;
+        (!tjState.flaggedOnly || el.getAttribute('data-match-warning') === 'true');
+    }
+    rows.forEach(function (row) {
+      var m = matches(row);
+      row.style.display = m ? '' : 'none';
+      if (m) visible++;
+    });
+    cards.forEach(function (card) {
+      card.style.display = matches(card) ? '' : 'none';
     });
     var countDisplay = section.querySelector('#visible-count');
     if (countDisplay) countDisplay.textContent = visible;
@@ -765,9 +841,12 @@
     var section = sections['trade-journal'];
     if (!section) return;
     var trades = TradeStore.getAll();
+    var sorted = sortTrades(trades, tjState.sort);
 
     var tbody = section.querySelector('#tradesBody');
-    if (tbody) tbody.innerHTML = sortTrades(trades, tjState.sort).map(tradeRowHtml).join('');
+    if (tbody) tbody.innerHTML = sorted.map(tradeRowHtml).join('');
+    var cardsContainer = section.querySelector('#tradesCards');
+    if (cardsContainer) cardsContainer.innerHTML = sorted.map(tradeCardHtml).join('');
 
     var stats = computeStats(trades);
     var countAll = section.querySelector('[data-pill-count="all"]');
@@ -829,7 +908,7 @@
   function visibleTradeIds() {
     var section = sections['trade-journal'];
     if (!section) return [];
-    return Array.prototype.filter.call(section.querySelectorAll('.trade-row'), function (row) {
+    return Array.prototype.filter.call(section.querySelectorAll('#tradesBody .trade-row'), function (row) {
       return row.style.display !== 'none';
     }).map(function (row) { return row.getAttribute('data-trade-id'); });
   }
@@ -4192,30 +4271,33 @@
     var sessionLabel = tradeSessionLabel(trade);
     var setupSummary = caseStudySetupSummary(trade);
     return (
-      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="block px-5 py-3.5 hover:bg-surface-container-low/60 transition-colors">' +
-      '<div class="flex items-center justify-between gap-4">' +
-        '<div class="flex items-center gap-3 min-w-0">' +
-          '<div class="flex flex-col shrink-0 w-16">' +
-            '<span class="font-headline-sm text-headline-sm text-on-surface">' + formatDateLabel(trade.date) + '</span>' +
-            '<span class="font-metric-sm text-metric-sm text-secondary">' + weekdayLabel(trade.date) + '</span>' +
+      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="block p-4 sm:px-5 sm:py-3.5 hover:bg-surface-container-low/60 transition-colors">' +
+      '<div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 md:gap-4">' +
+        '<div class="flex items-center justify-between md:justify-start gap-2.5 min-w-0">' +
+          '<div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-wrap sm:flex-nowrap">' +
+            '<div class="flex flex-col shrink-0 w-14 sm:w-16">' +
+              '<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">' + formatDateLabel(trade.date) + '</span>' +
+              '<span class="font-metric-sm text-metric-sm text-secondary">' + weekdayLabel(trade.date) + '</span>' +
+            '</div>' +
+            (sessionLabel ? '<span class="shrink-0 font-metric-sm text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-surface-container-low text-secondary" title="Session">' + escapeHtml(sessionLabel) + '</span>' : '') +
+            '<span class="font-metric-md text-metric-md font-bold text-on-surface truncate">' + escapeHtml(trade.pair) + '</span>' +
+            '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + trade.direction.toUpperCase() + '</span>' +
+            caseStudyReturnBadgeHtml(trade) +
           '</div>' +
-          (sessionLabel ? '<span class="shrink-0 font-metric-sm text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-surface-container-low text-secondary" title="Session">' + escapeHtml(sessionLabel) + '</span>' : '') +
-          '<span class="font-metric-md text-metric-md font-bold text-on-surface truncate">' + escapeHtml(trade.pair) + '</span>' +
-          '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + trade.direction.toUpperCase() + '</span>' +
-          caseStudyReturnBadgeHtml(trade) +
+          '<span class="md:hidden ' + pillClass + ' font-metric-sm text-[11px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shrink-0">' +
+            '<span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + trade.outcome.toUpperCase() +
+          '</span>' +
         '</div>' +
-        '<div class="flex items-center gap-3 shrink-0">' +
+        '<div class="flex items-center justify-between md:justify-end gap-3 shrink-0">' +
           '<span class="font-metric-sm text-metric-sm text-secondary">' + filledCount + ' parameter' + (filledCount === 1 ? '' : 's') + '</span>' +
-          '<span class="' + pillClass + ' font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5">' +
+          '<span class="hidden md:flex ' + pillClass + ' font-metric-sm text-metric-sm font-semibold px-2.5 py-0.5 rounded-full items-center gap-1.5">' +
             '<span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + trade.outcome.toUpperCase() +
           '</span>' +
           '<span class="material-symbols-outlined text-secondary text-[18px]">chevron_right</span>' +
         '</div>' +
       '</div>' +
-      // Aligned under the pair (date column w-16 + gap-3), matching the
-      // header row's indent so it reads as part of the same trade's content.
       (setupSummary
-        ? '<div class="flex items-center gap-1.5 mt-1.5 pl-[4.75rem] min-w-0">' +
+        ? '<div class="flex items-center gap-1.5 mt-2 md:mt-1.5 md:pl-[4.75rem] min-w-0">' +
             '<span class="material-symbols-outlined text-secondary text-[14px] shrink-0">strategy</span>' +
             '<span class="font-metric-sm text-metric-sm text-secondary truncate">' + escapeHtml(setupSummary) + '</span>' +
           '</div>'
@@ -7813,10 +7895,59 @@
     if (slug === 'new-trade-entry') enterNewTradeEntry(param);
   }
 
+  function initMobileDrawer() {
+    var sidebar = document.getElementById('app-sidebar');
+    var backdrop = document.getElementById('sidebar-backdrop');
+    var toggleBtn = document.getElementById('sidebar-toggle');
+    if (!sidebar || !backdrop || !toggleBtn) return;
+
+    function openDrawer() {
+      sidebar.classList.remove('-translate-x-full');
+      backdrop.classList.remove('hidden');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      document.body.classList.add('overflow-hidden', 'md:overflow-auto');
+    }
+
+    function closeDrawer() {
+      sidebar.classList.add('-translate-x-full');
+      backdrop.classList.add('hidden');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('overflow-hidden', 'md:overflow-auto');
+    }
+
+    toggleBtn.addEventListener('click', function () {
+      var isOpen = !sidebar.classList.contains('-translate-x-full');
+      if (isOpen) closeDrawer();
+      else openDrawer();
+    });
+
+    backdrop.addEventListener('click', closeDrawer);
+
+    sidebar.querySelectorAll('a, button').forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (window.innerWidth < 768) closeDrawer();
+      });
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
+        closeDrawer();
+      }
+    });
+
+    window.addEventListener('resize', function () {
+      if (window.innerWidth >= 768 && !sidebar.classList.contains('-translate-x-full')) {
+        backdrop.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden', 'md:overflow-auto');
+      }
+    });
+  }
+
   // ---------------------------------------------------------------------
   // Wiring + boot
   // ---------------------------------------------------------------------
 
+  initMobileDrawer();
   initTradeJournalControls(sections['trade-journal']);
   initMexcImport(sections['trade-journal']);
   initPositionHistory(sections['position-history']);
