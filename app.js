@@ -2251,19 +2251,13 @@
         reader.onload = function () {
           var result;
           try {
-            var parsed;
             var detected;
             if (isCsv) {
-              parsed = parseMexcCsv(reader.result);
               detected = detectAndParseCsv(reader.result);
             } else {
               var workbook = XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
-              parsed = parseMexcWorkbook(workbook);
               detected = detectAndParseWorkbook(workbook);
             }
-            if (parsed.error) {
-              window.alert('Could not import this file: ' + parsed.error);
-              return;
 
             if (detected.kind === 'tv') {
               var tvParsed = detected.parsed;
@@ -2287,17 +2281,10 @@
               if (mexcResult.ignored) mexcText += ', ' + mexcResult.ignored + ' skipped (not closed)';
               result = { text: mexcText };
             }
-            if (!parsed.rows.length) {
-              window.alert('No position rows found in this file.');
-              return;
-            }
-            result = importPositionRows(parsed.rows);
           } catch (err) {
-            window.alert('Could not read this file. Make sure it is a MEXC Position History export (.xlsx or .csv).');
             window.alert('Could not read this file. Supported formats: MEXC Position History (.xlsx/.csv) or TradingView Paper Trade History (.xlsx/.csv).');
             return;
           }
-          showPositionImportBanner(result);
           var textEl = section.querySelector('#ph-import-text');
           var banner = section.querySelector('#ph-import-banner');
           if (textEl) textEl.textContent = result.text;
