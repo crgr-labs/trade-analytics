@@ -3279,6 +3279,87 @@
     );
   }
 
+  // Lower bound of the Wilson score interval for a win rate (95% by default).
+  // Ranks small samples honestly: 3/3 scores well below 30/30, where a raw
+  // win rate calls them both 100%. Shared by anything that has to judge one
+  // combination as better or worse than another (a future Auto-Discover
+  // should call this too, so both places agree on what "improved" means).
+  function wilsonLowerBound(wins, total, z) {
+    if (!total) return 0;
+    z = z || 1.96;
+    var p = wins / total;
+    var z2 = z * z;
+    var centre = p + z2 / (2 * total);
+    var margin = z * Math.sqrt((p * (1 - p) + z2 / (4 * total)) / total);
+    return (centre - margin) / (1 + z2 / total);
+  }
+
+  // One step from the current selection: for every parameter not yet
+  // selected, how the combination would perform with it added. Adding a
+  // parameter can only narrow the matching trades, so the candidates are
+  // just the other parameters carried by trades that already match.
+  //   best  - highest Wilson lower bound, and only if it beats the current
+  //           selection's (so a subset with the same record isn't "better");
+  //   worst - the addition that would cut the win rate the most, ignoring
+  //           drops under 5 points as noise.
+  // Additions leaving fewer than 2 matching trades are never surfaced.
+  var CM_MIN_SUGGESTION_TRADES = 2;
+  var CM_MIN_HURT_DROP = 0.05;
+
+  function cmNextAdditions(selected, closed) {
+    if (!selected.length) return null;
+    var matched = cmDrillTrades({ params: selected }, closed);
+    if (!matched.length) return null;
+    var baseWins = matched.filter(function (t) { return t.outcome === 'win'; }).length;
+    var base = { wins: baseWins, total: matched.length, rate: baseWins / matched.length, lb: wilsonLowerBound(baseWins, matched.length) };
+
+    var counts = {};
+    matched.forEach(function (t) {
+      nonEmptyConfluence(t).forEach(function (p) {
+        if (isBareNumber(p) || parameterInList(selected, p)) return;
+        counts[p] = counts[p] || { name: p, wins: 0, total: 0 };
+        counts[p].total++;
+        if (t.outcome === 'win') counts[p].wins++;
+      });
+    });
+    var candidates = Object.keys(counts).map(function (k) {
+      var c = counts[k];
+      c.rate = c.wins / c.total;
+      c.lb = wilsonLowerBound(c.wins, c.total);
+      return c;
+    }).filter(function (c) { return c.total >= CM_MIN_SUGGESTION_TRADES; });
+
+    var best = candidates.filter(function (c) { return c.lb > base.lb + 0.005; }).sort(function (a, b) {
+      return (b.lb - a.lb) || (b.total - a.total) || a.name.localeCompare(b.name);
+    })[0] || null;
+    var worst = candidates.filter(function (c) { return c.rate < base.rate - CM_MIN_HURT_DROP; }).sort(function (a, b) {
+      return (a.rate - b.rate) || (b.total - a.total) || a.name.localeCompare(b.name);
+    })[0] || null;
+    return { base: base, best: best, worst: worst };
+  }
+
+  function builderHintsHtml(closed) {
+    var next = cmNextAdditions(cmBuilderSelected, closed);
+    if (!next || (!next.best && !next.worst)) return '';
+    function record(s) { return s.wins + '/' + s.total + ' (' + pct(s.wins, s.total) + '%)'; }
+    var html = '';
+    if (next.best) {
+      html +=
+        '<button type="button" class="cm-builder-suggest w-full text-left flex items-start gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" data-value="' + escapeHtml(next.best.name) + '">' +
+          '<span class="material-symbols-outlined text-[18px] shrink-0 mt-px">lightbulb</span>' +
+          '<span class="font-body-sm text-body-sm">Adding <span class="font-semibold">\'' + escapeHtml(next.best.name) + '\'</span> would take this from ' + record(next.base) + ' to ' + record(next.best) + ' — <span class="font-semibold underline">try it</span></span>' +
+        '</button>';
+    }
+    if (next.worst) {
+      html +=
+        '<div class="flex items-start gap-2 px-3 py-2 rounded-lg bg-warning-container text-on-warning-container">' +
+          '<span class="material-symbols-outlined text-[18px] shrink-0 mt-px">warning</span>' +
+          '<span class="font-body-sm text-body-sm">Adding <span class="font-semibold">\'' + escapeHtml(next.worst.name) + '\'</span> would drop this from ' + record(next.base) + ' to ' + record(next.worst) + '</span>' +
+        '</div>';
+    }
+    return html;
+  }
+
   function renderSetupBuilder(section, closed) {
     var grid = section.querySelector('#cm-builder-grid');
     if (!grid) return;
@@ -3294,6 +3375,12 @@
 
     var statEl = section.querySelector('#cm-builder-stat');
     if (statEl) statEl.innerHTML = builderStatHtml(closed);
+    var hintsEl = section.querySelector('#cm-builder-hints');
+    if (hintsEl) {
+      var hintsHtml = builderHintsHtml(closed);
+      hintsEl.innerHTML = hintsHtml;
+      hintsEl.hidden = !hintsHtml;
+    }
 
     // The suggested name follows the selection until the user edits it.
     var nameInput = section.querySelector('#cm-builder-name');
@@ -3422,6 +3509,20 @@
       clearBtn.addEventListener('click', function () {
         cmBuilderSelected = [];
         cmBuilderNameTouched = false;
+        showBuilderNote(section, '', false);
+        renderSetupBuilder(section, cmClosedTrades());
+      });
+    }
+
+    var hintsEl = section.querySelector('#cm-builder-hints');
+    if (hintsEl) {
+      // Taking the suggestion is just another selection change, so the stat
+      // and the next suggestion both re-derive from the new selection.
+      hintsEl.addEventListener('click', function (e) {
+        var suggestion = e.target.closest ? e.target.closest('.cm-builder-suggest') : null;
+        if (!suggestion) return;
+        var value = suggestion.getAttribute('data-value');
+        if (!parameterInList(cmBuilderSelected, value)) cmBuilderSelected = cmBuilderSelected.concat(value);
         showBuilderNote(section, '', false);
         renderSetupBuilder(section, cmClosedTrades());
       });
