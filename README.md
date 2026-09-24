@@ -53,6 +53,17 @@ Trade Analytics delivers clinical fintech clarity, Swiss grid discipline, and de
    ```
 
 3. Open `http://localhost:8000` (or `http://localhost:3000`) in your browser.
+3. **Styling & CSS Build (Optional):**
+   The repository includes the compiled static CSS stylesheet (`css/app.css`). If modifying UI classes or templates:
+   ```bash
+   # Rebuild minified CSS
+   npm run build:css
+
+   # Watch for changes during development
+   npm run watch:css
+   ```
+
+4. Open `http://localhost:8000` (or `http://localhost:3000`) in your browser.
 
 ---
 
