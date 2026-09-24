@@ -170,6 +170,36 @@
     { key: 'm15', label: 'M15', short: '15m' }
   ];
 
+  // Retired parameter names, mapped (lowercased) to the name they merged into.
+  // The picker used to ship a long-form default next to the short name that
+  // trades actually carry ("4H Break of Structure (BOS)" vs "4H BOS"), so the
+  // long form always matched zero trades. The name in use is the one kept, so
+  // no logged history needs rewriting to something the stats don't already
+  // use. Applied wherever a name can live: trades (parameters, legacy
+  // confluence, checklist statuses), saved setups and the picker vocabulary -
+  // including data pulled from another device that still has the old name.
+  var PARAMETER_ALIASES = {
+    '4h break of structure (bos)': '4H BOS',
+    'daily uptrend and momentum continuation': 'Daily Uptrend & Momentum'
+  };
+
+  function canonicalParameter(name) {
+    var trimmed = String(name == null ? '' : name).trim();
+    return PARAMETER_ALIASES[trimmed.toLowerCase()] || trimmed;
+  }
+
+  // Canonical names, empties dropped, and a trade that carried both spellings
+  // ends up with the one parameter rather than a duplicate.
+  function canonicalParameterList(list) {
+    var seen = {};
+    return list.map(canonicalParameter).filter(function (p) {
+      var key = p.toLowerCase();
+      if (!p || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
   // Trades used to store confluence parameters as a fixed 7-slot array
   // (`confluence`). That's now a variable-length `parameters` array picked
   // from a multi-select. This migrates any trade still shaped the old way
@@ -178,6 +208,11 @@
     if (!Array.isArray(trade.parameters)) {
       trade.parameters = (trade.confluence || []).map(function (v) { return (v || '').trim(); }).filter(Boolean);
     }
+    trade.parameters = canonicalParameterList(trade.parameters);
+    // The legacy slot array is only read as a fallback, but it still carries
+    // the old name in stored data, so it is renamed too (slots stay in place -
+    // some hold bare values like "32%" and empty slots are meaningful).
+    if (Array.isArray(trade.confluence)) trade.confluence = trade.confluence.map(canonicalParameter);
     if (!trade.source) trade.source = 'manual';
     // Optional "HH:mm" exit time, same frame as entryTime; older trades have none.
     if (typeof trade.exitTime !== 'string') trade.exitTime = '';
@@ -228,7 +263,12 @@
     if (trade.parameterStatus && typeof trade.parameterStatus === 'object') {
       Object.keys(trade.parameterStatus).forEach(function (name) {
         var status = trade.parameterStatus[name];
-        if (status === 'pending' || status === 'failed') statuses[name] = status;
+        if (status !== 'pending' && status !== 'failed') return;
+        // Statuses are keyed by parameter name, so a renamed parameter keeps
+        // its status; if the canonical name already has its own, that wins.
+        var key = canonicalParameter(name);
+        if (key !== name && statuses[key]) return;
+        statuses[key] = status;
       });
     }
     trade.parameterStatus = statuses;
@@ -323,7 +363,7 @@
     return {
       id: String(s.id),
       name: String(s.name || '').trim(),
-      parameters: Array.isArray(s.parameters) ? s.parameters.map(function (p) { return String(p || '').trim(); }).filter(Boolean) : [],
+      parameters: Array.isArray(s.parameters) ? canonicalParameterList(s.parameters) : [],
       createdAt: s.createdAt || new Date().toISOString()
     };
   }
@@ -5935,11 +5975,11 @@
   // ---------------------------------------------------------------------
 
   var CONFLUENCE_PARAMETER_LIBRARY = [
-    'Daily Uptrend and Momentum continuation',
+    'Daily Uptrend & Momentum',
     'Daily Sideways',
     'Daily RSI above 70',
     'Daily RSI below 70',
-    '4H Break of Structure (BOS)',
+    '4H BOS',
     '4H Parabolic',
     '4H Pullback',
     '4H Pause',
@@ -6026,7 +6066,8 @@
     try {
       var raw = localStorage.getItem(REMOVED_DEFAULTS_STORAGE_KEY);
       var list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list.map(function (n) { return String(n).toLowerCase(); }) : [];
+      // A tombstone for a retired default carries over to the name it merged into.
+      return Array.isArray(list) ? list.map(function (n) { return canonicalParameter(n).toLowerCase(); }) : [];
     } catch (e) {
       return [];
     }
@@ -6064,6 +6105,15 @@
     var seen = {};
     var changed = false;
 
+    // Entries under a retired name go last, so when both spellings are stored
+    // the one already under the kept name (and wherever the user filed it)
+    // survives the merge below.
+    function isRetired(entry) {
+      var raw = typeof entry === 'string' ? entry : (entry && entry.name);
+      return !!raw && canonicalParameter(raw).toLowerCase() !== String(raw).trim().toLowerCase();
+    }
+    stored = stored.filter(function (e) { return !isRetired(e); }).concat(stored.filter(isRetired));
+
     stored.forEach(function (entry) {
       var name, category;
       if (typeof entry === 'string') {
@@ -6077,6 +6127,11 @@
       } else {
         changed = true;
         return;
+      }
+      var canonicalName = canonicalParameter(name);
+      if (canonicalName !== name) {
+        name = canonicalName;
+        changed = true;
       }
       var key = name.toLowerCase();
       if (seen[key]) { changed = true; return; }
@@ -6095,6 +6150,25 @@
 
     if (changed) saveConfluenceVocabulary(vocab);
     return vocab;
+  }
+
+  // One-time cleanup of data saved under a retired parameter name. Reads
+  // already return canonical names (migrateTrade / normalizeSetup /
+  // loadConfluenceVocabulary), so this only makes that permanent in storage -
+  // and, via the store's own setAll, queues the change for GitHub sync. It
+  // only rewrites when a retired name is actually present, so it is a no-op
+  // on every load after the first.
+  function migrateStoredParameterAliases() {
+    var retired = Object.keys(PARAMETER_ALIASES);
+    function mentionsRetired(raw) {
+      var lower = String(raw || '').toLowerCase();
+      return retired.some(function (name) { return lower.indexOf(name) !== -1; });
+    }
+    try {
+      if (mentionsRetired(localStorage.getItem(STORAGE_KEY))) TradeStore.setAll(TradeStore.getAll());
+      if (mentionsRetired(localStorage.getItem(SETUPS_STORAGE_KEY))) SetupStore.setAll(SetupStore.getAll());
+    } catch (e) {}
+    loadConfluenceVocabulary();
   }
 
   function findVocabularyEntry(name) {
@@ -8605,6 +8679,7 @@
   // Wiring + boot
   // ---------------------------------------------------------------------
 
+  migrateStoredParameterAliases();
   initMobileDrawer();
   initTradeJournalControls(sections['trade-journal']);
   initMexcImport(sections['trade-journal']);
