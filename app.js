@@ -8767,6 +8767,17 @@
     });
   }
 
+  // Shared by push and pull: describes a collection that's about to shrink
+  // (e.g. "Trades: 42 -> 1"), or null if it wouldn't. Used to warn before
+  // either sync direction silently drops data - the failure mode that once
+  // wiped a real trade history in a single pull with no confirmation.
+  function describeCountShrink(label, fromCount, toCount) {
+    if (fromCount > 0 && toCount < fromCount) {
+      return label + ': ' + fromCount + ' → ' + toCount;
+    }
+    return null;
+  }
+
   function pushToGitHub() {
     var cfg = ghConfigGet();
     if (!cfg) return;
@@ -8785,13 +8796,24 @@
     }
     githubPushInFlight = true;
 
+    var meta = ghMetaGet();
+    var previousStatus = meta.status || 'synced';
+    var previousError = meta.lastError || null;
+
     setSyncStatus('syncing');
 
     var trades = TradeStore.getAll();
     var positions = PositionStore.getAll();
     var setups = SetupStore.getAll();
     var antiPatterns = AntiPatternStore.getAll();
-    var meta = ghMetaGet();
+
+    function finishInFlight() {
+      githubPushInFlight = false;
+      if (githubPushQueued) {
+        githubPushQueued = false;
+        pushToGitHub();
+      }
+    }
 
     function putJsonFile(path, json, shaField, message) {
       return ghPutFile(cfg, path, utf8ToBase64(json), meta[shaField], message).then(function (result) {
@@ -8807,59 +8829,83 @@
       });
     }
 
-    uploadChangedImages(cfg, trades).then(function () {
-      var tradesJson = JSON.stringify(buildRemoteTradesPayload(trades), null, 2);
-      var positionsJson = JSON.stringify(positions, null, 2);
-      var paramsJson = JSON.stringify(buildRemoteParamsPayload(), null, 2);
-      var writes = [
-        ['data/trades.json', tradesJson, 'tradesSha', 'Sync trades'],
-        ['data/positions.json', positionsJson, 'positionsSha', 'Sync positions'],
-        ['data/parameters.json', paramsJson, 'paramsSha', 'Sync confluence categories']
-      ];
-      // Only written once a setup exists (or the repo already has the file,
-      // so deleting the last one still propagates) - otherwise a journal
-      // that never uses setups doesn't gain an empty data/setups.json.
-      if (setups.length || meta.setupsSha) {
-        writes.push(['data/setups.json', JSON.stringify(setups, null, 2), 'setupsSha', 'Sync setups']);
-      }
-      if (antiPatterns.length || meta.antiPatternsSha) {
-        writes.push(['data/antipatterns.json', JSON.stringify(antiPatterns, null, 2), 'antiPatternsSha', 'Sync anti-patterns']);
-      }
-      // One at a time. Every Contents API write is its own commit on the
-      // branch, and GitHub rejects a commit made while another is still
-      // landing (409) - so parallel writes clash with each other, and the
-      // refetch-and-retry in putJsonFile just clashes again with whatever is
-      // still in flight. Each file is small, so the extra latency is minor.
-      return writes.reduce(function (chain, w) {
-        return chain.then(function (results) {
-          return putJsonFile(w[0], w[1], w[2], w[3]).then(function (result) { return results.concat(result); });
+    function doWrite() {
+      return uploadChangedImages(cfg, trades).then(function () {
+        var tradesJson = JSON.stringify(buildRemoteTradesPayload(trades), null, 2);
+        var positionsJson = JSON.stringify(positions, null, 2);
+        var paramsJson = JSON.stringify(buildRemoteParamsPayload(), null, 2);
+        var writes = [
+          ['data/trades.json', tradesJson, 'tradesSha', 'Sync trades'],
+          ['data/positions.json', positionsJson, 'positionsSha', 'Sync positions'],
+          ['data/parameters.json', paramsJson, 'paramsSha', 'Sync confluence categories']
+        ];
+        // Only written once a setup exists (or the repo already has the file,
+        // so deleting the last one still propagates) - otherwise a journal
+        // that never uses setups doesn't gain an empty data/setups.json.
+        if (setups.length || meta.setupsSha) {
+          writes.push(['data/setups.json', JSON.stringify(setups, null, 2), 'setupsSha', 'Sync setups']);
+        }
+        if (antiPatterns.length || meta.antiPatternsSha) {
+          writes.push(['data/antipatterns.json', JSON.stringify(antiPatterns, null, 2), 'antiPatternsSha', 'Sync anti-patterns']);
+        }
+        // One at a time. Every Contents API write is its own commit on the
+        // branch, and GitHub rejects a commit made while another is still
+        // landing (409) - so parallel writes clash with each other, and the
+        // refetch-and-retry in putJsonFile just clashes again with whatever is
+        // still in flight. Each file is small, so the extra latency is minor.
+        return writes.reduce(function (chain, w) {
+          return chain.then(function (results) {
+            return putJsonFile(w[0], w[1], w[2], w[3]).then(function (result) { return results.concat(result); });
+          });
+        }, Promise.resolve([]));
+      }).then(function (results) {
+        var failed = results.filter(function (r) { return !r.ok; });
+        if (failed.length) {
+          throw new Error('failed to write ' + failed.map(function (r) { return r.path + ' (status ' + r.status + ')'; }).join(', '));
+        }
+        ghMetaSet({
+          tradesSha: meta.tradesSha,
+          positionsSha: meta.positionsSha,
+          paramsSha: meta.paramsSha,
+          setupsSha: meta.setupsSha || null,
+          antiPatternsSha: meta.antiPatternsSha || null,
+          lastPushedFingerprint: computeDataFingerprint(trades, positions, setups, antiPatterns),
+          lastPushAt: Date.now(),
+          lastSyncAt: Date.now()
         });
-      }, Promise.resolve([]));
-    }).then(function (results) {
-      var failed = results.filter(function (r) { return !r.ok; });
-      if (failed.length) {
-        throw new Error('failed to write ' + failed.map(function (r) { return r.path + ' (status ' + r.status + ')'; }).join(', '));
-      }
-      ghMetaSet({
-        tradesSha: meta.tradesSha,
-        positionsSha: meta.positionsSha,
-        paramsSha: meta.paramsSha,
-        setupsSha: meta.setupsSha || null,
-        antiPatternsSha: meta.antiPatternsSha || null,
-        lastPushedFingerprint: computeDataFingerprint(trades, positions, setups, antiPatterns),
-        lastPushAt: Date.now(),
-        lastSyncAt: Date.now()
+        setSyncStatus('synced');
       });
-      setSyncStatus('synced');
+    }
+
+    // Guard against a smaller/broken local state silently overwriting a
+    // bigger remote history - the exact failure mode that once wiped a real
+    // trade history: a near-empty device's autosave overwrote everyone
+    // else's data with nothing standing in the way. Confirms before a push
+    // would shrink what's already on GitHub.
+    Promise.all([
+      ghGetFile(cfg, 'data/trades.json'),
+      ghGetFile(cfg, 'data/positions.json')
+    ]).then(function (remoteResults) {
+      var remoteTradeCount = remoteResults[0].exists ? JSON.parse(remoteResults[0].text).length : 0;
+      var remotePositionCount = remoteResults[1].exists ? JSON.parse(remoteResults[1].text).length : 0;
+      var lines = [
+        describeCountShrink('Trades', remoteTradeCount, trades.length),
+        describeCountShrink('Positions', remotePositionCount, positions.length)
+      ].filter(Boolean);
+
+      if (lines.length && !window.confirm(
+        'This device has FEWER trades/positions than what\'s already on GitHub:\n\n' + lines.join('\n') +
+        '\n\nPushing will REPLACE the GitHub data with this smaller set - every other device that syncs afterward loses the difference too.\n\n' +
+        'Click OK to push anyway.\nClick Cancel to leave GitHub untouched (pull first if you expected more data on this device).'
+      )) {
+        return null; // cancelled - fall through without writing
+      }
+      return doWrite();
+    }).then(function (result) {
+      if (result === null) setSyncStatus(previousStatus, previousError);
     }).catch(function (err) {
       setSyncStatus('error', err && err.message ? err.message : String(err));
-    }).then(function () {
-      githubPushInFlight = false;
-      if (githubPushQueued) {
-        githubPushQueued = false;
-        pushToGitHub();
-      }
-    });
+    }).then(finishInFlight);
   }
 
   function scheduleGithubSync() {
@@ -8965,6 +9011,28 @@
             pushToGitHub();
             return;
           }
+        }
+      } else {
+        // Established device (already synced before): the guard above only
+        // catches unpushed local edits, so without this, a remote that's
+        // shrunk for any reason - another device's bad push, sync pointed at
+        // the wrong repo, a stray test - gets applied here with no warning
+        // at all. This is exactly what once wiped a real trade history in
+        // one silent pull.
+        var localTradesForShrinkCheck = TradeStore.getAll();
+        var localPositionsForShrinkCheck = PositionStore.getAll();
+        var shrinkLines = [
+          describeCountShrink('Trades', localTradesForShrinkCheck.length, remoteTrades.length),
+          describeCountShrink('Positions', localPositionsForShrinkCheck.length, remotePositions.length)
+        ].filter(Boolean);
+
+        if (shrinkLines.length && !window.confirm(
+          'GitHub has FEWER trades/positions than this device:\n\n' + shrinkLines.join('\n') +
+          '\n\nThis usually means another device pushed a smaller dataset, or sync is pointed at the wrong repo. Continuing will REPLACE this device\'s data with the smaller set.\n\n' +
+          'Click OK to accept it anyway.\nClick Cancel to keep this device\'s data and push it to GitHub instead.'
+        )) {
+          pushToGitHub();
+          return;
         }
       }
 
