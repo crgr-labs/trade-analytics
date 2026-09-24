@@ -3434,6 +3434,251 @@
     var closed = cmClosedTrades();
     renderSetupBuilder(section, closed);
     renderSavedSetups(section, closed);
+    if (cmDiscoverOpen) runAutoDiscover(section, closed);
+  }
+
+  // ---------------------------------------------------------------------
+  // Auto-Discover Setups
+  // ---------------------------------------------------------------------
+
+  var CM_DISCOVER_MIN_SIZE = 2;
+  var CM_DISCOVER_MAX_SIZE = 5;
+  var CM_DISCOVER_TOP = 10;
+  var CM_DISCOVER_DEFAULT_MIN_TRADES = 2;
+  // Below this many closed trades every result is an early lead at best.
+  var CM_SMALL_SAMPLE_TRADES = 20;
+
+  var cmDiscoverOpen = false;
+  var cmDiscoverMinTrades = CM_DISCOVER_DEFAULT_MIN_TRADES;
+  var cmDiscoverResults = [];
+
+  // Counts every 2-5 parameter combination that actually occurs, with its
+  // wins/total over closed trades. A trade contributes to every combination
+  // it *contains*, which is exactly the "contains ALL selected parameters"
+  // rule the builder and drill-downs use - but built from what trades carry
+  // rather than by testing every possible combination of the vocabulary
+  // (millions, nearly all matching nothing). Parameters on fewer than
+  // minTrades trades are dropped up front: a combination can't match more
+  // trades than its rarest member.
+  function cmDiscoverCombos(closed, minTrades) {
+    var tradeParams = closed.map(function (t) {
+      return nonEmptyConfluence(t).filter(function (p) { return !isBareNumber(p); });
+    });
+    var freq = {};
+    tradeParams.forEach(function (list) {
+      list.forEach(function (p) { freq[p] = (freq[p] || 0) + 1; });
+    });
+
+    var combos = {};
+    closed.forEach(function (trade, index) {
+      var params = tradeParams[index]
+        .filter(function (p) { return freq[p] >= minTrades; })
+        .filter(function (p, i, arr) { return arr.indexOf(p) === i; })
+        .sort();
+      var won = trade.outcome === 'win';
+
+      function extend(start, chosen) {
+        if (chosen.length >= CM_DISCOVER_MIN_SIZE) {
+          var key = chosen.join('\u0001');
+          var entry = combos[key] || (combos[key] = { params: chosen.slice(), wins: 0, total: 0, ids: [] });
+          entry.total++;
+          if (won) entry.wins++;
+          entry.ids.push(index);
+        }
+        if (chosen.length === CM_DISCOVER_MAX_SIZE) return;
+        for (var i = start; i < params.length; i++) {
+          chosen.push(params[i]);
+          extend(i + 1, chosen);
+          chosen.pop();
+        }
+      }
+      extend(0, []);
+    });
+    return combos;
+  }
+
+  // Ranks by the Wilson lower bound, not the raw win rate, so a lucky 2/2
+  // doesn't outrank a sturdier 7/8. Combinations that match exactly the same
+  // trades are the same finding, so only the simplest (fewest parameters) is
+  // kept - otherwise adding a parameter every matching trade already has
+  // would fill the list with copies. Sub-50% combinations aren't "best
+  // performing" whatever their sample, so they aren't listed.
+  function cmDiscoverSetups(closed, minTrades) {
+    var combos = cmDiscoverCombos(closed, minTrades);
+    var keys = Object.keys(combos);
+    var bySignature = {};
+    keys.forEach(function (k) {
+      var c = combos[k];
+      if (c.total < minTrades || c.wins / c.total < 0.5) return;
+      var signature = c.ids.join(',');
+      var kept = bySignature[signature];
+      if (!kept || c.params.length < kept.params.length || (c.params.length === kept.params.length && k < kept.key)) {
+        bySignature[signature] = { key: k, params: c.params, wins: c.wins, total: c.total };
+      }
+    });
+    var ranked = Object.keys(bySignature).map(function (s) {
+      var r = bySignature[s];
+      r.rate = pct(r.wins, r.total);
+      r.lb = wilsonLowerBound(r.wins, r.total);
+      return r;
+    }).sort(function (a, b) {
+      return (b.lb - a.lb) || (b.total - a.total) || (a.params.length - b.params.length) || (a.key < b.key ? -1 : 1);
+    });
+    return { evaluated: keys.length, qualifying: ranked.length, top: ranked.slice(0, CM_DISCOVER_TOP) };
+  }
+
+  // Sample-size tiers for the "how much to trust this" badge - separate from
+  // the ranking score so the raw record stays visible next to it.
+  function cmConfidenceTier(total) {
+    if (total >= 10) return { label: 'High confidence', pill: 'bg-tertiary-fixed/30 text-tertiary' };
+    if (total >= 5) return { label: 'Moderate sample', pill: 'bg-secondary-fixed/40 text-on-secondary-fixed-variant' };
+    return { label: 'Thin data', pill: 'bg-warning-container text-on-warning-container' };
+  }
+
+  function discoverCardHtml(result, index, savedKeys) {
+    var tier = cmConfidenceTier(result.total);
+    var colors = rateColors(result.rate);
+    var saved = !!savedKeys[cmSetupKey(result.params)];
+    var chips = result.params.map(function (p) {
+      return '<span class="bg-surface-container-lowest text-on-surface-variant font-body-sm text-[12px] px-2 py-0.5 rounded">' + escapeHtml(p) + '</span>';
+    }).join('');
+    var saveBtn = saved
+      ? '<span class="h-[32px] px-3 rounded-lg bg-surface-container-lowest text-secondary font-headline-sm text-[12px] font-semibold flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">check</span>Saved</span>'
+      : '<button type="button" class="cm-discover-save h-[32px] px-3 rounded-lg bg-primary text-on-primary hover:opacity-90 font-headline-sm text-[12px] font-semibold transition-opacity flex items-center gap-1.5" data-index="' + index + '"><span class="material-symbols-outlined text-[16px]">bookmark_add</span>Save as Setup</button>';
+    return (
+      '<div class="rounded-xl bg-surface-container-low/60 p-4 flex flex-col gap-3">' +
+        '<div class="flex items-start justify-between gap-2">' +
+          '<div class="flex items-center gap-2 min-w-0">' +
+            '<span class="w-6 h-6 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0">' + (index + 1) + '</span>' +
+            '<span class="font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ' + tier.pill + '">' + tier.label + '</span>' +
+          '</div>' +
+          '<span class="font-metric-md text-metric-md font-semibold ' + colors.pill + ' px-2 py-0.5 rounded-full whitespace-nowrap">' + result.wins + '/' + result.total + ' (' + result.rate + '%)</span>' +
+        '</div>' +
+        '<div class="flex items-center flex-wrap gap-1">' + chips + '</div>' +
+        '<div class="flex items-center justify-between gap-2 font-metric-sm text-metric-sm text-secondary">' +
+          '<span>' + result.total + ' trades · ' + result.wins + ' win' + (result.wins === 1 ? '' : 's') + '</span>' +
+          '<span class="cursor-help" title="Wilson lower bound: the win rate this combination should still clear at 95% confidence given its sample size. Results are ranked by this, not the raw win rate.">Confidence floor ' + Math.round(result.lb * 100) + '%</span>' +
+        '</div>' +
+        '<div class="flex items-center justify-between gap-2 pt-2 border-t border-surface-container-low">' +
+          '<div class="flex items-center gap-3">' +
+            '<button type="button" class="cm-discover-view inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" data-index="' + index + '">View trades<span class="material-symbols-outlined text-[15px]">arrow_forward</span></button>' +
+            '<button type="button" class="cm-discover-refine text-secondary hover:text-on-surface font-metric-sm text-metric-sm font-semibold transition-colors" data-index="' + index + '">Refine in builder</button>' +
+          '</div>' +
+          saveBtn +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderDiscoverResults(section) {
+    var body = section.querySelector('#cm-discover-results');
+    if (!body) return;
+    var savedKeys = {};
+    SetupStore.getAll().forEach(function (s) { savedKeys[cmSetupKey(s.parameters)] = true; });
+    body.innerHTML = cmDiscoverResults.map(function (r, i) { return discoverCardHtml(r, i, savedKeys); }).join('');
+  }
+
+  function runAutoDiscover(section, closed) {
+    var panel = section.querySelector('#cm-discover-panel');
+    if (!panel) return;
+    var found = cmDiscoverSetups(closed, cmDiscoverMinTrades);
+    cmDiscoverResults = found.top;
+
+    var banner = section.querySelector('#cm-discover-banner');
+    if (banner) banner.hidden = closed.length >= CM_SMALL_SAMPLE_TRADES;
+    var bannerText = section.querySelector('#cm-discover-banner-text');
+    if (bannerText) bannerText.textContent = 'Small sample (' + closed.length + ' closed trade' + (closed.length === 1 ? '' : 's') + ') — treat these as early leads, not proven edges.';
+
+    var summary = section.querySelector('#cm-discover-summary');
+    if (summary) {
+      if (!closed.length) {
+        summary.textContent = 'No closed trades yet. Close a few trades and discovery has something to search.';
+      } else if (!found.qualifying) {
+        summary.textContent = 'Searched ' + found.evaluated + ' combination' + (found.evaluated === 1 ? '' : 's') + ' across ' + closed.length + ' closed trades. None with ' + cmDiscoverMinTrades + '+ matching trades has a win rate of 50% or better yet.';
+      } else {
+        summary.textContent = 'Top ' + found.top.length + ' of ' + found.qualifying + ' qualifying combinations (' + cmDiscoverMinTrades + '+ trades, 50%+ win rate), from ' + found.evaluated + ' searched across ' + closed.length + ' closed trades. Combinations matching the same trades are shown once, as the simplest.';
+      }
+    }
+    renderDiscoverResults(section);
+  }
+
+  function setDiscoverOpen(section, open) {
+    cmDiscoverOpen = open;
+    var panel = section.querySelector('#cm-discover-panel');
+    var btn = section.querySelector('#cm-discover-btn');
+    if (panel) panel.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      runAutoDiscover(section, cmClosedTrades());
+      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function initAutoDiscoverControls(section) {
+    var btn = section.querySelector('#cm-discover-btn');
+    var panel = section.querySelector('#cm-discover-panel');
+    if (!btn || !panel) return;
+
+    btn.addEventListener('click', function () { setDiscoverOpen(section, !cmDiscoverOpen); });
+    var closeBtn = section.querySelector('#cm-discover-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        setDiscoverOpen(section, false);
+        btn.focus();
+      });
+    }
+
+    var minInput = section.querySelector('#cm-discover-min');
+    if (minInput) {
+      minInput.addEventListener('input', function () {
+        var value = parseInt(minInput.value, 10);
+        // Below 2 a single trade could "qualify" - the very noise this filters.
+        if (isNaN(value) || value < 2) return;
+        cmDiscoverMinTrades = Math.min(value, 99);
+        runAutoDiscover(section, cmClosedTrades());
+      });
+      minInput.addEventListener('blur', function () { minInput.value = String(cmDiscoverMinTrades); });
+    }
+
+    var results = section.querySelector('#cm-discover-results');
+    if (results) {
+      results.addEventListener('click', function (e) {
+        var target = e.target.closest ? e.target.closest('button[data-index]') : null;
+        if (!target) return;
+        var result = cmDiscoverResults[parseInt(target.getAttribute('data-index'), 10)];
+        if (!result) return;
+
+        if (target.classList.contains('cm-discover-view')) {
+          openCmDrillModal({ title: 'Trades using ' + result.params.join(' + '), params: result.params.slice() }, target);
+        } else if (target.classList.contains('cm-discover-refine')) {
+          prefillSetupBuilder(section, result.params);
+        } else if (target.classList.contains('cm-discover-save')) {
+          var saved = addPlaybookSetup(result.params.join(' + '), result.params);
+          if (saved.ok || saved.duplicate) {
+            renderSavedSetups(section, cmClosedTrades());
+            renderDiscoverResults(section);
+          } else {
+            window.alert('Could not save. Local storage is full or unavailable.');
+          }
+        }
+      });
+    }
+  }
+
+  // The one place a setup gets created, shared by the builder and the
+  // Auto-Discover cards. A combination that's already saved (under any name,
+  // any order) is refused rather than duplicated.
+  function addPlaybookSetup(name, params) {
+    var key = cmSetupKey(params);
+    var duplicate = SetupStore.getAll().filter(function (s) { return cmSetupKey(s.parameters) === key; })[0];
+    if (duplicate) return { ok: false, duplicate: duplicate };
+    var ok = SetupStore.add({
+      id: 'setup-' + Date.now(),
+      name: name,
+      parameters: params.slice(),
+      createdAt: new Date().toISOString()
+    });
+    return { ok: ok, duplicate: null };
   }
 
   function saveBuilderSetup(section) {
@@ -3441,19 +3686,12 @@
     var name = nameInput ? nameInput.value.trim() : '';
     if (!cmBuilderSelected.length || !name) return;
 
-    var key = cmSetupKey(cmBuilderSelected);
-    var duplicate = SetupStore.getAll().filter(function (s) { return cmSetupKey(s.parameters) === key; })[0];
-    if (duplicate) {
-      showBuilderNote(section, 'Already saved as "' + duplicate.name + '".', true);
+    var result = addPlaybookSetup(name, cmBuilderSelected);
+    if (result.duplicate) {
+      showBuilderNote(section, 'Already saved as "' + result.duplicate.name + '".', true);
       return;
     }
-    var ok = SetupStore.add({
-      id: 'setup-' + Date.now(),
-      name: name,
-      parameters: cmBuilderSelected.slice(),
-      createdAt: new Date().toISOString()
-    });
-    if (!ok) {
+    if (!result.ok) {
       showBuilderNote(section, 'Could not save. Local storage is full or unavailable.', true);
       return;
     }
@@ -3620,6 +3858,7 @@
   function initConfluenceMatrixControls(section) {
     if (!section) return;
     initPlaybookSetupControls(section);
+    initAutoDiscoverControls(section);
 
     function specFor(el) {
       var target = el && el.closest ? el.closest('[data-cm-drill]') : null;
