@@ -149,6 +149,14 @@
               <button type="button" id="gh-sync-disconnect"
                 class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-error hover:bg-error-container/30 font-body-md text-body-md font-medium transition-colors">Disconnect</button>
             </div>
+            <button type="button" id="gh-sync-copy-link"
+              class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 mt-2 rounded-lg bg-surface-container text-on-surface font-body-md text-body-md font-medium hover:bg-surface-container-high transition-colors">
+              <span class="material-symbols-outlined text-[18px]">link</span>
+              Copy setup link for another device
+            </button>
+            <p class="font-metric-sm text-metric-sm text-on-surface-variant mt-1.5 px-1">
+              Opens on the new device pre-filled and pulls immediately. The link carries your token in plain text &mdash; treat it like a password: send it only over a private channel (e.g. Signal, AirDrop) and never post it publicly.
+            </p>
             <button type="button" id="gh-sync-restore-snapshot"
               class="w-full text-left mt-2 px-1 font-metric-sm text-metric-sm text-secondary hover:text-on-surface transition-colors underline decoration-dotted underline-offset-2">
               Restore pre-sync snapshot&hellip;

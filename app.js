@@ -8459,6 +8459,21 @@
     }
   }
 
+  // Pairing link: lets an already-configured device hand its GitHub sync
+  // config to a new one without retyping owner/repo/branch/token there.
+  // Carried in the URL *hash* (never sent to a server, unlike a query
+  // string or path) so the token doesn't end up in host/CDN access logs.
+  function encodeGithubPairingPayload(cfg) {
+    var json = JSON.stringify({ owner: cfg.owner, repo: cfg.repo, branch: cfg.branch, token: cfg.token });
+    return utf8ToBase64(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function decodeGithubPairingPayload(encoded) {
+    var b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    return JSON.parse(base64ToUtf8(b64));
+  }
+
   function ghConfigClear() {
     try {
       localStorage.removeItem(GITHUB_SYNC_CONFIG_KEY);
@@ -9125,6 +9140,7 @@
     var pullNowBtn = document.getElementById('gh-sync-pull');
     var disconnectBtn = document.getElementById('gh-sync-disconnect');
     var restoreSnapshotBtn = document.getElementById('gh-sync-restore-snapshot');
+    var copyLinkBtn = document.getElementById('gh-sync-copy-link');
     if (!toggle || !panel) return;
 
     function fillFromConfig() {
@@ -9184,6 +9200,28 @@
 
     if (restoreSnapshotBtn) {
       restoreSnapshotBtn.addEventListener('click', function () { restorePrePullSnapshot(); });
+    }
+
+    if (copyLinkBtn) {
+      copyLinkBtn.addEventListener('click', function () {
+        var cfg = ghConfigGet();
+        if (!cfg) {
+          window.alert('Save your GitHub sync settings on this device first, then a setup link can be generated from them.');
+          return;
+        }
+        var link = window.location.origin + window.location.pathname + '#gh-sync=' + encodeGithubPairingPayload(cfg);
+        var done = function () {
+          window.alert('Setup link copied. Open it on the other device (paste into the address bar) - it will connect and pull automatically.\n\nIt contains your token in plain text, so share it only over a private channel.');
+        };
+        var fallback = function () {
+          window.prompt('Copy this link and open it on the other device:', link);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(done, fallback);
+        } else {
+          fallback();
+        }
+      });
     }
 
     document.addEventListener('click', function (e) {
@@ -9311,10 +9349,37 @@
     });
   }
 
+  // Consumes a `#gh-sync=...` pairing link (see encodeGithubPairingPayload),
+  // if the URL was opened with one. Runs before the router reads the hash,
+  // and clears the hash either way - so the token never lingers in history
+  // and a leftover fragment can't be mistaken for a screen route.
+  function consumeGithubPairingLink() {
+    var hash = window.location.hash || '';
+    if (hash.indexOf('#gh-sync=') !== 0) return;
+    var encoded = hash.slice('#gh-sync='.length);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    var cfg;
+    try {
+      cfg = decodeGithubPairingPayload(encoded);
+      if (!cfg || !cfg.owner || !cfg.repo || !cfg.token) throw new Error('incomplete pairing payload');
+      cfg.branch = cfg.branch || 'main';
+    } catch (e) {
+      window.alert('This setup link looks invalid. Open GitHub Sync settings on the source device and generate a new one.');
+      return;
+    }
+    var existing = ghConfigGet();
+    var question = existing
+      ? 'Reconnect this device from "' + existing.owner + '/' + existing.repo + '" to "' + cfg.owner + '/' + cfg.repo + '" (branch: ' + cfg.branch + ')?\n\nThis pulls the latest trades/positions from there.'
+      : 'Connect this device to GitHub sync repo "' + cfg.owner + '/' + cfg.repo + '" (branch: ' + cfg.branch + ')?\n\nThis pulls the latest trades/positions from there.';
+    if (!window.confirm(question)) return;
+    ghConfigSet(cfg);
+  }
+
   // ---------------------------------------------------------------------
   // Wiring + boot
   // ---------------------------------------------------------------------
 
+  consumeGithubPairingLink();
   migrateStoredParameterAliases();
   initMobileDrawer();
   initTradeJournalControls(sections['trade-journal']);
