@@ -8819,20 +8819,29 @@
       var positionsJson = JSON.stringify(positions, null, 2);
       var paramsJson = JSON.stringify(buildRemoteParamsPayload(), null, 2);
       var writes = [
-        putJsonFile('data/trades.json', tradesJson, 'tradesSha', 'Sync trades'),
-        putJsonFile('data/positions.json', positionsJson, 'positionsSha', 'Sync positions'),
-        putJsonFile('data/parameters.json', paramsJson, 'paramsSha', 'Sync confluence categories')
+        ['data/trades.json', tradesJson, 'tradesSha', 'Sync trades'],
+        ['data/positions.json', positionsJson, 'positionsSha', 'Sync positions'],
+        ['data/parameters.json', paramsJson, 'paramsSha', 'Sync confluence categories']
       ];
       // Only written once a setup exists (or the repo already has the file,
       // so deleting the last one still propagates) - otherwise a journal
       // that never uses setups doesn't gain an empty data/setups.json.
       if (setups.length || meta.setupsSha) {
-        writes.push(putJsonFile('data/setups.json', JSON.stringify(setups, null, 2), 'setupsSha', 'Sync setups'));
+        writes.push(['data/setups.json', JSON.stringify(setups, null, 2), 'setupsSha', 'Sync setups']);
       }
       if (antiPatterns.length || meta.antiPatternsSha) {
-        writes.push(putJsonFile('data/antipatterns.json', JSON.stringify(antiPatterns, null, 2), 'antiPatternsSha', 'Sync anti-patterns'));
+        writes.push(['data/antipatterns.json', JSON.stringify(antiPatterns, null, 2), 'antiPatternsSha', 'Sync anti-patterns']);
       }
-      return Promise.all(writes);
+      // One at a time. Every Contents API write is its own commit on the
+      // branch, and GitHub rejects a commit made while another is still
+      // landing (409) - so parallel writes clash with each other, and the
+      // refetch-and-retry in putJsonFile just clashes again with whatever is
+      // still in flight. Each file is small, so the extra latency is minor.
+      return writes.reduce(function (chain, w) {
+        return chain.then(function (results) {
+          return putJsonFile(w[0], w[1], w[2], w[3]).then(function (result) { return results.concat(result); });
+        });
+      }, Promise.resolve([]));
     }).then(function (results) {
       var failed = results.filter(function (r) { return !r.ok; });
       if (failed.length) {
