@@ -2470,15 +2470,21 @@
             <!-- Playbook Setups: builder + saved list -->
             <div class="grid grid-cols-12 gap-6 mt-6">
               <section id="cm-setup-builder" class="col-span-12 lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">Setup Builder</span>
-                    <p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Pick parameters to see how that exact combination has performed, then save it as a reusable setup.</p>
-                  </div>
+                <div>
+                  <span class="font-label-eyebrow text-label-eyebrow text-secondary uppercase">Setup Builder</span>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Pick parameters to see how that exact combination has performed, then save it as a reusable setup.</p>
+                </div>
+                <!-- What works / what doesn't: the two searches read as a pair. -->
+                <div class="mt-3 flex flex-wrap items-center gap-2">
                   <button type="button" id="cm-discover-btn" aria-expanded="false" aria-controls="cm-discover-panel"
                     class="h-[34px] shrink-0 px-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-headline-sm text-[12px] font-semibold transition-colors flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px]">auto_awesome</span>
                     Auto-Discover Setups
+                  </button>
+                  <button type="button" id="cm-avoid-btn" aria-expanded="false" aria-controls="cm-avoid-panel"
+                    class="h-[34px] shrink-0 px-3 rounded-lg bg-error-container/40 text-error hover:bg-error-container/70 font-headline-sm text-[12px] font-semibold transition-colors flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">block</span>
+                    Patterns to Avoid
                   </button>
                 </div>
                 <div class="mt-5 flex items-center justify-between">
@@ -2540,6 +2546,38 @@
                 <p class="font-metric-sm text-metric-sm text-secondary flex-1 min-w-[16rem]" id="cm-discover-summary"></p>
               </div>
               <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4" id="cm-discover-results"></div>
+            </section>
+            <!-- Patterns to Avoid: the same search as Auto-Discover, inverted -->
+            <section id="cm-avoid-panel" hidden class="bg-surface-container-lowest rounded-xl p-6 shadow-sm mt-6 border-l-4 border-error">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <span class="flex items-center gap-1.5 font-label-eyebrow text-label-eyebrow text-error uppercase">
+                    <span class="material-symbols-outlined text-[16px]">block</span>Patterns to Avoid
+                  </span>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">The mirror of Auto-Discover: 2 to 5 parameter combinations that keep losing, ranked by how confident the losing record is, so a single unlucky trade doesn't rank high.</p>
+                </div>
+                <button type="button" id="cm-avoid-close" title="Close" aria-label="Close Patterns to Avoid"
+                  class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container transition-colors shrink-0">
+                  <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+              <div id="cm-avoid-banner" hidden class="mt-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-warning-container text-on-warning-container">
+                <span class="material-symbols-outlined text-[18px] shrink-0 mt-px">warning</span>
+                <span class="font-body-sm text-body-sm" id="cm-avoid-banner-text">Small sample — treat these as early leads, not proven edges.</span>
+              </div>
+              <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <label class="flex items-center gap-2 font-metric-sm text-metric-sm text-secondary" for="cm-avoid-min">
+                  Minimum matching trades
+                  <input id="cm-avoid-min" type="number" min="2" max="99" value="2"
+                    class="h-[32px] w-16 px-2 rounded-lg bg-surface-container-low text-on-surface font-metric-md text-metric-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
+                </label>
+                <p class="font-metric-sm text-metric-sm text-secondary flex-1 min-w-[16rem]" id="cm-avoid-summary"></p>
+              </div>
+              <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4" id="cm-avoid-results"></div>
+              <div id="cm-avoid-flagged-wrap" hidden class="mt-6 pt-5 border-t border-surface-container">
+                <span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider">Flagged anti-patterns</span>
+                <div class="mt-3 flex flex-col gap-2" id="cm-avoid-flagged"></div>
+              </div>
             </section>
             <!-- Full-Width Card: Individual Parameter Win Rate -->
             <section class="bg-surface-container-lowest rounded-xl p-6 shadow-sm mt-6">

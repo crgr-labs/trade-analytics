@@ -368,44 +368,55 @@
     };
   }
 
-  var SetupStore = {
-    getAll: function () {
-      try {
-        var raw = localStorage.getItem(SETUPS_STORAGE_KEY);
-        var list = raw ? JSON.parse(raw) : [];
-        return Array.isArray(list) ? list.filter(function (s) { return s && s.id; }).map(normalizeSetup) : [];
-      } catch (e) {
-        return [];
+  // Setups and anti-patterns are the same record shape (a named parameter
+  // combination), so they share one store implementation. Each keeps its own
+  // storage key and its own GitHub file.
+  function createNamedComboStore(storageKey) {
+    var store = {
+      getAll: function () {
+        try {
+          var raw = localStorage.getItem(storageKey);
+          var list = raw ? JSON.parse(raw) : [];
+          return Array.isArray(list) ? list.filter(function (s) { return s && s.id; }).map(normalizeSetup) : [];
+        } catch (e) {
+          return [];
+        }
+      },
+      setAll: function (items) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(items));
+          scheduleGithubSync();
+          return true;
+        } catch (e) {
+          return false;
+        }
+      },
+      add: function (item) {
+        var items = store.getAll();
+        items.push(item);
+        return store.setAll(items);
+      },
+      rename: function (id, name) {
+        var items = store.getAll();
+        var found = items.filter(function (s) { return s.id === id; })[0];
+        if (!found) return false;
+        found.name = name;
+        return store.setAll(items);
+      },
+      remove: function (id) {
+        return store.setAll(store.getAll().filter(function (s) { return s.id !== id; }));
+      },
+      getById: function (id) {
+        return store.getAll().filter(function (s) { return s.id === id; })[0] || null;
       }
-    },
-    setAll: function (setups) {
-      try {
-        localStorage.setItem(SETUPS_STORAGE_KEY, JSON.stringify(setups));
-        scheduleGithubSync();
-        return true;
-      } catch (e) {
-        return false;
-      }
-    },
-    add: function (setup) {
-      var setups = SetupStore.getAll();
-      setups.push(setup);
-      return SetupStore.setAll(setups);
-    },
-    rename: function (id, name) {
-      var setups = SetupStore.getAll();
-      var found = setups.filter(function (s) { return s.id === id; })[0];
-      if (!found) return false;
-      found.name = name;
-      return SetupStore.setAll(setups);
-    },
-    remove: function (id) {
-      return SetupStore.setAll(SetupStore.getAll().filter(function (s) { return s.id !== id; }));
-    },
-    getById: function (id) {
-      return SetupStore.getAll().filter(function (s) { return s.id === id; })[0] || null;
-    }
-  };
+    };
+    return store;
+  }
+
+  var SetupStore = createNamedComboStore(SETUPS_STORAGE_KEY);
+  // Combinations flagged from the Confluence Matrix's Patterns to Avoid.
+  var ANTI_PATTERNS_STORAGE_KEY = 'tj_anti_patterns';
+  var AntiPatternStore = createNamedComboStore(ANTI_PATTERNS_STORAGE_KEY);
 
   function computeStats(trades) {
     var wins = 0, losses = 0, open = 0;
@@ -3189,7 +3200,8 @@
     // "Save as Setup": a params spec is already a combination; a count- or
     // id-based one (filled-slot bars, high confluence, loss profile) has no
     // single combination, so it offers what every matched trade has in common.
-    cmDrillSaveParams = spec.fromSetup ? [] : (spec.params ? spec.params.slice() : cmCommonParameters(trades));
+    // (noSave: a pattern to avoid shouldn't be one click from becoming a setup.)
+    cmDrillSaveParams = (spec.fromSetup || spec.noSave) ? [] : (spec.params ? spec.params.slice() : cmCommonParameters(trades));
     var footer = document.getElementById('cm-drill-footer');
     if (footer) footer.hidden = !cmDrillSaveParams.length;
 
@@ -3284,14 +3296,26 @@
   // win rate calls them both 100%. Shared by anything that has to judge one
   // combination as better or worse than another (a future Auto-Discover
   // should call this too, so both places agree on what "improved" means).
-  function wilsonLowerBound(wins, total, z) {
-    if (!total) return 0;
+  function wilsonBounds(wins, total, z) {
+    if (!total) return { lower: 0, upper: 1 };
     z = z || 1.96;
     var p = wins / total;
     var z2 = z * z;
     var centre = p + z2 / (2 * total);
     var margin = z * Math.sqrt((p * (1 - p) + z2 / (4 * total)) / total);
-    return (centre - margin) / (1 + z2 / total);
+    var denom = 1 + z2 / total;
+    return { lower: (centre - margin) / denom, upper: (centre + margin) / denom };
+  }
+
+  function wilsonLowerBound(wins, total, z) {
+    return wilsonBounds(wins, total, z).lower;
+  }
+
+  // The other end of the same interval: the best win rate a combination could
+  // plausibly still have. Used to rank losing patterns - a combination is only
+  // confidently bad when even its optimistic end is low.
+  function wilsonUpperBound(wins, total, z) {
+    return wilsonBounds(wins, total, z).upper;
   }
 
   // One step from the current selection: for every parameter not yet
@@ -3435,6 +3459,8 @@
     renderSetupBuilder(section, closed);
     renderSavedSetups(section, closed);
     if (cmDiscoverOpen) runAutoDiscover(section, closed);
+    if (cmAvoidOpen) runAvoidPatterns(section, closed);
+    renderFlaggedAntiPatterns(section, closed);
   }
 
   // ---------------------------------------------------------------------
@@ -3503,13 +3529,20 @@
   // kept - otherwise adding a parameter every matching trade already has
   // would fill the list with copies. Sub-50% combinations aren't "best
   // performing" whatever their sample, so they aren't listed.
-  function cmDiscoverSetups(closed, minTrades) {
+  //
+  // mode 'worst' runs the same search inverted for Patterns to Avoid: only
+  // combinations below 50% qualify, ranked by the Wilson UPPER bound
+  // ascending, so a combination needs a trustworthy record of losing (not
+  // one unlucky trade) to rank high.
+  function cmDiscoverSetups(closed, minTrades, mode) {
+    var worst = mode === 'worst';
     var combos = cmDiscoverCombos(closed, minTrades);
     var keys = Object.keys(combos);
     var bySignature = {};
     keys.forEach(function (k) {
       var c = combos[k];
-      if (c.total < minTrades || c.wins / c.total < 0.5) return;
+      if (c.total < minTrades) return;
+      if (worst ? c.wins / c.total >= 0.5 : c.wins / c.total < 0.5) return;
       var signature = c.ids.join(',');
       var kept = bySignature[signature];
       if (!kept || c.params.length < kept.params.length || (c.params.length === kept.params.length && k < kept.key)) {
@@ -3520,9 +3553,11 @@
       var r = bySignature[s];
       r.rate = pct(r.wins, r.total);
       r.lb = wilsonLowerBound(r.wins, r.total);
+      r.ub = wilsonUpperBound(r.wins, r.total);
       return r;
     }).sort(function (a, b) {
-      return (b.lb - a.lb) || (b.total - a.total) || (a.params.length - b.params.length) || (a.key < b.key ? -1 : 1);
+      var byScore = worst ? (a.ub - b.ub) : (b.lb - a.lb);
+      return byScore || (b.total - a.total) || (a.params.length - b.params.length) || (a.key < b.key ? -1 : 1);
     });
     return { evaluated: keys.length, qualifying: ranked.length, top: ranked.slice(0, CM_DISCOVER_TOP) };
   }
@@ -3668,11 +3703,14 @@
   // The one place a setup gets created, shared by the builder and the
   // Auto-Discover cards. A combination that's already saved (under any name,
   // any order) is refused rather than duplicated.
-  function addPlaybookSetup(name, params) {
+  // `store` defaults to the setups; Patterns to Avoid passes AntiPatternStore
+  // to flag a combination through the same path.
+  function addPlaybookSetup(name, params, store) {
+    store = store || SetupStore;
     var key = cmSetupKey(params);
-    var duplicate = SetupStore.getAll().filter(function (s) { return cmSetupKey(s.parameters) === key; })[0];
+    var duplicate = store.getAll().filter(function (s) { return cmSetupKey(s.parameters) === key; })[0];
     if (duplicate) return { ok: false, duplicate: duplicate };
-    var ok = SetupStore.add({
+    var ok = store.add({
       id: 'setup-' + Date.now(),
       name: name,
       parameters: params.slice(),
@@ -3855,10 +3893,185 @@
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Patterns to Avoid (Auto-Discover, inverted)
+  // ---------------------------------------------------------------------
+
+  var cmAvoidOpen = false;
+  var cmAvoidMinTrades = CM_DISCOVER_DEFAULT_MIN_TRADES;
+  var cmAvoidResults = [];
+
+  function avoidCardHtml(result, index, flaggedKeys) {
+    var tier = cmConfidenceTier(result.total);
+    var losses = result.total - result.wins;
+    var flagged = !!flaggedKeys[cmSetupKey(result.params)];
+    var colors = rateColors(result.rate);
+    var chips = result.params.map(function (p) {
+      return '<span class="bg-surface-container-lowest text-on-surface-variant font-body-sm text-[12px] px-2 py-0.5 rounded">' + escapeHtml(p) + '</span>';
+    }).join('');
+    var flagBtn = flagged
+      ? '<span class="h-[32px] px-3 rounded-lg bg-surface-container-lowest text-secondary font-headline-sm text-[12px] font-semibold flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">check</span>Flagged</span>'
+      : '<button type="button" class="cm-avoid-flag h-[32px] px-3 rounded-lg bg-error text-on-error hover:opacity-90 font-headline-sm text-[12px] font-semibold transition-opacity flex items-center gap-1.5" data-index="' + index + '"><span class="material-symbols-outlined text-[16px]">flag</span>Flag as Anti-Pattern</button>';
+    return (
+      '<div class="rounded-xl bg-error-container/20 p-4 flex flex-col gap-3">' +
+        '<div class="flex items-start justify-between gap-2">' +
+          '<div class="flex items-center gap-2 min-w-0">' +
+            '<span class="w-6 h-6 rounded-full bg-error-container text-error flex items-center justify-center font-metric-sm text-metric-sm font-bold shrink-0">' + (index + 1) + '</span>' +
+            '<span class="font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ' + cmConfidenceTier(result.total).pill + '">' + tier.label + '</span>' +
+          '</div>' +
+          '<span class="font-metric-md text-metric-md font-semibold ' + colors.pill + ' px-2 py-0.5 rounded-full whitespace-nowrap">' + result.wins + '/' + result.total + ' (' + result.rate + '%)</span>' +
+        '</div>' +
+        '<div class="flex items-center flex-wrap gap-1">' + chips + '</div>' +
+        '<div class="flex items-center justify-between gap-2 font-metric-sm text-metric-sm text-secondary">' +
+          '<span>' + result.total + ' trades · ' + losses + ' loss' + (losses === 1 ? '' : 'es') + '</span>' +
+          '<span class="cursor-help" title="Wilson upper bound: the best win rate this combination could plausibly still have at 95% confidence given its sample size. Results are ranked by this, lowest first, so one unlucky trade can\'t rank high.">Best case ' + Math.round(result.ub * 100) + '%</span>' +
+        '</div>' +
+        '<div class="flex items-center justify-between gap-2 pt-2 border-t border-error/10">' +
+          '<button type="button" class="cm-avoid-view inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors" data-index="' + index + '">View trades<span class="material-symbols-outlined text-[15px]">arrow_forward</span></button>' +
+          flagBtn +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderAvoidResults(section) {
+    var body = section.querySelector('#cm-avoid-results');
+    if (!body) return;
+    var flaggedKeys = {};
+    AntiPatternStore.getAll().forEach(function (s) { flaggedKeys[cmSetupKey(s.parameters)] = true; });
+    body.innerHTML = cmAvoidResults.map(function (r, i) { return avoidCardHtml(r, i, flaggedKeys); }).join('');
+  }
+
+  // Everything already flagged, with its live record - so a flag can always be
+  // reviewed and removed, whether or not it still makes today's top list.
+  function renderFlaggedAntiPatterns(section, closed) {
+    var wrap = section.querySelector('#cm-avoid-flagged-wrap');
+    var list = section.querySelector('#cm-avoid-flagged');
+    if (!wrap || !list) return;
+    var flagged = AntiPatternStore.getAll().sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
+    wrap.hidden = !flagged.length;
+    list.innerHTML = flagged.map(function (item) {
+      var stat = cmSetupStat(item.parameters, closed);
+      var colors = rateColors(stat.rate);
+      var statHtml = stat.total
+        ? '<span class="font-metric-sm text-[11px] font-semibold ' + colors.pill + ' px-2 py-0.5 rounded-full whitespace-nowrap">' + stat.wins + '/' + stat.total + ' (' + stat.rate + '%)</span>'
+        : '<span class="font-metric-sm text-[11px] text-outline-variant whitespace-nowrap">No closed trades yet</span>';
+      var chips = item.parameters.map(function (p) {
+        return '<span class="bg-surface-container-lowest text-on-surface-variant font-body-sm text-[12px] px-2 py-0.5 rounded">' + escapeHtml(p) + '</span>';
+      }).join('');
+      return (
+        '<div class="cm-flagged-row rounded-lg bg-surface-container-low/60 px-3 py-2.5 flex items-center justify-between gap-3" data-id="' + escapeHtml(item.id) + '">' +
+          '<div class="flex items-center flex-wrap gap-1 min-w-0">' + chips + '</div>' +
+          '<div class="flex items-center gap-2 shrink-0">' + statHtml +
+            '<button type="button" class="cm-flagged-remove w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-secondary hover:text-error transition-colors" title="Remove flag" aria-label="Remove anti-pattern flag"><span class="material-symbols-outlined text-[18px]">delete</span></button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function runAvoidPatterns(section, closed) {
+    var found = cmDiscoverSetups(closed, cmAvoidMinTrades, 'worst');
+    cmAvoidResults = found.top;
+
+    var banner = section.querySelector('#cm-avoid-banner');
+    if (banner) banner.hidden = closed.length >= CM_SMALL_SAMPLE_TRADES;
+    var bannerText = section.querySelector('#cm-avoid-banner-text');
+    if (bannerText) bannerText.textContent = 'Small sample (' + closed.length + ' closed trade' + (closed.length === 1 ? '' : 's') + ') — treat these as early leads, not proven edges.';
+
+    var summary = section.querySelector('#cm-avoid-summary');
+    if (summary) {
+      if (!closed.length) {
+        summary.textContent = 'No closed trades yet. Close a few trades and there is something to search.';
+      } else if (!found.qualifying) {
+        summary.textContent = 'Searched ' + found.evaluated + ' combination' + (found.evaluated === 1 ? '' : 's') + ' across ' + closed.length + ' closed trades. None with ' + cmAvoidMinTrades + '+ matching trades has a win rate under 50%. Nothing to avoid yet.';
+      } else {
+        summary.textContent = 'Top ' + found.top.length + ' of ' + found.qualifying + ' losing combinations (' + cmAvoidMinTrades + '+ trades, under 50% win rate), from ' + found.evaluated + ' searched across ' + closed.length + ' closed trades. Combinations matching the same trades are shown once, as the simplest.';
+      }
+    }
+    renderAvoidResults(section);
+  }
+
+  function setAvoidOpen(section, open) {
+    cmAvoidOpen = open;
+    var panel = section.querySelector('#cm-avoid-panel');
+    var btn = section.querySelector('#cm-avoid-btn');
+    if (panel) panel.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      runAvoidPatterns(section, cmClosedTrades());
+      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function initAvoidControls(section) {
+    var btn = section.querySelector('#cm-avoid-btn');
+    var panel = section.querySelector('#cm-avoid-panel');
+    if (!btn || !panel) return;
+
+    btn.addEventListener('click', function () { setAvoidOpen(section, !cmAvoidOpen); });
+    var closeBtn = section.querySelector('#cm-avoid-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        setAvoidOpen(section, false);
+        btn.focus();
+      });
+    }
+
+    var minInput = section.querySelector('#cm-avoid-min');
+    if (minInput) {
+      minInput.addEventListener('input', function () {
+        var value = parseInt(minInput.value, 10);
+        if (isNaN(value) || value < 2) return;
+        cmAvoidMinTrades = Math.min(value, 99);
+        runAvoidPatterns(section, cmClosedTrades());
+      });
+      minInput.addEventListener('blur', function () { minInput.value = String(cmAvoidMinTrades); });
+    }
+
+    var results = section.querySelector('#cm-avoid-results');
+    if (results) {
+      results.addEventListener('click', function (e) {
+        var target = e.target.closest ? e.target.closest('button[data-index]') : null;
+        if (!target) return;
+        var result = cmAvoidResults[parseInt(target.getAttribute('data-index'), 10)];
+        if (!result) return;
+
+        if (target.classList.contains('cm-avoid-view')) {
+          openCmDrillModal({ title: 'Trades using ' + result.params.join(' + '), params: result.params.slice(), noSave: true }, target);
+        } else if (target.classList.contains('cm-avoid-flag')) {
+          var flagged = addPlaybookSetup(result.params.join(' + '), result.params, AntiPatternStore);
+          if (flagged.ok || flagged.duplicate) {
+            renderFlaggedAntiPatterns(section, cmClosedTrades());
+            renderAvoidResults(section);
+          } else {
+            window.alert('Could not flag. Local storage is full or unavailable.');
+          }
+        }
+      });
+    }
+
+    var flaggedList = section.querySelector('#cm-avoid-flagged');
+    if (flaggedList) {
+      flaggedList.addEventListener('click', function (e) {
+        var remove = e.target.closest ? e.target.closest('.cm-flagged-remove') : null;
+        if (!remove) return;
+        var row = remove.closest('.cm-flagged-row');
+        var item = row ? AntiPatternStore.getById(row.getAttribute('data-id')) : null;
+        if (!item) return;
+        if (!window.confirm('Remove the anti-pattern flag on:\n' + item.parameters.join(' + ') + '?\n\nYour trades are not affected.')) return;
+        AntiPatternStore.remove(item.id);
+        renderFlaggedAntiPatterns(section, cmClosedTrades());
+        renderAvoidResults(section);
+      });
+    }
+  }
+
   function initConfluenceMatrixControls(section) {
     if (!section) return;
     initPlaybookSetupControls(section);
     initAutoDiscoverControls(section);
+    initAvoidControls(section);
 
     function specFor(el) {
       var target = el && el.closest ? el.closest('[data-cm-drill]') : null;
@@ -6507,6 +6720,7 @@
     try {
       if (mentionsRetired(localStorage.getItem(STORAGE_KEY))) TradeStore.setAll(TradeStore.getAll());
       if (mentionsRetired(localStorage.getItem(SETUPS_STORAGE_KEY))) SetupStore.setAll(SetupStore.getAll());
+      if (mentionsRetired(localStorage.getItem(ANTI_PATTERNS_STORAGE_KEY))) AntiPatternStore.setAll(AntiPatternStore.getAll());
     } catch (e) {}
     loadConfluenceVocabulary();
   }
@@ -8245,6 +8459,7 @@
         trades: TradeStore.getAll(),
         positions: PositionStore.getAll(),
         setups: SetupStore.getAll(),
+        antiPatterns: AntiPatternStore.getAll(),
         categories: loadParamCategories(),
         vocabulary: loadConfluenceVocabulary(),
         removedDefaults: getRemovedDefaults()
@@ -8274,6 +8489,7 @@
     TradeStore.setAll(snapshot.trades || []);
     PositionStore.setAll(snapshot.positions || []);
     if (Array.isArray(snapshot.setups)) SetupStore.setAll(snapshot.setups);
+    if (Array.isArray(snapshot.antiPatterns)) AntiPatternStore.setAll(snapshot.antiPatterns);
     if (Array.isArray(snapshot.categories)) saveParamCategories(snapshot.categories);
     if (Array.isArray(snapshot.vocabulary)) saveConfluenceVocabulary(snapshot.vocabulary);
     if (Array.isArray(snapshot.removedDefaults)) saveRemovedDefaults(snapshot.removedDefaults);
@@ -8447,12 +8663,18 @@
     };
   }
 
-  // setups is only mixed in when there are some, so a journal that has never
-  // saved one keeps the exact fingerprint it had before setups existed and
-  // isn't mistaken for having unpushed local changes after an upgrade.
-  function computeDataFingerprint(trades, positions, setups) {
+  // setups and antiPatterns are only mixed in when there are some, so a
+  // journal that has never saved one keeps the exact fingerprint it had
+  // before they existed and isn't mistaken for having unpushed local changes
+  // after an upgrade.
+  function computeDataFingerprint(trades, positions, setups, antiPatterns) {
     var setupList = setups || SetupStore.getAll();
-    return simpleHash(JSON.stringify(buildRemoteTradesPayload(trades)) + JSON.stringify(positions) + JSON.stringify(buildRemoteParamsPayload()) + (setupList.length ? JSON.stringify(setupList) : ''));
+    var antiList = antiPatterns || AntiPatternStore.getAll();
+    return simpleHash(
+      JSON.stringify(buildRemoteTradesPayload(trades)) + JSON.stringify(positions) + JSON.stringify(buildRemoteParamsPayload()) +
+      (setupList.length ? JSON.stringify(setupList) : '') +
+      (antiList.length ? '\u0002' + JSON.stringify(antiList) : '')
+    );
   }
 
   // Skips re-uploading (and re-committing) a chart image whose bytes
@@ -8523,6 +8745,7 @@
     var trades = TradeStore.getAll();
     var positions = PositionStore.getAll();
     var setups = SetupStore.getAll();
+    var antiPatterns = AntiPatternStore.getAll();
     var meta = ghMetaGet();
 
     function putJsonFile(path, json, shaField, message) {
@@ -8554,6 +8777,9 @@
       if (setups.length || meta.setupsSha) {
         writes.push(putJsonFile('data/setups.json', JSON.stringify(setups, null, 2), 'setupsSha', 'Sync setups'));
       }
+      if (antiPatterns.length || meta.antiPatternsSha) {
+        writes.push(putJsonFile('data/antipatterns.json', JSON.stringify(antiPatterns, null, 2), 'antiPatternsSha', 'Sync anti-patterns'));
+      }
       return Promise.all(writes);
     }).then(function (results) {
       var failed = results.filter(function (r) { return !r.ok; });
@@ -8565,7 +8791,8 @@
         positionsSha: meta.positionsSha,
         paramsSha: meta.paramsSha,
         setupsSha: meta.setupsSha || null,
-        lastPushedFingerprint: computeDataFingerprint(trades, positions, setups),
+        antiPatternsSha: meta.antiPatternsSha || null,
+        lastPushedFingerprint: computeDataFingerprint(trades, positions, setups, antiPatterns),
         lastPushAt: Date.now(),
         lastSyncAt: Date.now()
       });
@@ -8630,14 +8857,16 @@
       ghGetFile(cfg, 'data/trades.json'),
       ghGetFile(cfg, 'data/positions.json'),
       ghGetFile(cfg, 'data/parameters.json'),
-      ghGetFile(cfg, 'data/setups.json')
+      ghGetFile(cfg, 'data/setups.json'),
+      ghGetFile(cfg, 'data/antipatterns.json')
     ]).then(function (results) {
       var tradesFile = results[0];
       var positionsFile = results[1];
       var paramsFile = results[2];
       var setupsFile = results[3];
+      var antiPatternsFile = results[4];
 
-      if (!tradesFile.exists && !positionsFile.exists && !paramsFile.exists && !setupsFile.exists) {
+      if (!tradesFile.exists && !positionsFile.exists && !paramsFile.exists && !setupsFile.exists && !antiPatternsFile.exists) {
         // Brand-new empty data repo - seed it from whatever's local.
         pushToGitHub();
         return;
@@ -8648,6 +8877,8 @@
       var remoteParams = paramsFile.exists ? JSON.parse(paramsFile.text) : null;
       var remoteSetupsRaw = setupsFile.exists ? JSON.parse(setupsFile.text) : null;
       var remoteSetups = Array.isArray(remoteSetupsRaw) ? remoteSetupsRaw.filter(function (s) { return s && s.id; }).map(normalizeSetup) : null;
+      var remoteAntiRaw = antiPatternsFile.exists ? JSON.parse(antiPatternsFile.text) : null;
+      var remoteAntiPatterns = Array.isArray(remoteAntiRaw) ? remoteAntiRaw.filter(function (s) { return s && s.id; }).map(normalizeSetup) : null;
 
       var localFingerprint = computeDataFingerprint(TradeStore.getAll(), PositionStore.getAll());
       var meta = ghMetaGet();
@@ -8669,7 +8900,7 @@
         var localTrades = TradeStore.getAll();
         var localPositions = PositionStore.getAll();
         var hasCustomLocalData = localTrades.some(function (t) { return t.id.indexOf('seed-') !== 0; }) || localPositions.length > 0;
-        if (hasCustomLocalData && computeDataFingerprint(remoteTrades, remotePositions, remoteSetups || []) !== localFingerprint) {
+        if (hasCustomLocalData && computeDataFingerprint(remoteTrades, remotePositions, remoteSetups || [], remoteAntiPatterns || []) !== localFingerprint) {
           var replaceLocal = window.confirm(
             'This device has trades/positions that have never been backed up to GitHub, and the repo already has different data (likely from another device).\n\n' +
             'Click OK to replace this device\'s trades/positions with what\'s on GitHub.\n' +
@@ -8690,6 +8921,7 @@
         // A repo that predates setups has no file - keep whatever's local
         // rather than treating the absence as "delete every setup".
         if (remoteSetups) SetupStore.setAll(remoteSetups);
+        if (remoteAntiPatterns) AntiPatternStore.setAll(remoteAntiPatterns);
 
         // Categories/vocabulary are merged, never replaced outright - a
         // category or parameter created locally and not yet pushed must
@@ -8715,7 +8947,8 @@
         githubSyncApplyingRemote = false;
 
         // Local setups on a repo that has no setups.json yet also need pushing.
-        var needsSetupsPushBack = !remoteSetups && SetupStore.getAll().length > 0;
+        var needsSetupsPushBack = (!remoteSetups && SetupStore.getAll().length > 0) ||
+          (!remoteAntiPatterns && AntiPatternStore.getAll().length > 0);
 
         if (needsParamsPushBack || needsSetupsPushBack) {
           ghMetaSet({
@@ -8723,6 +8956,7 @@
             positionsSha: positionsFile.exists ? positionsFile.sha : null,
             paramsSha: paramsFile.exists ? paramsFile.sha : null,
             setupsSha: setupsFile.exists ? setupsFile.sha : null,
+            antiPatternsSha: antiPatternsFile.exists ? antiPatternsFile.sha : null,
             lastSyncAt: Date.now()
           });
           pushToGitHub();
@@ -8732,6 +8966,7 @@
             positionsSha: positionsFile.exists ? positionsFile.sha : null,
             paramsSha: paramsFile.exists ? paramsFile.sha : null,
             setupsSha: setupsFile.exists ? setupsFile.sha : null,
+            antiPatternsSha: antiPatternsFile.exists ? antiPatternsFile.sha : null,
             lastPushedFingerprint: computeDataFingerprint(hydratedTrades, remotePositions),
             lastSyncAt: Date.now()
           });
