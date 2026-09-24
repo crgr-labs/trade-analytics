@@ -141,27 +141,6 @@
 
   var STORAGE_KEY = 'tj_trades';
 
-  // The 11 trades from the original Stitch mockup, seeded on first run so
-  // the app looks identical to the exported design before anything new is
-  // logged. The Trade Journal table only ever showed 3 confluence tags per
-  // row (plus a "+N more" count) so the other 4 confluence slots below are
-  // reconstructed rather than lifted from the export - they exist so the
-  // Confluence Matrix / Timing screens have real per-trade data to
-  // recompute from instead of freeform text with nothing behind it.
-  var SEED_TRADES = [
-    { id: 'seed-01', date: '2026-08-22', pair: 'TRUMPUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'open', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Pullback', '', '', '', '4H RSI above 70'], notes: '' },
-    { id: 'seed-02', date: '2026-08-26', pair: 'BTRUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'open', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Parabolic', '', '', '', '4H RSI above 70'], notes: '' },
-    { id: 'seed-03', date: '2026-08-29', pair: 'HNTUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Pause', 'M15 30% Fibonacci Pullback', '32%', '', '4H RSI above 70'], notes: '' },
-    { id: 'seed-04', date: '2026-08-30', pair: 'HNTUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Parabolic', 'M15 30% Fibonacci Pullback', '35%', '', '4H RSI above 70'], notes: '' },
-    { id: 'seed-05', date: '2026-08-31', pair: 'UPROBINHOODUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Pullback', 'M15 50% Fibonacci Pullback', '48%', '', '4H RSI above 70'], notes: '' },
-    { id: 'seed-06', date: '2026-09-01', pair: '0GUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bearish', entryPrice: '', exitPrice: '', outcome: 'loss', confluence: ['Daily Sideways', '4H BOS', '4H LS', 'M15 30% Fibonacci Pullback', '22%', '', ''], notes: '' },
-    { id: 'seed-07', date: '2026-09-01', pair: 'UAIUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bearish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Sideways', '4H BOS', '4H Parabolic', 'M15 30% Fibonacci Pullback', '30%', '', 'Daily RSI above 70'], notes: '' },
-    { id: 'seed-08', date: '2026-09-02', pair: 'EGLUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Parabolic', '', '', 'Volume spike confirmed', '4H RSI above 70'], notes: '' },
-    { id: 'seed-09', date: '2026-09-02', pair: 'PYTHUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bearish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Sideways', '4H BOS', '4H Parabolic', 'M15 50% Fibonacci Pullback', '52%', '', 'Daily RSI above 70'], notes: '' },
-    { id: 'seed-10', date: '2026-09-03', pair: 'USELESSUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Parabolic', '', '', 'Volume spike confirmed', '4H RSI above 70'], notes: '' },
-    { id: 'seed-11', date: '2026-09-03', pair: 'BULLAUSDT.P', direction: 'long', leverage: '10x isolated', prevCandle: 'bullish', entryPrice: '', exitPrice: '', outcome: 'win', confluence: ['Daily Uptrend & Momentum', '4H BOS', '4H Pullback', 'M15 30% Fibonacci Pullback', '28%', '', '4H RSI above 70'], notes: '' }
-  ];
-
   // The three fixed chart-evidence slots. `short` is the compact badge on
   // empty slots and list thumbnails; `label` is the name on filled slots and tabs.
   var CHART_TIMEFRAMES = [
@@ -321,8 +300,7 @@
         var raw = localStorage.getItem(STORAGE_KEY);
         if (raw) return JSON.parse(raw).map(migrateTrade);
       } catch (e) {}
-      TradeStore.setAll(SEED_TRADES);
-      return SEED_TRADES.slice().map(migrateTrade);
+      return [];
     },
     setAll: function (trades) {
       try {
@@ -8971,8 +8949,9 @@
         // to compare against, so the check above can't tell "fresh device,
         // nothing to lose" apart from "device with real local trades that
         // just haven't been pushed yet". Ask, rather than silently
-        // replacing trade history. SEED_TRADES ids are 'seed-01'..'seed-11',
-        // so any other id means the user actually logged something here.
+        // replacing trade history. 'seed-01'..'seed-11' ids are leftover
+        // mockup rows a device may still have from before trade storage
+        // stopped auto-seeding them - they don't count as real local data.
         var localTrades = TradeStore.getAll();
         var localPositions = PositionStore.getAll();
         var hasCustomLocalData = localTrades.some(function (t) { return t.id.indexOf('seed-') !== 0; }) || localPositions.length > 0;
