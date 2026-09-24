@@ -314,6 +314,59 @@
     }
   };
 
+  // Playbook setups: a named, reusable parameter combination, saved from the
+  // Confluence Matrix and loadable into New Trade Entry. Win rate is never
+  // stored - it is recomputed against current trades wherever it is shown.
+  var SETUPS_STORAGE_KEY = 'tj_setups';
+
+  function normalizeSetup(s) {
+    return {
+      id: String(s.id),
+      name: String(s.name || '').trim(),
+      parameters: Array.isArray(s.parameters) ? s.parameters.map(function (p) { return String(p || '').trim(); }).filter(Boolean) : [],
+      createdAt: s.createdAt || new Date().toISOString()
+    };
+  }
+
+  var SetupStore = {
+    getAll: function () {
+      try {
+        var raw = localStorage.getItem(SETUPS_STORAGE_KEY);
+        var list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list.filter(function (s) { return s && s.id; }).map(normalizeSetup) : [];
+      } catch (e) {
+        return [];
+      }
+    },
+    setAll: function (setups) {
+      try {
+        localStorage.setItem(SETUPS_STORAGE_KEY, JSON.stringify(setups));
+        scheduleGithubSync();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    add: function (setup) {
+      var setups = SetupStore.getAll();
+      setups.push(setup);
+      return SetupStore.setAll(setups);
+    },
+    rename: function (id, name) {
+      var setups = SetupStore.getAll();
+      var found = setups.filter(function (s) { return s.id === id; })[0];
+      if (!found) return false;
+      found.name = name;
+      return SetupStore.setAll(setups);
+    },
+    remove: function (id) {
+      return SetupStore.setAll(SetupStore.getAll().filter(function (s) { return s.id !== id; }));
+    },
+    getById: function (id) {
+      return SetupStore.getAll().filter(function (s) { return s.id === id; })[0] || null;
+    }
+  };
+
   function computeStats(trades) {
     var wins = 0, losses = 0, open = 0;
     trades.forEach(function (t) {
@@ -2999,6 +3052,8 @@
 
     var findingsEl = section.querySelector('#cm-key-findings');
     if (findingsEl) findingsEl.innerHTML = renderKeyFindings(stats);
+
+    renderPlaybookSetups(section);
   }
 
   // ---------------------------------------------------------------------
@@ -3008,10 +3063,15 @@
   // Every stat on the page is computed over closed (win/loss) trades, so the
   // drill-down does the same - otherwise open trades carrying the same
   // parameters would make the list disagree with the number that was clicked.
-  function cmDrillTrades(spec) {
+  // `closedTrades` lets a caller that matches many specs in one pass (the saved
+  // setups list) read the trade store once instead of once per spec.
+  function cmClosedTrades() {
+    return TradeStore.getAll().filter(function (t) { return t.outcome === 'win' || t.outcome === 'loss'; });
+  }
+
+  function cmDrillTrades(spec, closedTrades) {
     var c;
-    return TradeStore.getAll()
-      .filter(function (t) { return t.outcome === 'win' || t.outcome === 'loss'; })
+    return (closedTrades || cmClosedTrades())
       .filter(function (t) {
         if (spec.ids) return spec.ids.indexOf(t.id) !== -1;
         c = nonEmptyConfluence(t);
@@ -3059,6 +3119,16 @@
   }
 
   var cmDrillTrigger = null;
+  var cmDrillSaveParams = [];
+
+  // Parameters present on every trade in the list, minus bare fib-depth
+  // numbers like "32%" (they're values, not parameters - the stats skip them too).
+  function cmCommonParameters(trades) {
+    if (!trades.length) return [];
+    return nonEmptyConfluence(trades[0]).filter(function (p) {
+      return !isBareNumber(p) && trades.every(function (t) { return nonEmptyConfluence(t).indexOf(p) !== -1; });
+    });
+  }
 
   function openCmDrillModal(spec, trigger) {
     var modal = document.getElementById('cm-drill-modal');
@@ -3076,6 +3146,13 @@
       : '<div class="px-5 py-10 text-center font-body-sm text-body-sm text-secondary">No matching trades.</div>';
     body.scrollTop = 0;
 
+    // "Save as Setup": a params spec is already a combination; a count- or
+    // id-based one (filled-slot bars, high confluence, loss profile) has no
+    // single combination, so it offers what every matched trade has in common.
+    cmDrillSaveParams = spec.fromSetup ? [] : (spec.params ? spec.params.slice() : cmCommonParameters(trades));
+    var footer = document.getElementById('cm-drill-footer');
+    if (footer) footer.hidden = !cmDrillSaveParams.length;
+
     cmDrillTrigger = trigger || null;
     modal.hidden = false;
     var closeBtn = document.getElementById('cm-drill-close');
@@ -3090,8 +3167,318 @@
     cmDrillTrigger = null;
   }
 
+  // ---------------------------------------------------------------------
+  // Playbook Setups: builder + saved list
+  // ---------------------------------------------------------------------
+
+  var cmBuilderSelected = [];
+  var cmBuilderNameTouched = false;
+  var cmRenamingSetupId = null;
+
+  // Every parameter that appears on any trade. Trade data uses names the
+  // picker vocabulary may not list (e.g. "4H BOS"), and the builder has to
+  // be able to express the combinations this page reports on.
+  function cmKnownTradeParameters() {
+    var seen = {};
+    var names = [];
+    TradeStore.getAll().forEach(function (t) {
+      nonEmptyConfluence(t).forEach(function (p) {
+        if (isBareNumber(p) || seen[p.toLowerCase()]) return;
+        seen[p.toLowerCase()] = true;
+        names.push(p);
+      });
+    });
+    return names;
+  }
+
+  function cmSetupKey(params) {
+    return params.map(function (p) { return p.toLowerCase(); }).sort().join('\u0001');
+  }
+
+  function cmSetupStat(params, closed) {
+    var trades = cmDrillTrades({ params: params }, closed);
+    var wins = trades.filter(function (t) { return t.outcome === 'win'; }).length;
+    return { total: trades.length, wins: wins, rate: pct(wins, trades.length) };
+  }
+
+  function showBuilderNote(section, message, isError) {
+    var note = section.querySelector('#cm-builder-note');
+    if (!note) return;
+    note.textContent = message || '';
+    note.className = 'font-metric-sm text-metric-sm mt-1.5 ' + (isError ? 'text-error' : 'text-secondary');
+    note.hidden = !message;
+  }
+
+  function syncBuilderSaveState(section) {
+    var saveBtn = section.querySelector('#cm-builder-save');
+    var nameInput = section.querySelector('#cm-builder-name');
+    if (saveBtn && nameInput) saveBtn.disabled = !cmBuilderSelected.length || !nameInput.value.trim();
+  }
+
+  function builderStatHtml(closed) {
+    if (!cmBuilderSelected.length) {
+      return '<span class="font-body-sm text-body-sm text-secondary">Select parameters to see how that combination has performed.</span>';
+    }
+    var stat = cmSetupStat(cmBuilderSelected, closed);
+    if (!stat.total) {
+      return '<span class="font-body-sm text-body-sm text-secondary">No closed trades contain all ' + cmBuilderSelected.length + ' selected parameter' + (cmBuilderSelected.length === 1 ? '' : 's') + ' yet.</span>';
+    }
+    var colors = rateColors(stat.rate);
+    return (
+      '<div class="flex items-center justify-between gap-3">' +
+        '<div class="flex flex-col min-w-0">' +
+          '<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">' + stat.total + ' trade' + (stat.total === 1 ? '' : 's') + ' · ' + stat.wins + ' win' + (stat.wins === 1 ? '' : 's') + '</span>' +
+          '<span class="font-metric-sm text-metric-sm text-secondary">Closed trades containing all selected parameters</span>' +
+        '</div>' +
+        '<div class="flex items-center gap-3 shrink-0">' +
+          '<span class="font-metric-md text-metric-md font-semibold ' + colors.pill + ' px-2 py-0.5 rounded-full">' + stat.wins + '/' + stat.total + ' (' + stat.rate + '%)</span>' +
+          '<button type="button" id="cm-builder-view" class="inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors">View trades<span class="material-symbols-outlined text-[15px]">arrow_forward</span></button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mt-2.5 h-2 w-full bg-surface-container-high rounded-full overflow-hidden"><div class="h-full ' + colors.bar + ' rounded-full" style="width: ' + stat.rate + '%"></div></div>'
+    );
+  }
+
+  function renderSetupBuilder(section, closed) {
+    var grid = section.querySelector('#cm-builder-grid');
+    if (!grid) return;
+    var scrollTop = grid.scrollTop;
+    grid.innerHTML = parameterPickerGridHtml(cmBuilderSelected, { manage: false, extraKnown: cmKnownTradeParameters() }) ||
+      '<p class="font-metric-sm text-metric-sm text-secondary">No parameters yet. Log a trade with confluence parameters first.</p>';
+    grid.scrollTop = scrollTop;
+
+    var countEl = section.querySelector('#cm-builder-count');
+    if (countEl) countEl.textContent = cmBuilderSelected.length + ' selected';
+    var clearBtn = section.querySelector('#cm-builder-clear');
+    if (clearBtn) clearBtn.hidden = !cmBuilderSelected.length;
+
+    var statEl = section.querySelector('#cm-builder-stat');
+    if (statEl) statEl.innerHTML = builderStatHtml(closed);
+
+    // The suggested name follows the selection until the user edits it.
+    var nameInput = section.querySelector('#cm-builder-name');
+    if (nameInput && (!cmBuilderNameTouched || !nameInput.value.trim())) {
+      nameInput.value = cmBuilderSelected.join(' + ');
+      cmBuilderNameTouched = false;
+    }
+    syncBuilderSaveState(section);
+  }
+
+  function setupRowHtml(setup, closed) {
+    var stat = cmSetupStat(setup.parameters, closed);
+    var colors = rateColors(stat.rate);
+    var statHtml = stat.total
+      ? '<span class="font-metric-sm text-[11px] font-semibold ' + colors.pill + ' px-2 py-0.5 rounded-full whitespace-nowrap">' + stat.wins + '/' + stat.total + ' (' + stat.rate + '%)</span>'
+      : '<span class="font-metric-sm text-[11px] text-outline-variant whitespace-nowrap">No closed trades yet</span>';
+    var nameHtml = cmRenamingSetupId === setup.id
+      ? '<input type="text" class="cm-setup-rename-input h-[30px] w-full min-w-0 px-2.5 rounded-lg bg-surface-container-lowest text-on-surface font-headline-sm text-headline-sm focus:outline-none focus:ring-2 focus:ring-primary/30" maxlength="80" value="' + escapeHtml(setup.name) + '" aria-label="Setup name" />'
+      : '<span class="font-headline-sm text-headline-sm text-on-surface font-semibold truncate" title="' + escapeHtml(setup.name) + '">' + escapeHtml(setup.name) + '</span>';
+    var chips = setup.parameters.map(function (p) {
+      return '<span class="bg-surface-container-lowest text-on-surface-variant font-body-sm text-[12px] px-2 py-0.5 rounded">' + escapeHtml(p) + '</span>';
+    }).join('');
+    var btn = 'w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center text-secondary transition-colors ';
+    return (
+      '<div class="cm-setup-row rounded-xl bg-surface-container-low/60 p-3.5 flex flex-col gap-2.5" data-setup-id="' + escapeHtml(setup.id) + '">' +
+        '<div class="flex items-center justify-between gap-2"><div class="min-w-0 flex-1 flex">' + nameHtml + '</div>' + statHtml + '</div>' +
+        '<div class="flex items-center flex-wrap gap-1">' + (chips || '<span class="font-metric-sm text-[11px] text-outline-variant">No parameters</span>') + '</div>' +
+        '<div class="flex items-center justify-between pt-2 border-t border-surface-container-low">' +
+          '<button type="button" class="cm-setup-view inline-flex items-center gap-1 text-primary hover:text-primary-container font-headline-sm text-headline-sm font-medium transition-colors">View matching trades<span class="material-symbols-outlined text-[15px]">arrow_forward</span></button>' +
+          '<div class="flex items-center gap-2">' +
+            '<button type="button" class="cm-setup-rename ' + btn + 'hover:text-primary" title="Rename setup" aria-label="Rename setup"><span class="material-symbols-outlined text-[18px]">edit</span></button>' +
+            '<button type="button" class="cm-setup-delete ' + btn + 'hover:text-error" title="Delete setup" aria-label="Delete setup"><span class="material-symbols-outlined text-[18px]">delete</span></button>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderSavedSetups(section, closed) {
+    var list = section.querySelector('#cm-saved-setups-list');
+    if (!list) return;
+    var setups = SetupStore.getAll().sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
+    list.innerHTML = setups.length
+      ? setups.map(function (s) { return setupRowHtml(s, closed); }).join('')
+      : '<p class="font-body-sm text-body-sm text-secondary">No setups saved yet. Build a combination on the left, or use "Save as Setup" from any stat\'s trade list.</p>';
+    var renameInput = list.querySelector('.cm-setup-rename-input');
+    if (renameInput) { renameInput.focus(); renameInput.select(); }
+  }
+
+  function renderPlaybookSetups(section) {
+    var closed = cmClosedTrades();
+    renderSetupBuilder(section, closed);
+    renderSavedSetups(section, closed);
+  }
+
+  function saveBuilderSetup(section) {
+    var nameInput = section.querySelector('#cm-builder-name');
+    var name = nameInput ? nameInput.value.trim() : '';
+    if (!cmBuilderSelected.length || !name) return;
+
+    var key = cmSetupKey(cmBuilderSelected);
+    var duplicate = SetupStore.getAll().filter(function (s) { return cmSetupKey(s.parameters) === key; })[0];
+    if (duplicate) {
+      showBuilderNote(section, 'Already saved as "' + duplicate.name + '".', true);
+      return;
+    }
+    var ok = SetupStore.add({
+      id: 'setup-' + Date.now(),
+      name: name,
+      parameters: cmBuilderSelected.slice(),
+      createdAt: new Date().toISOString()
+    });
+    if (!ok) {
+      showBuilderNote(section, 'Could not save. Local storage is full or unavailable.', true);
+      return;
+    }
+    cmBuilderSelected = [];
+    cmBuilderNameTouched = false;
+    if (nameInput) nameInput.value = '';
+    renderPlaybookSetups(section);
+    showBuilderNote(section, 'Saved "' + name + '" to your playbook.', false);
+  }
+
+  // Loads a parameter combination into the builder, scrolls to it and puts
+  // the cursor in the name field - used by the drill-down's Save as Setup.
+  function prefillSetupBuilder(section, params) {
+    cmBuilderSelected = params.slice();
+    cmBuilderNameTouched = false;
+    renderPlaybookSetups(section);
+    showBuilderNote(section, '', false);
+    var builder = section.querySelector('#cm-setup-builder');
+    if (builder) builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var nameInput = section.querySelector('#cm-builder-name');
+    if (nameInput) nameInput.focus({ preventScroll: true });
+  }
+
+  function commitSetupRename(section, id, input) {
+    var name = input.value.trim();
+    if (!name) {
+      input.classList.add('ring-2', 'ring-error/50');
+      return false;
+    }
+    cmRenamingSetupId = null;
+    SetupStore.rename(id, name);
+    renderSavedSetups(section, cmClosedTrades());
+    return true;
+  }
+
+  function initPlaybookSetupControls(section) {
+    var grid = section.querySelector('#cm-builder-grid');
+    if (grid) {
+      grid.addEventListener('click', function (e) {
+        var chip = e.target.closest ? e.target.closest('.confluence-chip') : null;
+        if (!chip) return;
+        var value = chip.getAttribute('data-value');
+        cmBuilderSelected = parameterInList(cmBuilderSelected, value)
+          ? cmBuilderSelected.filter(function (p) { return p.toLowerCase() !== value.toLowerCase(); })
+          : cmBuilderSelected.concat(value);
+        showBuilderNote(section, '', false);
+        renderSetupBuilder(section, cmClosedTrades());
+      });
+    }
+
+    var clearBtn = section.querySelector('#cm-builder-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        cmBuilderSelected = [];
+        cmBuilderNameTouched = false;
+        showBuilderNote(section, '', false);
+        renderSetupBuilder(section, cmClosedTrades());
+      });
+    }
+
+    var statEl = section.querySelector('#cm-builder-stat');
+    if (statEl) {
+      statEl.addEventListener('click', function (e) {
+        var viewBtn = e.target.closest ? e.target.closest('#cm-builder-view') : null;
+        if (!viewBtn || !cmBuilderSelected.length) return;
+        openCmDrillModal({ title: 'Trades using ' + cmBuilderSelected.join(' + '), params: cmBuilderSelected.slice() }, viewBtn);
+      });
+    }
+
+    var nameInput = section.querySelector('#cm-builder-name');
+    if (nameInput) {
+      nameInput.addEventListener('input', function () {
+        cmBuilderNameTouched = true;
+        showBuilderNote(section, '', false);
+        syncBuilderSaveState(section);
+      });
+      nameInput.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        saveBuilderSetup(section);
+      });
+    }
+    var saveBtn = section.querySelector('#cm-builder-save');
+    if (saveBtn) saveBtn.addEventListener('click', function () { saveBuilderSetup(section); });
+
+    var list = section.querySelector('#cm-saved-setups-list');
+    if (list) {
+      list.addEventListener('click', function (e) {
+        var row = e.target.closest ? e.target.closest('.cm-setup-row') : null;
+        if (!row) return;
+        var setup = SetupStore.getById(row.getAttribute('data-setup-id'));
+        if (!setup) return;
+
+        var viewBtn = e.target.closest('.cm-setup-view');
+        if (viewBtn) {
+          openCmDrillModal({ title: 'Trades using setup "' + setup.name + '"', params: setup.parameters, fromSetup: true }, viewBtn);
+          return;
+        }
+        if (e.target.closest('.cm-setup-rename')) {
+          cmRenamingSetupId = setup.id;
+          renderSavedSetups(section, cmClosedTrades());
+          return;
+        }
+        if (e.target.closest('.cm-setup-delete')) {
+          if (!window.confirm('Delete setup "' + setup.name + '"?\n\nYour trades are not affected.')) return;
+          if (cmRenamingSetupId === setup.id) cmRenamingSetupId = null;
+          SetupStore.remove(setup.id);
+          renderSavedSetups(section, cmClosedTrades());
+        }
+      });
+      list.addEventListener('keydown', function (e) {
+        var input = e.target.closest ? e.target.closest('.cm-setup-rename-input') : null;
+        if (!input) return;
+        var row = input.closest('.cm-setup-row');
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitSetupRename(section, row.getAttribute('data-setup-id'), input);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          cmRenamingSetupId = null;
+          renderSavedSetups(section, cmClosedTrades());
+        }
+      });
+      // Clicking away commits a valid rename and quietly abandons a blank one.
+      // cmRenamingSetupId is cleared before any re-render, so the blur that
+      // fires when the input is removed doesn't run this a second time.
+      list.addEventListener('focusout', function (e) {
+        var input = e.target.closest ? e.target.closest('.cm-setup-rename-input') : null;
+        if (!input || cmRenamingSetupId === null) return;
+        var row = input.closest('.cm-setup-row');
+        if (!commitSetupRename(section, row.getAttribute('data-setup-id'), input)) {
+          cmRenamingSetupId = null;
+          renderSavedSetups(section, cmClosedTrades());
+        }
+      });
+    }
+
+    var drillSave = document.getElementById('cm-drill-save');
+    if (drillSave) {
+      drillSave.addEventListener('click', function () {
+        var params = cmDrillSaveParams.slice();
+        if (!params.length) return;
+        closeCmDrillModal(false);
+        prefillSetupBuilder(section, params);
+      });
+    }
+  }
+
   function initConfluenceMatrixControls(section) {
     if (!section) return;
+    initPlaybookSetupControls(section);
 
     function specFor(el) {
       var target = el && el.closest ? el.closest('[data-cm-drill]') : null;
@@ -5763,8 +6150,18 @@
 
   // The delete control keeps its slot at all times and only fades in on
   // hover/focus, so revealing it never reflows the row of chips.
-  function confluenceChipHtml(value) {
-    var selected = isParameterSelected(value);
+  // `selectedList` is whichever selection the picker instance owns (New Trade
+  // Entry's nteSelectedParameters, or the Confluence Matrix setup builder's).
+  // With opts.manage false the delete control is left out entirely, so a
+  // read-only use of the picker can't remove vocabulary entries.
+  function parameterInList(list, value) {
+    var key = String(value).toLowerCase();
+    return list.some(function (p) { return p.toLowerCase() === key; });
+  }
+
+  function confluenceChipHtml(value, selectedList, opts) {
+    var manage = !opts || opts.manage !== false;
+    var selected = parameterInList(selectedList || nteSelectedParameters, value);
     var stateClass = selected
       ? 'bg-primary text-on-primary shadow-sm'
       : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container';
@@ -5772,22 +6169,25 @@
       ? '<span class="material-symbols-outlined text-[14px]">check</span>'
       : '<span class="material-symbols-outlined text-[14px] opacity-40">add</span>';
     var deleteTone = selected ? 'hover:bg-on-primary/20' : 'hover:bg-error/10 hover:text-error';
+    var deleteBtn = manage
+      ? '<button type="button" class="confluence-chip-delete mr-1.5 w-5 h-5 shrink-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity ' + deleteTone + '" ' +
+          'data-value="' + escapeHtml(value) + '" title="Delete from picker" aria-label="Delete ' + escapeHtml(value) + ' from picker">' +
+          '<span class="material-symbols-outlined text-[14px]">close</span>' +
+        '</button>'
+      : '';
     return (
       '<span class="confluence-chip-wrap group inline-flex items-center rounded-full transition-colors ' + stateClass + '">' +
-        '<button type="button" class="confluence-chip inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full font-body-sm text-body-sm font-medium bg-transparent" ' +
+        '<button type="button" class="confluence-chip inline-flex items-center gap-1.5 pl-3 ' + (manage ? 'pr-1.5' : 'pr-3') + ' py-1.5 rounded-full font-body-sm text-body-sm font-medium bg-transparent" ' +
           'data-value="' + escapeHtml(value) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' +
           icon + escapeHtml(value) +
         '</button>' +
-        '<button type="button" class="confluence-chip-delete mr-1.5 w-5 h-5 shrink-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity ' + deleteTone + '" ' +
-          'data-value="' + escapeHtml(value) + '" title="Delete from picker" aria-label="Delete ' + escapeHtml(value) + ' from picker">' +
-          '<span class="material-symbols-outlined text-[14px]">close</span>' +
-        '</button>' +
+        deleteBtn +
       '</span>'
     );
   }
 
-  function confluenceCategoryHeaderHtml(category, count) {
-    var deletable = category.key !== FALLBACK_CATEGORY_KEY;
+  function confluenceCategoryHeaderHtml(category, count, opts) {
+    var deletable = category.key !== FALLBACK_CATEGORY_KEY && (!opts || opts.manage !== false);
     var button = '';
     if (deletable) {
       // Non-empty categories keep a visible but muted control: clicking it
@@ -5811,16 +6211,18 @@
 
   // Every known parameter is always on screen, grouped by category - no
   // typing required to discover what exists.
-  function renderConfluenceGrid(section) {
-    var grid = section.querySelector('#confluence-grid');
-    if (!grid) return;
-
+  //
+  // Shared by New Trade Entry (opts.manage true: chips and categories can be
+  // deleted) and the Confluence Matrix setup builder (manage false, plus
+  // opts.extraKnown - names in use on trades that the vocabulary doesn't list).
+  function parameterPickerGridHtml(selectedList, opts) {
+    opts = opts || {};
+    var manage = opts.manage !== false;
     var known = getAllKnownParameters();
     // A parameter only present on this trade (e.g. from an older vocabulary)
     // still needs a chip, otherwise it would silently vanish on edit.
-    nteSelectedParameters.forEach(function (value) {
-      var inKnown = known.some(function (p) { return p.toLowerCase() === value.toLowerCase(); });
-      if (!inKnown) known.push(value);
+    selectedList.concat(opts.extraKnown || []).forEach(function (value) {
+      if (!parameterInList(known, value)) known.push(value);
     });
 
     var categories = loadParamCategories();
@@ -5828,15 +6230,23 @@
     categories.forEach(function (cat) { grouped[cat.key] = []; });
     known.forEach(function (value) { grouped[parameterCategory(value)].push(value); });
 
-    // Empty categories still render - otherwise they'd be invisible and
-    // there would be no way to reach their delete control.
-    grid.innerHTML = categories.map(function (cat) {
+    // Empty categories still render in manage mode - otherwise they'd be
+    // invisible and there would be no way to reach their delete control.
+    return categories.map(function (cat) {
       var items = grouped[cat.key] || [];
+      if (!manage && !items.length) return '';
       var body = items.length
-        ? '<div class="flex flex-wrap gap-2">' + items.map(confluenceChipHtml).join('') + '</div>'
+        ? '<div class="flex flex-wrap gap-2">' + items.map(function (value) { return confluenceChipHtml(value, selectedList, opts); }).join('') + '</div>'
         : '<p class="font-metric-sm text-metric-sm text-outline-variant">No parameters in this category yet.</p>';
-      return '<div>' + confluenceCategoryHeaderHtml(cat, items.length) + body + '</div>';
+      return '<div>' + confluenceCategoryHeaderHtml(cat, items.length, opts) + body + '</div>';
     }).join('');
+  }
+
+  function renderConfluenceGrid(section) {
+    var grid = section.querySelector('#confluence-grid');
+    if (!grid) return;
+
+    grid.innerHTML = parameterPickerGridHtml(nteSelectedParameters, { manage: true });
 
     var countEl = section.querySelector('#confluence-selected-count');
     if (countEl) countEl.textContent = nteSelectedParameters.length + ' selected';
@@ -6191,9 +6601,55 @@
     return !(isHttp && isTV);
   }
 
+  // Rebuilt every time the form is entered, so a setup saved (or deleted) on
+  // Confluence Matrix is reflected without a reload.
+  function syncLoadSetupOptions(section) {
+    var select = section.querySelector('#nte-load-setup');
+    if (!select) return;
+    var setups = SetupStore.getAll().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    if (!setups.length) {
+      select.innerHTML = '<option value="">No saved setups yet — create one on Confluence Matrix</option>';
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    select.innerHTML = '<option value="">Choose a setup…</option>' + setups.map(function (s) {
+      return '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.name) + ' (' + s.parameters.length + ')</option>';
+    }).join('');
+    select.value = '';
+  }
+
+  // A starting point, not a lock: the picker stays fully editable afterwards.
+  function loadSetupIntoForm(section, setupId) {
+    var select = section.querySelector('#nte-load-setup');
+    var setup = setupId ? SetupStore.getById(setupId) : null;
+    if (!setup) return;
+
+    var extras = nteSelectedParameters.filter(function (p) { return !parameterInList(setup.parameters, p); });
+    if (extras.length && !window.confirm(
+      'Replace the ' + nteSelectedParameters.length + ' currently selected parameter' + (nteSelectedParameters.length === 1 ? '' : 's') +
+      ' with "' + setup.name + '"?\n\n' + extras.length + ' of them ' + (extras.length === 1 ? 'is' : 'are') + ' not part of that setup.'
+    )) {
+      if (select) select.value = '';
+      return;
+    }
+
+    nteSelectedParameters = setup.parameters.slice();
+    renderConfluenceGrid(section);
+    var setupNameField = section.querySelector('#input-setup-name');
+    if (setupNameField && !setupNameField.value.trim()) setupNameField.value = setup.name;
+    showConfluenceAddNote(section, 'Loaded "' + setup.name + '" — ' + setup.parameters.length + ' parameter' + (setup.parameters.length === 1 ? '' : 's') + '. Add or remove any before saving.');
+    if (select) select.value = '';
+  }
+
   function initNewTradeEntry() {
     var section = sections['new-trade-entry'];
     if (!section) return;
+
+    var loadSetupSelect = section.querySelector('#nte-load-setup');
+    if (loadSetupSelect) {
+      loadSetupSelect.addEventListener('change', function () { loadSetupIntoForm(section, loadSetupSelect.value); });
+    }
 
     var form = section.querySelector('#trade-entry-form');
     var entryInput = section.querySelector('#input-entry');
@@ -6474,6 +6930,7 @@
       : duplicatingTrade ? nonEmptyConfluence(duplicatingTrade).slice()
       : [];
     renderConfluenceGrid(section);
+    syncLoadSetupOptions(section);
     var confluenceAddInput = section.querySelector('#confluence-add-input');
     if (confluenceAddInput) confluenceAddInput.value = '';
     nteCategoryTouched = false;
@@ -7373,6 +7830,7 @@
         savedAt: Date.now(),
         trades: TradeStore.getAll(),
         positions: PositionStore.getAll(),
+        setups: SetupStore.getAll(),
         categories: loadParamCategories(),
         vocabulary: loadConfluenceVocabulary(),
         removedDefaults: getRemovedDefaults()
@@ -7401,6 +7859,7 @@
     }
     TradeStore.setAll(snapshot.trades || []);
     PositionStore.setAll(snapshot.positions || []);
+    if (Array.isArray(snapshot.setups)) SetupStore.setAll(snapshot.setups);
     if (Array.isArray(snapshot.categories)) saveParamCategories(snapshot.categories);
     if (Array.isArray(snapshot.vocabulary)) saveConfluenceVocabulary(snapshot.vocabulary);
     if (Array.isArray(snapshot.removedDefaults)) saveRemovedDefaults(snapshot.removedDefaults);
@@ -7574,8 +8033,12 @@
     };
   }
 
-  function computeDataFingerprint(trades, positions) {
-    return simpleHash(JSON.stringify(buildRemoteTradesPayload(trades)) + JSON.stringify(positions) + JSON.stringify(buildRemoteParamsPayload()));
+  // setups is only mixed in when there are some, so a journal that has never
+  // saved one keeps the exact fingerprint it had before setups existed and
+  // isn't mistaken for having unpushed local changes after an upgrade.
+  function computeDataFingerprint(trades, positions, setups) {
+    var setupList = setups || SetupStore.getAll();
+    return simpleHash(JSON.stringify(buildRemoteTradesPayload(trades)) + JSON.stringify(positions) + JSON.stringify(buildRemoteParamsPayload()) + (setupList.length ? JSON.stringify(setupList) : ''));
   }
 
   // Skips re-uploading (and re-committing) a chart image whose bytes
@@ -7645,6 +8108,7 @@
 
     var trades = TradeStore.getAll();
     var positions = PositionStore.getAll();
+    var setups = SetupStore.getAll();
     var meta = ghMetaGet();
 
     function putJsonFile(path, json, shaField, message) {
@@ -7665,11 +8129,18 @@
       var tradesJson = JSON.stringify(buildRemoteTradesPayload(trades), null, 2);
       var positionsJson = JSON.stringify(positions, null, 2);
       var paramsJson = JSON.stringify(buildRemoteParamsPayload(), null, 2);
-      return Promise.all([
+      var writes = [
         putJsonFile('data/trades.json', tradesJson, 'tradesSha', 'Sync trades'),
         putJsonFile('data/positions.json', positionsJson, 'positionsSha', 'Sync positions'),
         putJsonFile('data/parameters.json', paramsJson, 'paramsSha', 'Sync confluence categories')
-      ]);
+      ];
+      // Only written once a setup exists (or the repo already has the file,
+      // so deleting the last one still propagates) - otherwise a journal
+      // that never uses setups doesn't gain an empty data/setups.json.
+      if (setups.length || meta.setupsSha) {
+        writes.push(putJsonFile('data/setups.json', JSON.stringify(setups, null, 2), 'setupsSha', 'Sync setups'));
+      }
+      return Promise.all(writes);
     }).then(function (results) {
       var failed = results.filter(function (r) { return !r.ok; });
       if (failed.length) {
@@ -7679,7 +8150,8 @@
         tradesSha: meta.tradesSha,
         positionsSha: meta.positionsSha,
         paramsSha: meta.paramsSha,
-        lastPushedFingerprint: computeDataFingerprint(trades, positions),
+        setupsSha: meta.setupsSha || null,
+        lastPushedFingerprint: computeDataFingerprint(trades, positions, setups),
         lastPushAt: Date.now(),
         lastSyncAt: Date.now()
       });
@@ -7743,13 +8215,15 @@
     Promise.all([
       ghGetFile(cfg, 'data/trades.json'),
       ghGetFile(cfg, 'data/positions.json'),
-      ghGetFile(cfg, 'data/parameters.json')
+      ghGetFile(cfg, 'data/parameters.json'),
+      ghGetFile(cfg, 'data/setups.json')
     ]).then(function (results) {
       var tradesFile = results[0];
       var positionsFile = results[1];
       var paramsFile = results[2];
+      var setupsFile = results[3];
 
-      if (!tradesFile.exists && !positionsFile.exists && !paramsFile.exists) {
+      if (!tradesFile.exists && !positionsFile.exists && !paramsFile.exists && !setupsFile.exists) {
         // Brand-new empty data repo - seed it from whatever's local.
         pushToGitHub();
         return;
@@ -7758,6 +8232,8 @@
       var remoteTrades = tradesFile.exists ? JSON.parse(tradesFile.text) : [];
       var remotePositions = positionsFile.exists ? JSON.parse(positionsFile.text) : [];
       var remoteParams = paramsFile.exists ? JSON.parse(paramsFile.text) : null;
+      var remoteSetupsRaw = setupsFile.exists ? JSON.parse(setupsFile.text) : null;
+      var remoteSetups = Array.isArray(remoteSetupsRaw) ? remoteSetupsRaw.filter(function (s) { return s && s.id; }).map(normalizeSetup) : null;
 
       var localFingerprint = computeDataFingerprint(TradeStore.getAll(), PositionStore.getAll());
       var meta = ghMetaGet();
@@ -7779,7 +8255,7 @@
         var localTrades = TradeStore.getAll();
         var localPositions = PositionStore.getAll();
         var hasCustomLocalData = localTrades.some(function (t) { return t.id.indexOf('seed-') !== 0; }) || localPositions.length > 0;
-        if (hasCustomLocalData && computeDataFingerprint(remoteTrades, remotePositions) !== localFingerprint) {
+        if (hasCustomLocalData && computeDataFingerprint(remoteTrades, remotePositions, remoteSetups || []) !== localFingerprint) {
           var replaceLocal = window.confirm(
             'This device has trades/positions that have never been backed up to GitHub, and the repo already has different data (likely from another device).\n\n' +
             'Click OK to replace this device\'s trades/positions with what\'s on GitHub.\n' +
@@ -7797,6 +8273,9 @@
         githubSyncApplyingRemote = true;
         TradeStore.setAll(hydratedTrades);
         PositionStore.setAll(remotePositions);
+        // A repo that predates setups has no file - keep whatever's local
+        // rather than treating the absence as "delete every setup".
+        if (remoteSetups) SetupStore.setAll(remoteSetups);
 
         // Categories/vocabulary are merged, never replaced outright - a
         // category or parameter created locally and not yet pushed must
@@ -7821,11 +8300,15 @@
         }
         githubSyncApplyingRemote = false;
 
-        if (needsParamsPushBack) {
+        // Local setups on a repo that has no setups.json yet also need pushing.
+        var needsSetupsPushBack = !remoteSetups && SetupStore.getAll().length > 0;
+
+        if (needsParamsPushBack || needsSetupsPushBack) {
           ghMetaSet({
             tradesSha: tradesFile.exists ? tradesFile.sha : null,
             positionsSha: positionsFile.exists ? positionsFile.sha : null,
             paramsSha: paramsFile.exists ? paramsFile.sha : null,
+            setupsSha: setupsFile.exists ? setupsFile.sha : null,
             lastSyncAt: Date.now()
           });
           pushToGitHub();
@@ -7834,6 +8317,7 @@
             tradesSha: tradesFile.exists ? tradesFile.sha : null,
             positionsSha: positionsFile.exists ? positionsFile.sha : null,
             paramsSha: paramsFile.exists ? paramsFile.sha : null,
+            setupsSha: setupsFile.exists ? setupsFile.sha : null,
             lastPushedFingerprint: computeDataFingerprint(hydratedTrades, remotePositions),
             lastSyncAt: Date.now()
           });
