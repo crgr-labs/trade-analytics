@@ -6879,8 +6879,57 @@
     var countEl = section.querySelector('#confluence-selected-count');
     if (countEl) countEl.textContent = nteSelectedParameters.length + ' selected';
 
+    renderSetupMatchBanners(section);
     syncConfluenceCategoryOptions(section);
     updateFieldsCompleted(section);
+  }
+
+  // Saved setups / flagged anti-patterns whose parameters are ALL in the
+  // current selection - the same contains-all rule as everywhere else, so the
+  // trade may carry extra parameters beyond what the combination requires.
+  function combosContainedInSelection(store) {
+    return store.getAll().filter(function (item) {
+      return item.parameters.length && item.parameters.every(function (p) { return parameterInList(nteSelectedParameters, p); });
+    });
+  }
+
+  // The moment-of-decision nudge under the picker. Runs on every selection
+  // change (renderConfluenceGrid is the single path for all of them), and
+  // stays hidden - not an empty state - when nothing matches. The trade
+  // being edited is left out of the record it is compared against, so an
+  // edit isn't graded partly on its own outcome. Trades are only read when
+  // something matched, keeping ordinary chip toggling cheap.
+  function renderSetupMatchBanners(section) {
+    var el = section.querySelector('#nte-match-banners');
+    if (!el) return;
+    var setups = combosContainedInSelection(SetupStore);
+    var antiPatterns = combosContainedInSelection(AntiPatternStore);
+    if (!setups.length && !antiPatterns.length) {
+      el.innerHTML = '';
+      el.hidden = true;
+      return;
+    }
+
+    var closed = cmClosedTrades().filter(function (t) { return t.id !== nteEditingTradeId; });
+    function banner(tone, icon, html) {
+      return '<div class="flex items-start gap-2 px-3 py-2 rounded-lg ' + tone + '">' +
+        '<span class="material-symbols-outlined text-[18px] shrink-0 mt-px">' + icon + '</span>' +
+        '<span class="font-body-sm text-body-sm">' + html + '</span></div>';
+    }
+    // Warnings first: they're the ones worth stopping for.
+    var html = antiPatterns.map(function (item) {
+      var stat = cmSetupStat(item.parameters, closed);
+      var record = stat.total ? 'historically ' + stat.wins + '/' + stat.total + ' (' + stat.rate + '%)' : 'no closed trades to judge it by yet';
+      return banner('bg-error-container text-on-error-container', 'warning',
+        'Matches flagged anti-pattern <span class="font-semibold">\'' + escapeHtml(item.name) + '\'</span> — ' + record + '.');
+    }).concat(setups.map(function (item) {
+      var stat = cmSetupStat(item.parameters, closed);
+      var record = stat.total ? stat.rate + '% historical win rate (' + stat.wins + '/' + stat.total + ')' : 'no closed trades to judge it by yet';
+      return banner('bg-tertiary-fixed/30 text-on-tertiary-fixed-variant', 'check_circle',
+        'Matches your saved setup <span class="font-semibold">\'' + escapeHtml(item.name) + '\'</span> — ' + record + '.');
+    })).join('');
+    el.innerHTML = html;
+    el.hidden = false;
   }
 
   // The add-row category select is rebuilt from the live list so a deleted
@@ -7557,6 +7606,9 @@
     nteSelectedParameters = trade ? nonEmptyConfluence(trade).slice()
       : duplicatingTrade ? nonEmptyConfluence(duplicatingTrade).slice()
       : [];
+    // Set before the first picker render: the setup-match banner excludes the
+    // trade being edited from the record it shows.
+    nteEditingTradeId = trade ? trade.id : null;
     renderConfluenceGrid(section);
     syncLoadSetupOptions(section);
     var confluenceAddInput = section.querySelector('#confluence-add-input');

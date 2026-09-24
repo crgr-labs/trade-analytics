@@ -3427,6 +3427,8 @@
                       class="h-[38px] flex-1 min-w-0 px-2.5 rounded-lg bg-surface-container-low text-on-surface font-metric-sm text-metric-sm focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-60"></select>
                   </div>
                   <div class="flex flex-col gap-4 max-h-[30rem] overflow-y-auto" id="confluence-grid"></div>
+                  <!-- Live nudge: saved setups / flagged anti-patterns the current selection contains. Empty (and hidden) when none match. -->
+                  <div id="nte-match-banners" hidden role="status" aria-live="polite" class="mt-4 flex flex-col gap-2"></div>
                   <div class="mt-4 pt-4 border-t border-surface-container">
                     <label
                       class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase tracking-wider block mb-1.5"
