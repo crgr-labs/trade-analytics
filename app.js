@@ -2712,7 +2712,7 @@
       var c = nonEmptyConfluence(t).slice().sort();
       if (c.length < 2) return;
       var key = c[0] + ' + ' + c[1];
-      baseGroups[key] = baseGroups[key] || { label: key, trades: [] };
+      baseGroups[key] = baseGroups[key] || { label: key, params: [c[0], c[1]], trades: [] };
       baseGroups[key].trades.push(t);
     });
     var baseStack = null;
@@ -2735,7 +2735,13 @@
       .map(function (k) { return extraCounts[k]; })
       .filter(function (s) { return s.total >= 2; })
       .sort(function (a, b) { return b.total - a.total; })
-      .slice(0, 5);
+      .slice(0, 5)
+      .map(function (s) {
+        // The full parameter set this row stands for (base pair + the add-on),
+        // so the drill-down can match trades on all of it.
+        s.params = baseStack.params.concat(s.label);
+        return s;
+      });
 
     // Loss profile: a losing trade outside the dominant base stack, described by its own setup.
     var lossOutsideBase = closed.filter(function (t) { return t.outcome === 'loss' && baseGroup.indexOf(t) === -1; });
@@ -2745,7 +2751,8 @@
       lossProfile = {
         label: (c[0] || 'Unlabeled setup') + ' + ' + (c[2] || c[1] || 'setup') + ' (loss profile)',
         wins: 0,
-        total: lossOutsideBase.length
+        total: lossOutsideBase.length,
+        tradeIds: lossOutsideBase.map(function (t) { return t.id; })
       };
     }
 
@@ -2806,14 +2813,44 @@
     };
   }
 
+  // Drill-down specs for the clickable stats. Each rendered element carries an
+  // index into this list (data-cm-drill) rather than the spec itself, so the
+  // matching rule and the title stay out of the DOM. Rebuilt on every render.
+  var cmDrillSpecs = [];
+  var CM_DRILL_CLASS = 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50';
+
+  function cmDrillAttrs(spec) {
+    cmDrillSpecs.push(spec);
+    return ' data-cm-drill="' + (cmDrillSpecs.length - 1) + '" role="button" tabindex="0" title="View the trades behind this"';
+  }
+
+  function cmSetDrill(el, spec) {
+    if (!el) return;
+    if (!spec) {
+      el.removeAttribute('data-cm-drill');
+      el.removeAttribute('role');
+      el.removeAttribute('tabindex');
+      el.removeAttribute('title');
+      return;
+    }
+    cmDrillSpecs.push(spec);
+    el.setAttribute('data-cm-drill', String(cmDrillSpecs.length - 1));
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('title', 'View the trades behind this');
+  }
+
   function notableStackRowHtml(stack, isLossRow) {
     var rate = pct(stack.wins, stack.total);
     var colors = rateColors(rate);
     var dotColor = isLossRow ? 'bg-error' : 'bg-primary';
-    var rowClass = isLossRow ? 'bg-error-container/20 rounded-lg group' : 'hover:bg-surface-container-low transition-colors group';
+    var rowClass = (isLossRow ? 'bg-error-container/20 hover:bg-error-container/40 rounded-lg group transition-colors' : 'hover:bg-surface-container-low transition-colors group') + ' ' + CM_DRILL_CLASS;
     var label = (isLossRow ? '' : '+ ') + escapeHtml(stack.label);
+    var spec = isLossRow
+      ? { title: 'Trades in ' + stack.label, ids: stack.tradeIds }
+      : { title: 'Trades using ' + stack.params.join(' + '), params: stack.params };
     return (
-      '<tr class="' + rowClass + '">' +
+      '<tr class="' + rowClass + '"' + cmDrillAttrs(spec) + '>' +
         '<td class="py-3 px-3' + (isLossRow ? ' rounded-l-lg' : '') + '"><div class="flex items-center gap-2">' +
           '<span class="w-1.5 h-1.5 rounded-full ' + dotColor + '"></span>' +
           '<span class="font-body-md text-body-md font-medium text-on-surface">' + label + '</span>' +
@@ -2827,8 +2864,9 @@
   function bucketRowHtml(bucket) {
     var rate = pct(bucket.wins, bucket.total);
     var colors = rateColors(rate);
+    var spec = { title: 'Trades with ' + bucket.filled + ' parameter' + (bucket.filled === 1 ? '' : 's'), exactFilled: bucket.filled };
     return (
-      '<div class="flex flex-col gap-1.5">' +
+      '<div class="flex flex-col gap-1.5 -mx-2 px-2 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors ' + CM_DRILL_CLASS + '"' + cmDrillAttrs(spec) + '>' +
         '<div class="flex justify-between items-baseline font-body-sm text-body-sm">' +
           '<span class="font-medium text-on-surface">' + bucket.filled + ' parameter' + (bucket.filled === 1 ? '' : 's') + '</span>' +
           '<span class="font-metric-sm text-metric-sm font-semibold ' + colors.text + '">' + bucket.wins + '/' + bucket.total + ' (' + rate + '%)</span>' +
@@ -2843,8 +2881,9 @@
   function paramRowHtml(param) {
     var rate = pct(param.wins, param.total);
     var colors = rateColors(rate);
+    var spec = { title: 'Trades using ' + param.label, params: [param.label] };
     return (
-      '<div class="flex flex-col gap-1">' +
+      '<div class="flex flex-col gap-1 -mx-2 px-2 py-1.5 rounded-lg hover:bg-surface-container-low transition-colors ' + CM_DRILL_CLASS + '"' + cmDrillAttrs(spec) + '>' +
         '<div class="flex justify-between items-center text-body-sm font-body-sm">' +
           '<span class="text-on-surface font-medium">' + escapeHtml(param.label) + '</span>' +
           '<span class="font-metric-sm text-metric-sm font-semibold ' + colors.text + '">' + param.wins + '/' + param.total + ' (' + rate + '%)</span>' +
@@ -2898,6 +2937,7 @@
     if (!section) return;
     var trades = TradeStore.getAll();
     var stats = computeConfluenceStats(trades);
+    cmDrillSpecs = [];
 
     var cohortEl = section.querySelector('#cm-cohort-count');
     if (cohortEl) cohortEl.textContent = stats.totalTrades + ' Logged Execution' + (stats.totalTrades === 1 ? '' : 's') + ' (100% Retrospective)';
@@ -2905,15 +2945,24 @@
     var labelEl = section.querySelector('#cm-best-stack-label');
     var tradesEl = section.querySelector('#cm-best-stack-trades');
     var rateEl = section.querySelector('#cm-best-stack-rate');
+    var bannerEl = section.querySelector('#cm-best-stack-banner');
+    var bannerHintEl = section.querySelector('#cm-best-stack-hint');
     if (stats.baseStack) {
       if (labelEl) labelEl.textContent = stats.baseStack.label;
       if (tradesEl) tradesEl.textContent = stats.baseWins + '/' + stats.baseStack.trades.length;
       if (rateEl) rateEl.textContent = pct(stats.baseWins, stats.baseStack.trades.length) + '%';
+      cmSetDrill(bannerEl, { title: 'Trades using ' + stats.baseStack.params.join(' + '), params: stats.baseStack.params });
     } else {
       if (labelEl) labelEl.textContent = 'Not enough closed trades yet';
       if (tradesEl) tradesEl.textContent = '0/0';
       if (rateEl) rateEl.textContent = '—';
+      cmSetDrill(bannerEl, null);
     }
+    if (bannerEl) {
+      var bannerDrillClasses = (CM_DRILL_CLASS + ' hover:shadow-lg hover:ring-2 hover:ring-primary-fixed/40 transition-shadow').split(' ');
+      bannerDrillClasses.forEach(function (cls) { bannerEl.classList.toggle(cls, !!stats.baseStack); });
+    }
+    if (bannerHintEl) bannerHintEl.hidden = !stats.baseStack;
 
     var notableBody = section.querySelector('#cm-notable-stacks-body');
     if (notableBody) {
@@ -2939,6 +2988,7 @@
     var highRate = pct(stats.highConflWins, stats.highConflTotal);
     if (highEl) highEl.textContent = stats.highConflWins + '/' + stats.highConflTotal + ' (' + highRate + '%)';
     if (highBar) highBar.style.width = highRate + '%';
+    cmSetDrill(section.querySelector('#cm-high-confl-row'), stats.highConflTotal ? { title: 'Trades with 6+ parameters', minFilled: 6 } : null);
 
     ['trend', 'retracement', 'momentum'].forEach(function (cat) {
       var el = section.querySelector('#cm-param-col-' + cat);
@@ -2949,6 +2999,130 @@
 
     var findingsEl = section.querySelector('#cm-key-findings');
     if (findingsEl) findingsEl.innerHTML = renderKeyFindings(stats);
+  }
+
+  // ---------------------------------------------------------------------
+  // Confluence Matrix drill-down: the trades behind a clicked stat
+  // ---------------------------------------------------------------------
+
+  // Every stat on the page is computed over closed (win/loss) trades, so the
+  // drill-down does the same - otherwise open trades carrying the same
+  // parameters would make the list disagree with the number that was clicked.
+  function cmDrillTrades(spec) {
+    var c;
+    return TradeStore.getAll()
+      .filter(function (t) { return t.outcome === 'win' || t.outcome === 'loss'; })
+      .filter(function (t) {
+        if (spec.ids) return spec.ids.indexOf(t.id) !== -1;
+        c = nonEmptyConfluence(t);
+        if (spec.params) return spec.params.every(function (p) { return c.indexOf(p) !== -1; });
+        if (spec.exactFilled != null) return c.length === spec.exactFilled;
+        if (spec.minFilled != null) return c.length >= spec.minFilled;
+        return false;
+      })
+      .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  }
+
+  // Same layout as the Case Studies list row, plus the parameter chips -
+  // those are what these drill-downs are about, and the list row only shows
+  // a one-line setup summary. Chips that satisfied the clicked stat's
+  // matching rule are highlighted.
+  function cmDrillTradeRowHtml(trade, matched) {
+    var dot = OUTCOME_DOT_CLASS[trade.outcome] || OUTCOME_DOT_CLASS.open;
+    var pillClass = OUTCOME_PILL_CLASS[trade.outcome] || OUTCOME_PILL_CLASS.open;
+    var directionClass = DIRECTION_BADGE_CLASS[trade.direction] || DIRECTION_BADGE_CLASS.long;
+    var chips = nonEmptyConfluence(trade).map(function (tag) {
+      var hit = matched.indexOf(tag) !== -1;
+      return '<span class="' + (hit ? 'bg-primary/10 text-primary font-semibold' : 'bg-surface-container-low text-on-surface-variant') + ' font-body-sm text-[12px] px-2 py-0.5 rounded">' + escapeHtml(tag) + '</span>';
+    }).join('') || '<span class="font-metric-sm text-[11px] text-outline-variant">No parameters logged</span>';
+    return (
+      '<a href="#case-studies/' + encodeURIComponent(trade.id) + '" class="block px-5 py-3.5 hover:bg-surface-container-low/60 transition-colors">' +
+        '<div class="flex items-center justify-between gap-3">' +
+          '<div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-wrap sm:flex-nowrap">' +
+            '<div class="flex flex-col shrink-0 w-14 sm:w-16">' +
+              '<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">' + formatDateLabel(trade.date) + '</span>' +
+              '<span class="font-metric-sm text-metric-sm text-secondary">' + weekdayLabel(trade.date) + '</span>' +
+            '</div>' +
+            '<span class="font-metric-md text-metric-md font-bold text-on-surface truncate">' + escapeHtml(trade.pair) + '</span>' +
+            '<span class="' + directionClass + ' font-metric-sm text-[11px] font-semibold px-2 py-0.5 rounded shrink-0">' + escapeHtml(trade.direction.toUpperCase()) + '</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 shrink-0">' +
+            '<span class="' + pillClass + ' font-metric-sm text-[11px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1.5">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + escapeHtml(trade.outcome.toUpperCase()) +
+            '</span>' +
+            '<span class="material-symbols-outlined text-secondary text-[18px]">chevron_right</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flex items-center flex-wrap gap-1 mt-2">' + chips + '</div>' +
+      '</a>'
+    );
+  }
+
+  var cmDrillTrigger = null;
+
+  function openCmDrillModal(spec, trigger) {
+    var modal = document.getElementById('cm-drill-modal');
+    var body = document.getElementById('cm-drill-body');
+    var title = document.getElementById('cm-drill-title');
+    if (!modal || !body || !title || !spec) return;
+
+    var trades = cmDrillTrades(spec);
+    var wins = trades.filter(function (t) { return t.outcome === 'win'; }).length;
+    title.textContent = spec.title + ' — ' + trades.length + ' trade' + (trades.length === 1 ? '' : 's') + ', ' + wins + ' win' + (wins === 1 ? '' : 's');
+
+    var matched = spec.params || [];
+    body.innerHTML = trades.length
+      ? '<div class="divide-y divide-surface-container-low">' + trades.map(function (t) { return cmDrillTradeRowHtml(t, matched); }).join('') + '</div>'
+      : '<div class="px-5 py-10 text-center font-body-sm text-body-sm text-secondary">No matching trades.</div>';
+    body.scrollTop = 0;
+
+    cmDrillTrigger = trigger || null;
+    modal.hidden = false;
+    var closeBtn = document.getElementById('cm-drill-close');
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function closeCmDrillModal(restoreFocus) {
+    var modal = document.getElementById('cm-drill-modal');
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    if (restoreFocus && cmDrillTrigger && document.body.contains(cmDrillTrigger)) cmDrillTrigger.focus();
+    cmDrillTrigger = null;
+  }
+
+  function initConfluenceMatrixControls(section) {
+    if (!section) return;
+
+    function specFor(el) {
+      var target = el && el.closest ? el.closest('[data-cm-drill]') : null;
+      if (!target || !section.contains(target)) return null;
+      var spec = cmDrillSpecs[parseInt(target.getAttribute('data-cm-drill'), 10)];
+      return spec ? { spec: spec, target: target } : null;
+    }
+
+    section.addEventListener('click', function (e) {
+      var hit = specFor(e.target);
+      if (hit) openCmDrillModal(hit.spec, hit.target);
+    });
+    section.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var hit = specFor(e.target);
+      if (!hit || e.target !== hit.target) return;
+      e.preventDefault();
+      openCmDrillModal(hit.spec, hit.target);
+    });
+
+    var modal = document.getElementById('cm-drill-modal');
+    if (!modal) return;
+    var backdrop = document.getElementById('cm-drill-backdrop');
+    var closeBtn = document.getElementById('cm-drill-close');
+    if (backdrop) backdrop.addEventListener('click', function () { closeCmDrillModal(true); });
+    if (closeBtn) closeBtn.addEventListener('click', function () { closeCmDrillModal(true); });
+    document.addEventListener('keydown', function (e) {
+      if (!modal.hidden && e.key === 'Escape') closeCmDrillModal(true);
+    });
+    // Following a case-study link (or any other navigation) leaves the modal behind.
+    document.addEventListener('screenchange', function () { closeCmDrillModal(false); });
   }
 
   // ---------------------------------------------------------------------
@@ -7957,6 +8131,7 @@
   initCaseStudyListControls();
   initChartPreviewModal();
   initTimingHeatmapControls(sections['timing-and-heatmap']);
+  initConfluenceMatrixControls(sections['confluence-matrix']);
   initHeaderSearch();
   initGithubSyncSettings();
   initThemeToggle();

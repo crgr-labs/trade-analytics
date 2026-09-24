@@ -2220,7 +2220,7 @@
               </div>
             </header>
             <!-- Dark Highlight Banner (Visual Anchor) -->
-            <section
+            <section id="cm-best-stack-banner"
               class="emphasis-dark mt-6 rounded-xl p-4 sm:p-6 bg-on-surface text-surface-container-lowest shadow-md relative overflow-hidden">
               <!-- Subtle architectural background glow -->
               <div
@@ -2243,6 +2243,10 @@
                     The two-parameter foundation every winning stack below builds upon. Zero invalidations across
                     historical sample.
                   </p>
+                  <span id="cm-best-stack-hint" class="inline-flex items-center gap-1 mt-2 font-metric-sm text-metric-sm text-primary-fixed font-semibold">
+                    View matching trades
+                    <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                  </span>
                 </div>
                 <!-- Stat Blocks -->
                 <div
@@ -2442,7 +2446,7 @@
                   <!-- Subtle tonal divider -->
                   <div class="my-5 h-px bg-surface-container"></div>
                   <!-- Summary Metric Row: High Confluence -->
-                  <div class="p-3.5 bg-surface-container-low rounded-xl flex items-center justify-between gap-4">
+                  <div id="cm-high-confl-row" class="p-3.5 bg-surface-container-low hover:bg-surface-container rounded-xl flex items-center justify-between gap-4 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
                     <div class="flex flex-col">
                       <span class="font-headline-sm text-headline-sm text-on-surface font-semibold">High confl.
                         (6+)</span>
@@ -3478,6 +3482,25 @@
           </button>
         </div>
         <div id="th-day-modal-body" class="overflow-y-auto flex-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confluence Matrix: trades behind a clicked stat -->
+  <div id="cm-drill-modal" hidden class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="cm-drill-title">
+    <div id="cm-drill-backdrop" class="absolute inset-0 bg-on-surface/60"></div>
+    <div class="relative h-full flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+      <div class="relative bg-surface-container-lowest rounded-xl shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col pointer-events-auto">
+        <div class="flex items-start justify-between gap-3 p-5 pb-4 shrink-0 border-b border-surface-container-low">
+          <div class="min-w-0">
+            <h3 class="font-headline-md text-headline-md text-on-surface font-semibold break-words" id="cm-drill-title">Trades</h3>
+            <p class="font-metric-sm text-metric-sm text-secondary mt-0.5">Closed trades only, matching the stats on this page. Select one to open its case study.</p>
+          </div>
+          <button type="button" id="cm-drill-close" title="Close" class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary hover:text-on-surface hover:bg-surface-container transition-colors shrink-0">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+        <div id="cm-drill-body" class="overflow-y-auto flex-1"></div>
       </div>
     </div>
   </div>
