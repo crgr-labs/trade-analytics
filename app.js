@@ -3299,7 +3299,7 @@
       : (h.wins === 0 ? NFT_LIGHT.loss : NFT_LIGHT.mixed);
 
     var heightPct = Math.max(14, Math.round((h.total / maxCount) * 100));
-    var barStyle = 'background:' + cfg.bar + '; border-radius: 4px 4px 1px 1px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);';
+    var barStyle = 'background:' + cfg.bar + '; border-radius: 1px 1px 0 0; box-shadow: 0 1px 2px rgba(0,0,0,0.04);';
 
     return (
       '<div class="flex-1 flex flex-col items-center gap-1.5 transition-transform duration-150 hover:-translate-y-0.5 cursor-pointer" title="' + hourLabel + ':00 UTC — ' + timingCountLabel(h.total, noun) + ', ' + rate + '% win">' +
