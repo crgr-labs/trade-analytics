@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Backtest Lab</title>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <meta name="robots" content="noindex" />
+  <!-- Own CSP, so the production page's policy is untouched: the only extra network access is Binance's public market-data hosts. -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fapi.binance.com https://api.binance.com; object-src 'none'; base-uri 'self';" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="../css/app.css" />
+  <link rel="stylesheet" href="backtest-lab.css" />
+  <script src="../vendor/lightweight-charts.standalone.production.js" defer></script>
+  <script src="backtest-lab-core.js" defer></script>
+  <script src="backtest-lab.js" defer></script>
+</head>
+
+<body class="bl-body">
+  <header class="bl-header">
+    <div>
+      <h1 class="bl-title">Backtest Lab <span class="bl-badge bl-badge-dev">dev only</span></h1>
+      <p class="bl-sub">Do the coded detectors agree with the confluence tags you logged? Read-only: nothing here writes to your trades,
+        setups or parameter vocabulary.</p>
+    </div>
+    <a class="bl-link" href="../index.html">&larr; Back to the journal</a>
+  </header>
+
+  <main class="bl-main">
+    <section class="bl-panel" id="bl-run">
+      <div class="bl-row">
+        <button type="button" id="bl-run-btn" class="bl-btn bl-btn-primary">Fetch data &amp; run</button>
+        <button type="button" id="bl-refetch-btn" class="bl-btn" title="Discard the in-memory candle cache and download again">Refetch</button>
+        <span id="bl-status" class="bl-status" role="status" aria-live="polite"></span>
+      </div>
+      <div id="bl-journal-info" class="bl-note"></div>
+      <div class="bl-row bl-opts">
+        <label class="bl-check"><input type="checkbox" id="bl-opt-status" />
+          Count a tag as <em>not</em> logged when its checklist status is Pending / Failed</label>
+      </div>
+      <div id="bl-data"></div>
+    </section>
+
+    <section class="bl-panel" id="bl-detectors">
+      <h2 class="bl-h2">Detectors &amp; combination</h2>
+      <p class="bl-note">Tick detectors to include them in the combination: it fires at an anchor only if <strong>all</strong>
+        ticked detectors fire there. Parameters rerun instantly (no refetch).</p>
+      <div id="bl-detector-cards" class="bl-cards"></div>
+      <h3 class="bl-h3">Parameter vocabulary coverage</h3>
+      <div id="bl-coverage" class="bl-chips"></div>
+    </section>
+
+    <section class="bl-panel" id="bl-summary">
+      <div class="bl-row bl-between">
+        <h2 class="bl-h2">Verdicts</h2>
+        <button type="button" id="bl-copy-btn" class="bl-btn">Copy results as JSON</button>
+      </div>
+      <ul id="bl-verdicts" class="bl-verdicts"></ul>
+      <div class="bl-scroll"><table class="bl-table" id="bl-stats"></table></div>
+      <p class="bl-note" id="bl-stats-note"></p>
+    </section>
+
+    <section class="bl-panel" id="bl-trades">
+      <h2 class="bl-h2">Per-trade results</h2>
+      <p class="bl-note">Cell colour: <span class="bl-key bl-key-match">detector agrees with the journal tag</span>
+        <span class="bl-key bl-key-miss">detector disagrees</span>. Anchor time is UTC.</p>
+      <div class="bl-scroll"><table class="bl-table bl-trade-table" id="bl-trade-table"></table></div>
+    </section>
+
+    <section class="bl-panel" id="bl-chart-panel">
+      <div class="bl-row bl-between">
+        <h2 class="bl-h2">Trade chart</h2>
+        <div class="bl-row">
+          <label class="bl-inline">Trade
+            <select id="bl-chart-trade" class="bl-input"></select></label>
+          <label class="bl-inline">Swing scale
+            <select id="bl-chart-scale" class="bl-input">
+              <option value="minor">minor</option>
+              <option value="recent" selected>recent</option>
+              <option value="major">major</option>
+            </select></label>
+        </div>
+      </div>
+      <p class="bl-note" id="bl-chart-legend"></p>
+      <div id="bl-chart-msg" class="bl-note"></div>
+      <div id="bl-chart-price" class="bl-chart bl-chart-price"></div>
+      <div id="bl-chart-rsi" class="bl-chart bl-chart-rsi"></div>
+    </section>
+
+    <section class="bl-panel" id="bl-untested">
+      <h2 class="bl-h2">Pairs that couldn't be tested</h2>
+      <div id="bl-untested-list"></div>
+    </section>
+  </main>
+</body>
+
+</html>
