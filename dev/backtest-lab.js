@@ -438,6 +438,14 @@
       return 'RSI ' + v.rsi.toFixed(1) + ' (' + signed(v.distance, 1) + ' vs ' + v.threshold + ')' +
         (v.prev !== null ? ' · prev ' + v.prev.toFixed(1) : '') + ' · bar ' + fmtUtc(v.barT);
     }
+    if (def.id === 'daily-momentum') {
+      var day = new Date(v.barT).toISOString().slice(0, 10);
+      var gains = (v.gainPrevClose === null ? 'n/a' : signed(v.gainPrevClose, 1) + '%') + ' vs prev close / ' + (v.gainOpen === null ? 'n/a' : signed(v.gainOpen, 1) + '%') + ' vs open';
+      var lvl = 'prior ' + v.N + 'd highest ' + v.levelBasis + ' ' + fmtPrice(v.level) + ' (' + v.levelBasis + ' ' + fmtPrice(v.price) + ', ' + signed(v.breakoutPct, 1) + '%)';
+      if (res.fired) return 'candle ' + day + ' (' + v.daysAgo + ' d ago) · ' + gains + ' · broke ' + lvl;
+      // When the breakout itself is a miss, the misses list already carries the level and the gap.
+      return 'closest miss ' + day + ' (' + v.daysAgo + ' d ago): ' + v.misses.join('; ') + ' · ' + gains + (v.breakoutPct > 0 ? ' · ' + lvl : '');
+    }
     if (def.id === 'volume-spike') {
       if (res.fired) return 'x' + v.ratio.toFixed(2) + ' >= ' + v.k + ' · ' + v.barsAgo + ' bars ago (' + fmtUtc(v.barT) + ')';
       return v.ratio === null ? 'no usable volume average in the last ' + v.L : 'max x' + v.ratio.toFixed(2) + ' (< ' + v.k + ') in the last ' + v.L;

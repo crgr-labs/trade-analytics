@@ -317,6 +317,78 @@
     run: function (ctx, p) { return rsiRun(ctx, p, true); }
   });
 
+  // One daily candle tested against the three conditions. Returns null when there
+  // are not N prior days (or no previous close) to measure against.
+  function sig(x) { return Number(Number(x).toPrecision(6)); }
+
+  function momentumCandle(s, k, p) {
+    if (k < 1 || k < p.N) return null;
+    var o = s.o[k], c = s.c[k], prevC = s.c[k - 1];
+    // (c - ref) / ref rather than c / ref - 1: the latter turns an exact +15% into 14.999999999999998.
+    var gainPrev = prevC > 0 ? (c - prevC) / prevC * 100 : null;
+    var gainOpen = o > 0 ? (c - o) / o * 100 : null;
+    var gain = p.gainBasis === 'open' ? gainOpen : gainPrev;
+    var useHigh = p.freshBasis === 'high';
+    var level = -Infinity;
+    for (var j = k - p.N; j < k; j++) {
+      var v = useHigh ? s.h[j] : s.c[j];
+      if (v > level) level = v;
+    }
+    var price = useHigh ? s.h[k] : c;
+    var bullish = c > o;
+    var gainOk = gain !== null && gain >= p.P;
+    var breakOk = price > level;
+    var misses = [];
+    if (!bullish) misses.push('not bullish (close ' + sig(c) + ' <= open ' + sig(o) + ')');
+    if (!gainOk) misses.push(gain === null ? 'gain n/a' : 'gain ' + gain.toFixed(1) + '% < ' + p.P + '%');
+    if (!breakOk) {
+      misses.push((useHigh ? 'high ' : 'close ') + sig(price) + ' <= prior ' + p.N + 'd highest ' + (useHigh ? 'high ' : 'close ') + sig(level) +
+        ' (' + ((price / level - 1) * 100).toFixed(1) + '%)');
+    }
+    return {
+      ok: bullish && gainOk && breakOk,
+      passed: (bullish ? 1 : 0) + (gainOk ? 1 : 0) + (breakOk ? 1 : 0),
+      value: {
+        barT: s.t[k], bullish: bullish, gainPrevClose: gainPrev, gainOpen: gainOpen, gain: gain, P: p.P, gainBasis: p.gainBasis,
+        level: level, price: price, breakoutPct: (price / level - 1) * 100, levelBasis: useHigh ? 'high' : 'close', N: p.N,
+        misses: misses
+      }
+    };
+  }
+
+  registerDetector({
+    id: 'daily-momentum', label: 'Daily Momentum Continuation', tagKeywords: ['daily', 'momentum', 'continuation'],
+    timeframe: '1d', type: 'state',
+    params: [
+      { key: 'P', label: 'P (min gain %)', type: 'number', default: 10, min: 0, step: 0.5 },
+      { key: 'gainBasis', label: 'Gain measured as', type: 'select', default: 'prevClose', options: [['prevClose', 'Close vs previous close'], ['open', 'Close vs same-day open']] },
+      { key: 'N', label: 'N (days)', type: 'int', default: 10, min: 1, max: 90 },
+      { key: 'freshBasis', label: 'Fresh high means', type: 'select', default: 'close', options: [['close', 'Close > highest prior close'], ['high', 'High > highest prior high']] },
+      { key: 'lookback', label: 'Days to look back', type: 'int', default: 1, min: 1, max: 3 }
+    ],
+    definition: function (p) {
+      return 'A completed daily candle is bullish (close > open), gains >= ' + p.P + '% (' +
+        (p.gainBasis === 'open' ? 'close vs same-day open' : 'close vs previous close') + ') and its ' +
+        (p.freshBasis === 'high' ? 'high is above the highest high' : 'close is above the highest close') + ' of the prior ' + p.N +
+        ' days; fires if any of the last ' + p.lookback + ' completed daily candle' + (p.lookback === 1 ? '' : 's') + ' qualifies.';
+    },
+    run: function (ctx, p) {
+      var lo = Math.max(0, ctx.i - p.lookback + 1);
+      var hit = null, best = null, usable = 0;
+      for (var k = ctx.i; k >= lo; k--) {          // newest first, so ties keep the more recent candle
+        var q = momentumCandle(ctx.series, k, p);
+        if (!q) continue;
+        usable++;
+        q.value.daysAgo = ctx.i - k;
+        if (q.ok) { hit = q; break; }
+        if (!best || q.passed > best.passed) best = q;
+      }
+      if (!usable) return { na: 'fewer than ' + p.N + ' daily candles before the anchor' };
+      var pick = hit || best;
+      return { fired: !!hit, value: pick.value };
+    }
+  });
+
   registerDetector({
     id: 'volume-spike', label: 'Volume spike', tagKeywords: ['volume', 'spike'],
     timeframe: '4h', type: 'event',
