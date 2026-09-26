@@ -439,12 +439,11 @@
         (v.prev !== null ? ' · prev ' + v.prev.toFixed(1) : '') + ' · bar ' + fmtUtc(v.barT);
     }
     if (def.id === 'daily-momentum') {
-      var day = new Date(v.barT).toISOString().slice(0, 10);
-      var gains = (v.gainPrevClose === null ? 'n/a' : signed(v.gainPrevClose, 1) + '%') + ' vs prev close / ' + (v.gainOpen === null ? 'n/a' : signed(v.gainOpen, 1) + '%') + ' vs open';
-      var lvl = 'prior ' + v.N + 'd highest ' + v.levelBasis + ' ' + fmtPrice(v.level) + ' (' + v.levelBasis + ' ' + fmtPrice(v.price) + ', ' + signed(v.breakoutPct, 1) + '%)';
-      if (res.fired) return 'candle ' + day + ' (' + v.daysAgo + ' d ago) · ' + gains + ' · broke ' + lvl;
-      // When the breakout itself is a miss, the misses list already carries the level and the gap.
-      return 'closest miss ' + day + ' (' + v.daysAgo + ' d ago): ' + v.misses.join('; ') + ' · ' + gains + (v.breakoutPct > 0 ? ' · ' + lvl : '');
+      var day = new Date(v.prevBarT).toISOString().slice(0, 10);
+      var gains = 'prev day ' + day + ': ' + (v.gainPrevClose === null ? 'n/a' : signed(v.gainPrevClose, 1) + '%') + ' vs prev close / ' +
+        (v.gainOpen === null ? 'n/a' : signed(v.gainOpen, 1) + '%') + ' vs open';
+      var gap = 'new day opened ' + (v.openGapPct === null ? 'n/a' : signed(v.openGapPct, 2) + '%') + ' vs prev close (' + fmtPrice(v.newOpen) + ' vs ' + fmtPrice(v.prevClose) + ')';
+      return (res.fired ? '' : 'failed: ' + v.failed.join('; ') + ' · ') + gains + ' · ' + gap;
     }
     if (def.id === 'volume-spike') {
       if (res.fired) return 'x' + v.ratio.toFixed(2) + ' >= ' + v.k + ' · ' + v.barsAgo + ' bars ago (' + fmtUtc(v.barT) + ')';

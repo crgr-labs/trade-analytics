@@ -199,120 +199,148 @@ test('BOS event window: fires within last L candles, not after', function () {
 
 
 console.log('Daily Momentum Continuation');
-// 120 flat days (100), then the day under test at index 119 (open/close/high as given).
-function momentumPair(o, h, c, prevClose, extra) {
-  var start = Date.UTC(2026, 0, 1), d1 = [];
-  for (var i = 0; i < 120; i++) d1.push([start + i * D1, 100, 101, 99, 100, 10]);
-  if (prevClose !== undefined) d1[118][4] = prevClose;
-  d1[119] = [start + 119 * D1, o, h, 99, c, 10];
-  if (extra) extra(d1);
-  return { start: start, pair: pairFrom(walk(120 * 6, 5, H4, start), d1) };
+// 121 days of flat 100. Day 118 closes prevPrev; day 119 is the "previous" candle under test (o, c);
+// day 120 is the "new" candle that contains the anchor: only its open may matter (h/l/c/v are junk on purpose).
+var MOM_START = Date.UTC(2026, 0, 1);
+function momentumPair(prevO, prevC, newOpen, opts) {
+  opts = opts || {};
+  var d1 = [];
+  for (var i = 0; i < 119; i++) d1.push([MOM_START + i * D1, 100, 101, 99, 100, 10]);
+  d1.push([MOM_START + 119 * D1, prevO, Math.max(prevO, prevC) * 1.01, Math.min(prevO, prevC) * 0.99, prevC, 10]);
+  if (opts.prevPrevClose !== undefined) d1[118][4] = opts.prevPrevClose;
+  if (!opts.noNewCandle) d1.push([MOM_START + 120 * D1, newOpen, 9999, 0.0001, 5555, 123456]);
+  return { pair: pairFrom(walk(121 * 6, 5, H4, MOM_START), d1), d1: d1 };
 }
 var mom = det['daily-momentum'];
-function momAt(x, params, dayIdx) { return Core.evaluateDetector(mom, Object.assign(Core.defaultParams(mom), params || {}), x.pair, x.start + (dayIdx + 1) * D1); }
-test('fires on a bullish +15% breakout to a fresh 10-day close high; reports both gains, level and margin', function () {
-  var x = momentumPair(100, 116, 115);
-  var r = momAt(x, {}, 119);
-  assert.strictEqual(r.status, 'ok');
-  assert.strictEqual(r.fired, true);
-  near(r.value.gainPrevClose, 15, 1e-9);
-  near(r.value.gainOpen, 15, 1e-9);
-  assert.strictEqual(r.value.level, 100);
-  near(r.value.breakoutPct, 15, 1e-9);
-  assert.strictEqual(r.value.daysAgo, 0);
+function rebuild(x) { x.pair = pairFrom(walk(121 * 6, 5, H4, MOM_START), x.d1); return x; }   // series copy the rows, so re-build after editing them
+var MOM_ANCHOR = MOM_START + 120 * D1 + 5 * 3600 * 1000;   // 05:00 on the new day
+function momEval(x, params, anchor) {
+  return Core.evaluateDetector(mom, Object.assign(Core.defaultParams(mom), params || {}), x.pair, anchor === undefined ? MOM_ANCHOR : anchor);
+}
+test('fires when the previous day is bullish +15% and the new day opens above its close', function () {
+  var x = momEval(momentumPair(100, 115, 116));
+  assert.strictEqual(x.status, 'ok');
+  assert.strictEqual(x.fired, true);
+  near(x.value.gainPrevClose, 15, 1e-9);
+  near(x.value.gainOpen, 15, 1e-9);
+  near(x.value.openGapPct, (116 - 115) / 115 * 100, 1e-9);
+  assert.strictEqual(x.value.prevClose, 115);
+  assert.strictEqual(x.value.newOpen, 116);
+  assert.strictEqual(new Date(x.value.prevBarT).toISOString().slice(0, 10), '2026-04-30');   // day 119 of 2026
+  assert.deepStrictEqual(x.value.failed, []);
 });
-test('gain threshold is inclusive and editable; gain basis switches between prev close and open', function () {
-  var x = momentumPair(110, 116, 115);            // gap up: +15% vs prev close, +4.5% vs open
-  assert.strictEqual(momAt(x, { P: 15 }, 119).fired, true);          // exactly 15 -> passes (>=)
-  assert.strictEqual(momAt(x, { P: 15.01 }, 119).fired, false);
-  var byOpen = momAt(x, { gainBasis: 'open' }, 119);
+test('P is inclusive and editable; the gain basis switches between day-before close and same-candle open', function () {
+  var pair = momentumPair(110, 115, 116);                       // gap-up day: +15% vs day-before close, +4.5% vs its own open
+  assert.strictEqual(momEval(pair, { P: 15 }).fired, true);     // exactly 15 passes
+  assert.strictEqual(momEval(pair, { P: 15.01 }).fired, false);
+  var byOpen = momEval(pair, { gainBasis: 'open' });
   assert.strictEqual(byOpen.fired, false);
-  near(byOpen.value.gainOpen, 4.545, 0.001);
-  assert.ok(/gain 4.5% < 10%/.test(byOpen.value.misses.join()));
-  assert.strictEqual(momAt(x, { gainBasis: 'open', P: 4 }, 119).fired, true);
+  near(byOpen.value.gain, 4.545, 0.001);
+  assert.ok(/gain 4\.5% < 10%/.test(byOpen.value.failed.join()));
+  assert.strictEqual(momEval(pair, { gainBasis: 'open', P: 4 }).fired, true);
 });
-test('fresh-high basis: close vs highest prior close, or high vs highest prior high', function () {
-  // prior highs are 101, prior closes 100. Candle closes 100.5 (below prior high 101 but above prior closes)
-  var x = momentumPair(90, 102, 100.5, 88);       // +14.2% vs prev close 88, bullish
-  assert.strictEqual(momAt(x, {}, 119).fired, true);                   // close 100.5 > 100
-  var hi = momAt(x, { freshBasis: 'high' }, 119);                      // high 102 > 101
-  assert.strictEqual(hi.fired, true);
-  var y = momentumPair(90, 100.8, 100.5, 88);                          // high 100.8 <= 101
-  var miss = momAt(y, { freshBasis: 'high' }, 119);
-  assert.strictEqual(miss.fired, false);
-  assert.ok(/high 100.8 <= prior 10d highest high 101/.test(miss.value.misses.join()));
+test('G is an inclusive minimum for the new open vs the previous close (default 0)', function () {
+  assert.strictEqual(momEval(momentumPair(100, 115, 115)).fired, true);       // open == close: 0% >= 0%
+  var below = momEval(momentumPair(100, 115, 114.9655));                       // -0.03% vs prev close
+  assert.strictEqual(below.fired, false);
+  assert.ok(/open -0\.03% vs prev close < 0%/.test(below.value.failed.join()));
+  assert.strictEqual(momEval(momentumPair(100, 115, 114.9655), { G: -1 }).fired, true);
+  assert.strictEqual(momEval(momentumPair(100, 115, 116), { G: 1 }).fired, false);    // +0.87% < 1%
+  assert.strictEqual(momEval(momentumPair(100, 115, 116.2), { G: 1 }).fired, true);   // +1.04%
 });
-test('bearish candle never qualifies even with a big gain vs prev close', function () {
-  var x = momentumPair(130, 131, 115);            // +15% vs prev close but red (close < open)
-  var r = momAt(x, {}, 119);
-  assert.strictEqual(r.fired, false);
-  assert.ok(/not bullish/.test(r.value.misses.join()));
+test('a bearish previous candle never qualifies, and every failed condition is listed', function () {
+  var x = momEval(momentumPair(130, 115, 110));               // red candle, +15% vs day-before close, but new open below its close
+  assert.strictEqual(x.fired, false);
+  assert.strictEqual(x.value.failed.length, 2);
+  assert.ok(/not bullish/.test(x.value.failed[0]));
+  assert.ok(/open -4\.35% vs prev close < 0%/.test(x.value.failed[1]));
+  var small = momEval(momentumPair(100, 108.2, 109));         // bullish, gap ok, gain 8.2% < 10%
+  assert.deepStrictEqual(small.value.failed, ['gain 8.2% < 10%']);
 });
-test('closest miss is the candle passing the most conditions; N days is editable', function () {
-  var x = momentumPair(100, 109, 108.2, undefined);   // +8.2%, bullish, breaks 100 -> only the gain fails
-  var r = momAt(x, {}, 119);
-  assert.strictEqual(r.fired, false);
-  assert.deepStrictEqual(r.value.misses.length, 1);
-  assert.ok(/gain 8.2% < 10%/.test(r.value.misses[0]));
-  var z = momentumPair(100, 116, 115, undefined, function (d1) { d1[112][4] = 120; d1[112][2] = 121; });  // a higher close 7 days before
-  assert.strictEqual(momAt(z, { N: 10 }, 119).fired, false);           // 115 < 120
-  assert.strictEqual(momAt(z, { N: 5 }, 119).fired, true);             // 120 is outside the prior 5 days
+test('only the new candle\'s OPEN is used: its high, low, close and volume cannot change the result', function () {
+  var a = momentumPair(100, 115, 116);
+  var b = momentumPair(100, 115, 116);
+  b.d1[120] = [b.d1[120][0], 116, 1, 0.5, 0.75, 0];           // wildly different h/l/c/v, same open
+  var ra = momEval(a), rb = momEval(rebuild(b));
+  assert.strictEqual(ra.fired, true);
+  assert.deepStrictEqual(ra, rb);
+  var c = momentumPair(100, 115, 116);
+  c.d1[120][1] = 110;                                          // ...but changing the open does change it
+  var rc = momEval(rebuild(c));
+  assert.strictEqual(rc.value.newOpen, 110);
+  assert.strictEqual(rc.fired, false);
 });
-test('look-back window: default only the last completed daily candle; up to 3 candles', function () {
-  var x = momentumPair(100, 116, 115, undefined, function (d1) {
-    d1[119] = [d1[119][0], 115, 116, 114, 115.5, 10];                  // day 119 quiet; qualifying candle moves to day 118
-    d1[118] = [d1[118][0], 100, 116, 99, 115, 10];
-  });
-  assert.strictEqual(momAt(x, {}, 119).fired, false);
-  var two = momAt(x, { lookback: 2 }, 119);
-  assert.strictEqual(two.fired, true);
-  assert.strictEqual(two.value.daysAgo, 1);
-  assert.strictEqual(momAt(x, { lookback: 3 }, 119).fired, true);
+test('no lookahead: the previous candle is the last COMPLETED day at the anchor', function () {
+  var x = momentumPair(100, 115, 116);
+  var atMidnight = momEval(x, {}, MOM_START + 120 * D1);       // the new candle has just opened
+  assert.strictEqual(atMidnight.status, 'ok');
+  assert.strictEqual(atMidnight.barIndex, 119);
+  var before = momEval(x, {}, MOM_START + 120 * D1 - 1);       // one ms earlier: day 119 is still forming
+  assert.strictEqual(before.barIndex, 118);
+  assert.strictEqual(before.value.prevBarT, MOM_START + 118 * D1);
+  assert.strictEqual(before.value.newOpen, 100);               // day 119's open, i.e. not the +15% close
 });
-test('no lookahead: the day still forming at the anchor is ignored', function () {
-  var x = momentumPair(100, 116, 115);
-  var during = momAt(x, {}, 118);                                      // anchor at 00:00 of day 119: day 119 not complete
-  assert.strictEqual(during.fired, false);
-  assert.strictEqual(during.barIndex, 118);
-  var midDay = Core.evaluateDetector(mom, Core.defaultParams(mom), x.pair, x.start + 119 * D1 + 12 * 3600 * 1000);
-  assert.strictEqual(midDay.fired, false);
-  assert.strictEqual(momAt(x, {}, 119).fired, true);
-});
-test('n/a when there are not N prior days', function () {
-  var x = momentumPair(100, 116, 115);
-  assert.strictEqual(momAt(x, { N: 90 }, 119).status, 'ok');           // 119 candles before the anchor >= 90
-  var r = momAt(x, { N: 200 }, 119);                                   // only 119 before it, 200 needed
+test('n/a when the candle containing the anchor is missing from the data', function () {
+  var x = momentumPair(100, 115, 116, { noNewCandle: true });
+  var r = momEval(x);
   assert.strictEqual(r.status, 'na');
-  assert.ok(/fewer than 200 daily candles/.test(r.reason));
+  assert.ok(/missing/.test(r.reason));
+  var y = momentumPair(100, 115, 116);
+  y.d1[120][0] += D1;                                          // a day is skipped in the data
+  assert.strictEqual(momEval(rebuild(y)).status, 'na');
 });
 
 console.log('No lookahead (truncation invariance)');
-// Result at anchor A must be identical whether or not any candle that had not
-// closed by A exists in the data.
-test('every detector gives the same answer on the full series and on a series cut at the anchor', function () {
+// Result at anchor A must not depend on anything that happens after A. Two checks per detector:
+//  1. cut: delete every candle that has not closed by A (skipped for detectors that need the
+//     new candle's open, which the framework hands over separately);
+//  2. scramble: keep the candle still forming at A but overwrite its high, low, close and volume
+//     with junk (only its open is knowable at A) and drop everything after it.
+function scrambleForming(fullRows, ms, anchor) {
+  var kept = fullRows.filter(function (row) { return row[0] <= anchor; });
+  var last = kept.length - 1;
+  if (last >= 0 && kept[last][0] + ms > anchor) kept[last] = [kept[last][0], kept[last][1], 1e9, 1e-9, 12345, 987654321];
+  return kept;
+}
+test('every detector gives the same answer with future candle data removed or scrambled', function () {
   var start = Date.UTC(2025, 5, 1);
   var full4 = walk(900, 7, H4, start);
   var full1 = walk(150, 11, D1, start);
   var fullPair = pairFrom(full4, full1);
-  var checked = 0;
+  var checked = 0, cutChecked = 0;
   var r = rng(99);
   Core.getDetectors().forEach(function (d) {
     var params = Core.defaultParams(d);
-    if (d.id === 'rsi-d-above' || d.id === 'rsi-d-below') params.threshold = 50;
-    if (d.id === 'rsi-4h-above') params.threshold = 50;
-    for (var trial = 0; trial < 60; trial++) {
+    if (d.id === 'rsi-d-above' || d.id === 'rsi-d-below' || d.id === 'rsi-4h-above') params.threshold = 50;
+    if (d.id === 'daily-momentum') { params.P = 1; params.gainBasis = 'open'; }   // walk() candles are small: make it fire sometimes
+    for (var trial = 0; trial < 80; trial++) {
       var idx = 110 + Math.floor(r() * 780);
       var anchor = start + idx * H4 + Math.floor(r() * H4);   // anywhere inside candle idx
-      var cutRows4 = full4.filter(function (row) { return row[0] + H4 <= anchor; });
-      var cutRows1 = full1.filter(function (row) { return row[0] + D1 <= anchor; });
-      var cutPair = pairFrom(cutRows4, cutRows1.length ? cutRows1 : null);
       var a = Core.evaluateDetector(d, params, fullPair, anchor);
-      var b = Core.evaluateDetector(d, params, cutPair, anchor);
-      assert.deepStrictEqual(a, b, d.id + ' differs at anchor ' + anchor);
+      var scrambled = pairFrom(scrambleForming(full4, H4, anchor), scrambleForming(full1, D1, anchor));
+      assert.deepStrictEqual(Core.evaluateDetector(d, params, scrambled, anchor), a, d.id + ' changes when the forming candles are scrambled, anchor ' + anchor);
       checked++;
+      if (!d.needsCurrentOpen) {
+        var cutRows4 = full4.filter(function (row) { return row[0] + H4 <= anchor; });
+        var cutRows1 = full1.filter(function (row) { return row[0] + D1 <= anchor; });
+        var cutPair = pairFrom(cutRows4, cutRows1.length ? cutRows1 : null);
+        assert.deepStrictEqual(Core.evaluateDetector(d, params, cutPair, anchor), a, d.id + ' differs with future candles cut, anchor ' + anchor);
+        cutChecked++;
+      }
     }
   });
-  assert.ok(checked >= 400);
+  assert.ok(checked >= 700 && cutChecked >= 560);
+});
+test('the momentum detector fires on random data (so the invariance test above is not vacuous)', function () {
+  var start = Date.UTC(2025, 5, 1);
+  var pair = pairFrom(walk(900, 7, H4, start), walk(150, 11, D1, start));
+  var p = Object.assign(Core.defaultParams(mom), { P: 1, gainBasis: 'open' });
+  var fired = 0, ok = 0;
+  for (var day = 110; day < 149; day++) {
+    var res = Core.evaluateDetector(mom, p, pair, start + day * D1 + 3600 * 1000);
+    if (res.status === 'ok') { ok++; if (res.fired) fired++; }
+  }
+  assert.ok(ok > 30 && fired > 0 && fired < ok, 'fired ' + fired + ' of ' + ok);
 });
 test('base anchors are 4H closes after warm-up only', function () {
   var start = Date.UTC(2026, 0, 1);

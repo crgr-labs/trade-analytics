@@ -186,8 +186,11 @@
   //   type         'state' | 'event'
   //   definition   one line for the UI (string, or function(params) -> string)
   //   params       [{key,label,type:'int'|'number'|'select',default,min,max,step,options}]
-  //   run(ctx, p)  ctx = { series, i, anchorMs }; series/i are already the
-  //                right timeframe and i is the last completed candle.
+  //   run(ctx, p)  ctx = { series, i, anchorMs, current }; series/i are already the
+  //                right timeframe and i is the last completed candle. `current`
+  //                is { t, open } of the candle still forming at the anchor (or
+  //                null): its open is knowable at the anchor, nothing else is.
+  //                A detector must never read series.*[i + 1].
   //                Returns { fired: boolean, value: {...} }.
 
   var REGISTRY = [];
@@ -317,75 +320,51 @@
     run: function (ctx, p) { return rsiRun(ctx, p, true); }
   });
 
-  // One daily candle tested against the three conditions. Returns null when there
-  // are not N prior days (or no previous close) to measure against.
+  function signedPct(x, d) { return (x >= 0 ? '+' : '') + x.toFixed(d) + '%'; }
   function sig(x) { return Number(Number(x).toPrecision(6)); }
 
-  function momentumCandle(s, k, p) {
-    if (k < 1 || k < p.N) return null;
-    var o = s.o[k], c = s.c[k], prevC = s.c[k - 1];
-    // (c - ref) / ref rather than c / ref - 1: the latter turns an exact +15% into 14.999999999999998.
-    var gainPrev = prevC > 0 ? (c - prevC) / prevC * 100 : null;
-    var gainOpen = o > 0 ? (c - o) / o * 100 : null;
-    var gain = p.gainBasis === 'open' ? gainOpen : gainPrev;
-    var useHigh = p.freshBasis === 'high';
-    var level = -Infinity;
-    for (var j = k - p.N; j < k; j++) {
-      var v = useHigh ? s.h[j] : s.c[j];
-      if (v > level) level = v;
-    }
-    var price = useHigh ? s.h[k] : c;
-    var bullish = c > o;
-    var gainOk = gain !== null && gain >= p.P;
-    var breakOk = price > level;
-    var misses = [];
-    if (!bullish) misses.push('not bullish (close ' + sig(c) + ' <= open ' + sig(o) + ')');
-    if (!gainOk) misses.push(gain === null ? 'gain n/a' : 'gain ' + gain.toFixed(1) + '% < ' + p.P + '%');
-    if (!breakOk) {
-      misses.push((useHigh ? 'high ' : 'close ') + sig(price) + ' <= prior ' + p.N + 'd highest ' + (useHigh ? 'high ' : 'close ') + sig(level) +
-        ' (' + ((price / level - 1) * 100).toFixed(1) + '%)');
-    }
-    return {
-      ok: bullish && gainOk && breakOk,
-      passed: (bullish ? 1 : 0) + (gainOk ? 1 : 0) + (breakOk ? 1 : 0),
-      value: {
-        barT: s.t[k], bullish: bullish, gainPrevClose: gainPrev, gainOpen: gainOpen, gain: gain, P: p.P, gainBasis: p.gainBasis,
-        level: level, price: price, breakoutPct: (price / level - 1) * 100, levelBasis: useHigh ? 'high' : 'close', N: p.N,
-        misses: misses
-      }
-    };
-  }
-
+  // Daily Momentum Continuation. Two conditions, checked at the anchor:
+  //   1. the last completed daily candle is bullish and gained >= P%
+  //   2. the daily candle that contains the anchor OPENED >= G% above that candle's close
+  // The second candle is still forming at the anchor, so the framework hands over
+  // ONLY its open (ctx.current.open); its high / low / close / volume are never exposed.
+  // Gains are (x - ref) / ref rather than x / ref - 1, which turns an exact +15%
+  // into 14.999999999999998.
   registerDetector({
     id: 'daily-momentum', label: 'Daily Momentum Continuation', tagKeywords: ['daily', 'momentum', 'continuation'],
-    timeframe: '1d', type: 'state',
+    timeframe: '1d', type: 'state', needsCurrentOpen: true,
     params: [
       { key: 'P', label: 'P (min gain %)', type: 'number', default: 10, min: 0, step: 0.5 },
-      { key: 'gainBasis', label: 'Gain measured as', type: 'select', default: 'prevClose', options: [['prevClose', 'Close vs previous close'], ['open', 'Close vs same-day open']] },
-      { key: 'N', label: 'N (days)', type: 'int', default: 10, min: 1, max: 90 },
-      { key: 'freshBasis', label: 'Fresh high means', type: 'select', default: 'close', options: [['close', 'Close > highest prior close'], ['high', 'High > highest prior high']] },
-      { key: 'lookback', label: 'Days to look back', type: 'int', default: 1, min: 1, max: 3 }
+      { key: 'gainBasis', label: 'Gain measured as', type: 'select', default: 'prevClose', options: [['prevClose', 'Close vs day-before close'], ['open', 'Close vs same-candle open']] },
+      { key: 'G', label: 'G (min open above prev close, %)', type: 'number', default: 0, step: 0.1 }
     ],
     definition: function (p) {
-      return 'A completed daily candle is bullish (close > open), gains >= ' + p.P + '% (' +
-        (p.gainBasis === 'open' ? 'close vs same-day open' : 'close vs previous close') + ') and its ' +
-        (p.freshBasis === 'high' ? 'high is above the highest high' : 'close is above the highest close') + ' of the prior ' + p.N +
-        ' days; fires if any of the last ' + p.lookback + ' completed daily candle' + (p.lookback === 1 ? '' : 's') + ' qualifies.';
+      return 'The last completed daily candle closed bullish (close > open) with a gain >= ' + p.P + '% (' +
+        (p.gainBasis === 'open' ? 'close vs the open of that same candle' : 'close vs the close of the day before it') +
+        '), AND the new daily candle (containing the anchor) opened >= ' + p.G + '% above that close. Only the open of the new candle is used.';
     },
     run: function (ctx, p) {
-      var lo = Math.max(0, ctx.i - p.lookback + 1);
-      var hit = null, best = null, usable = 0;
-      for (var k = ctx.i; k >= lo; k--) {          // newest first, so ties keep the more recent candle
-        var q = momentumCandle(ctx.series, k, p);
-        if (!q) continue;
-        usable++;
-        q.value.daysAgo = ctx.i - k;
-        if (q.ok) { hit = q; break; }
-        if (!best || q.passed > best.passed) best = q;
-      }
-      if (!usable) return { na: 'fewer than ' + p.N + ' daily candles before the anchor' };
-      var pick = hit || best;
-      return { fired: !!hit, value: pick.value };
+      if (!ctx.current) return { na: 'the daily candle containing the anchor is missing from the fetched data (its open is needed)' };
+      var s = ctx.series, i = ctx.i;
+      var o = s.o[i], c = s.c[i], prevC = s.c[i - 1];
+      var gainPrev = prevC > 0 ? (c - prevC) / prevC * 100 : null;
+      var gainOpen = o > 0 ? (c - o) / o * 100 : null;
+      var gain = p.gainBasis === 'open' ? gainOpen : gainPrev;
+      var gap = c > 0 ? (ctx.current.open - c) / c * 100 : null;
+      var bullish = c > o;
+      var gainOk = gain !== null && gain >= p.P;
+      var gapOk = gap !== null && gap >= p.G;
+      var failed = [];
+      if (!bullish) failed.push('previous candle not bullish (close ' + sig(c) + ' <= open ' + sig(o) + ')');
+      if (!gainOk) failed.push(gain === null ? 'gain n/a' : 'gain ' + gain.toFixed(1) + '% < ' + p.P + '%');
+      if (!gapOk) failed.push(gap === null ? 'open gap n/a' : 'open ' + signedPct(gap, 2) + ' vs prev close < ' + p.G + '%');
+      return {
+        fired: bullish && gainOk && gapOk,
+        value: {
+          prevBarT: s.t[i], bullish: bullish, gainPrevClose: gainPrev, gainOpen: gainOpen, gain: gain, P: p.P, gainBasis: p.gainBasis,
+          prevClose: c, newOpen: ctx.current.open, newBarT: ctx.current.t, openGapPct: gap, G: p.G, failed: failed
+        }
+      };
     }
   });
 
@@ -432,7 +411,10 @@
     // larger gap means missing data, and using it would be silent staleness.
     var closeT = series.t[i] + series.ms;
     if (anchorMs - closeT >= series.ms) return { status: 'na', fired: null, reason: 'data gap: last ' + tfLabel + ' candle closed more than one interval before the anchor' };
-    var out = def.run({ series: series, i: i, anchorMs: anchorMs }, params);
+    // The candle that contains the anchor is still forming: expose its OPEN only, and only when it really follows candle i.
+    var current = i + 1 < series.n && series.t[i + 1] === series.t[i] + series.ms && series.t[i + 1] <= anchorMs
+      ? { t: series.t[i + 1], open: series.o[i + 1] } : null;
+    var out = def.run({ series: series, i: i, anchorMs: anchorMs, current: current }, params);
     if (out.na) return { status: 'na', fired: null, reason: out.na };
     return { status: 'ok', fired: !!out.fired, value: out.value, reason: null, barIndex: i };
   }
