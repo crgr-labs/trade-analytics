@@ -21,6 +21,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  var M15_MS = 15 * 60 * 1000;
   var H4_MS = 4 * 3600 * 1000;
   var D1_MS = 24 * 3600 * 1000;
   var WARMUP = 100;
@@ -121,6 +122,73 @@
       }
       return out;
     });
+  }
+
+  // ATR with Wilder smoothing (TradingView ta.atr): true range, RMA seeded with the
+  // simple average of the first `period` true ranges. null until index period - 1.
+  function atrSeries(series, period) {
+    return memoize(series, 'atr|' + period, function () {
+      var n = series.n, out = new Array(n), tr = new Array(n);
+      for (var k = 0; k < n; k++) {
+        tr[k] = k === 0 ? series.h[0] - series.l[0]
+          : Math.max(series.h[k] - series.l[k], Math.abs(series.h[k] - series.c[k - 1]), Math.abs(series.l[k] - series.c[k - 1]));
+        out[k] = null;
+      }
+      if (n < period) return out;
+      var sum = 0;
+      for (var j = 0; j < period; j++) sum += tr[j];
+      out[period - 1] = sum / period;
+      for (var m = period; m < n; m++) out[m] = (out[m - 1] * (period - 1) + tr[m]) / period;
+      return out;
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Impulse leg (for Fibonacci retracements)
+  // ---------------------------------------------------------------------
+
+  // The leg as it stands at candle i using only candles i-W+1 .. i:
+  //   H = highest high in that window (earliest such candle on ties)
+  //   A = lowest low among the candles BEFORE H's candle inside the window
+  // Returns { ok:true, H, A, hIdx, aIdx } or { ok:false, kind:'history'|'gap'|'noleg', reason }.
+  function legAt(series, i, W) {
+    var cache = memoize(series, 'leg|' + W, function () { return {}; });
+    if (Object.prototype.hasOwnProperty.call(cache, i)) return cache[i];
+    var res;
+    var lo = i - W + 1;
+    if (lo < 0) {
+      res = { ok: false, kind: 'history', reason: 'M15 history too short' };
+    } else if (series.t[i] - series.t[lo] !== (W - 1) * series.ms) {
+      res = { ok: false, kind: 'gap', reason: 'data gap inside the ' + W + '-candle leg window' };
+    } else {
+      var hIdx = lo;
+      for (var k = lo + 1; k <= i; k++) if (series.h[k] > series.h[hIdx]) hIdx = k;
+      if (hIdx === lo) {
+        res = { ok: false, kind: 'noleg', reason: 'no impulse leg: the highest high is the oldest candle of the window, so nothing precedes it' };
+      } else {
+        var aIdx = lo;
+        for (var m = lo + 1; m < hIdx; m++) if (series.l[m] < series.l[aIdx]) aIdx = m;
+        res = { ok: true, H: series.h[hIdx], A: series.l[aIdx], hIdx: hIdx, aIdx: aIdx };
+        if (!(res.H > res.A)) res = { ok: false, kind: 'noleg', reason: 'no impulse leg: H is not above A' };
+      }
+    }
+    cache[i] = res;
+    return res;
+  }
+
+  // legAt plus an optional in-memory override of the A and/or H price.
+  // Returns { ok:true, H, A, hIdx|null, aIdx|null, overridden } or { ok:false, kind:'history'|'gap'|'noleg'|'override', reason }.
+  function effectiveLeg(series, i, W, override) {
+    var base = legAt(series, i, W);
+    // Only real numbers count: isFinite(null) is true, which would turn "no override" into a price of 0.
+    var ovA = override && typeof override.A === 'number' && isFinite(override.A) ? override.A : null;
+    var ovH = override && typeof override.H === 'number' && isFinite(override.H) ? override.H : null;
+    if (ovA === null && ovH === null) return base;
+    var H = ovH !== null ? ovH : (base.ok ? base.H : null);
+    var A = ovA !== null ? ovA : (base.ok ? base.A : null);
+    if (H === null || A === null) return base;            // override needs the other side from the computed leg
+    if (!(H > A)) return { ok: false, kind: 'override', reason: 'override invalid: H must be above A' };
+    return { ok: true, H: H, A: A, hIdx: ovH !== null ? null : base.hIdx, aIdx: ovA !== null ? null : base.aIdx, overridden: true };
   }
 
   // ---------------------------------------------------------------------
@@ -226,8 +294,24 @@
     }
     var pick = last && last.i >= ctx.i - p.L + 1 ? last : null;
     var s = ctx.series;
+    // Freshness of the break at the anchor: how far price (the entry, or the last close for
+    // base-rate anchors) has run past the broken level, in % and in 4H ATR(14) at the last
+    // completed candle, and how long ago the BOS candle closed.
+    var atr = atrSeries(s, 14)[ctx.i];
     function stamp(ev) {
-      return ev ? { level: ev.level, bosT: s.t[ev.i], swingT: s.t[ev.swing], barsAgo: ctx.i - ev.i, N: ev.N } : null;
+      if (!ev) return null;
+      var out = {
+        level: ev.level, bosT: s.t[ev.i], swingT: s.t[ev.swing], barsAgo: ctx.i - ev.i, N: ev.N,
+        hoursSinceClose: (ctx.anchorMs - (s.t[ev.i] + s.ms)) / 3600000,
+        priceValue: null, priceKind: null, extPct: null, extAtr: null, atr: atr === undefined ? null : atr
+      };
+      if (ctx.price) {
+        out.priceValue = ctx.price.value;
+        out.priceKind = ctx.price.kind;
+        out.extPct = (ctx.price.value - ev.level) / ev.level * 100;
+        out.extAtr = atr > 0 ? (ctx.price.value - ev.level) / atr : null;
+      }
+      return out;
     }
     return { fired: !!pick, value: pick ? stamp(pick) : { none: true, last: stamp(last), L: p.L, N: N } };
   }
@@ -279,6 +363,55 @@
       var top = broke[0];
       top.scales = broke.map(function (b) { return b.scale + ' (N=' + b.N + ')'; });
       return { fired: true, value: top };
+    }
+  });
+
+  // "Fresh 4H BOS": a BOS within the last F completed 4H candles AND price has not run more than X
+  // past the broken level (X in % or in 4H ATR multiples). For 'any', each scale is checked and the
+  // detector fires if any scale qualifies. Price = the entry (journal price, else the open of the
+  // 4H candle holding it, labelled approx); for base-rate anchors it is the last completed 4H close.
+  registerDetector({
+    id: 'bos-fresh', label: 'Fresh 4H BOS', tagKeywords: ['fresh', 'bos'],
+    timeframe: '4h', type: 'event',
+    params: [
+      { key: 'scale', label: 'BOS scale', type: 'select', default: 'recent', options: [['minor', 'minor'], ['recent', 'recent'], ['major', 'major'], ['any', 'any of the three']] },
+      { key: 'Nminor', label: 'N minor', type: 'int', default: 2, min: 1, max: 50 },
+      { key: 'Nrecent', label: 'N recent', type: 'int', default: 4, min: 1, max: 50 },
+      { key: 'Nmajor', label: 'N major', type: 'int', default: 8, min: 1, max: 50 },
+      { key: 'F', label: 'F (BOS within last completed candles)', type: 'int', default: 2, min: 1, max: 100 },
+      { key: 'X', label: 'X (max extension)', type: 'number', default: 10, min: 0, step: 0.5 },
+      { key: 'unit', label: 'X measured in', type: 'select', default: 'pct', options: [['pct', '% above broken level'], ['atr', '4H ATR(14) multiples']] },
+      { key: 'mode', label: 'Break on', type: 'select', default: 'close', options: [['close', 'Close'], ['wick', 'Wick (high)']] }
+    ],
+    definition: function (p) {
+      return 'A 4H BOS (' + p.scale + ' scale, ' + (p.mode === 'wick' ? 'wick' : 'close') + ' above the latest unbroken swing high) within the last ' +
+        p.F + ' completed 4H candle' + (p.F === 1 ? '' : 's') + ' AND price is at most ' + p.X + (p.unit === 'atr' ? ' x 4H ATR(14)' : '%') +
+        ' above the broken level (entry price; last completed 4H close for base-rate anchors).';
+    },
+    run: function (ctx, p) {
+      var scales = p.scale === 'any' ? [['minor', p.Nminor], ['recent', p.Nrecent], ['major', p.Nmajor]] : [[p.scale, p['N' + p.scale]]];
+      if (!ctx.price) return { na: 'no entry price, and the 4H candle holding the entry is missing from the data' };
+      var hits = [], lastAny = null;
+      scales.forEach(function (sc) {
+        var r = bosRun(ctx, { L: p.F, mode: p.mode }, sc[1]);
+        if (r.fired) {
+          r.value.scale = sc[0];
+          r.value.ext = p.unit === 'atr' ? r.value.extAtr : r.value.extPct;
+          hits.push(r.value);
+        } else if (r.value.last && (!lastAny || r.value.last.barsAgo < lastAny.barsAgo)) {
+          lastAny = r.value.last;
+          lastAny.scale = sc[0];
+        }
+      });
+      var base = { F: p.F, X: p.X, unit: p.unit };
+      if (!hits.length) return { fired: false, value: Object.assign({ none: true, last: lastAny, failed: ['no BOS within the last ' + p.F + ' completed 4H candle' + (p.F === 1 ? '' : 's')] }, base) };
+      var passing = hits.filter(function (h) { return h.ext !== null && h.ext <= p.X; });
+      var pool = passing.length ? passing : hits;
+      pool.sort(function (a, b) { return (a.ext === null ? Infinity : a.ext) - (b.ext === null ? Infinity : b.ext); });
+      var top = pool[0];
+      top.scales = hits.map(function (h) { return h.scale + ' (N=' + h.N + ')'; });
+      top.failed = passing.length ? [] : ['extension ' + (top.ext === null ? 'n/a' : top.ext.toFixed(2) + (p.unit === 'atr' ? ' ATR' : '%')) + ' > ' + p.X + (p.unit === 'atr' ? ' ATR' : '%')];
+      return { fired: passing.length > 0, value: Object.assign(top, base) };
     }
   });
 
@@ -395,39 +528,178 @@
     }
   });
 
+  // ---- M15 Fibonacci retracement (longs only) ---------------------------
+  //
+  // Leg at anchor t (see legAt): H = highest high of the last W completed M15 candles, A = lowest
+  // low before H's candle inside those W. With P = the entry price (last completed M15 close for
+  // base-rate anchors), r = (H - P) / (H - A) in percent. A level fires when |r - level| <= T points.
+
+  function fibMeasure(ctx, p) {
+    if (!ctx.price) return { na: 'no entry price, and the M15 candle holding the entry is missing from the data' };
+    var leg = effectiveLeg(ctx.series, ctx.i, p.W, ctx.override);
+    if (!leg.ok) {
+      if (leg.kind === 'noleg') return { noLeg: leg.reason };
+      return { na: leg.reason };
+    }
+    var s = ctx.series;
+    return {
+      H: leg.H, A: leg.A, hT: leg.hIdx === null ? null : s.t[leg.hIdx], aT: leg.aIdx === null ? null : s.t[leg.aIdx],
+      P: ctx.price.value, priceKind: ctx.price.kind, r: (leg.H - ctx.price.value) / (leg.H - leg.A) * 100, overridden: !!leg.overridden
+    };
+  }
+
+  var FIB_PARAMS = function (level) {
+    return [
+      { key: 'W', label: 'W (M15 candles for the leg)', type: 'int', default: 16, min: 2, max: 96 },
+      { key: 'level', label: 'Level (%)', type: 'number', default: level, min: 0, max: 100, step: 0.1 },
+      { key: 'T', label: 'T (+/- points)', type: 'number', default: 3, min: 0, step: 0.5 }
+    ];
+  };
+  function fibDefinition(p) {
+    return 'Longs only. On the last W=' + p.W + ' completed M15 candles, H = highest high and A = lowest low before it; r = (H - entry) / (H - A). Fires when r is within +/- ' +
+      p.T + ' points of ' + p.level + '% (base rate: last completed M15 close instead of the entry).';
+  }
+  function fibRunOne(ctx, p, levels) {
+    var m = fibMeasure(ctx, p);
+    if (m.na) return { na: m.na };
+    if (m.noLeg) return { fired: false, value: { noLeg: m.noLeg, W: p.W, tol: p.T, levels: levels } };
+    var best = null;
+    levels.forEach(function (lv) {
+      var d = m.r - lv;
+      if (!best || Math.abs(d) < Math.abs(best.dist)) best = { level: lv, dist: d };
+    });
+    var fired = Math.abs(best.dist) <= p.T + 1e-9;
+    return { fired: fired, value: Object.assign(m, { W: p.W, tol: p.T, level: best.level, dist: best.dist, levels: levels }) };
+  }
+
+  [['fib-30', 30, '30%'], ['fib-382', 38.2, '38.2%'], ['fib-50', 50, '50%']].forEach(function (f) {
+    registerDetector({
+      id: f[0], label: 'M15 ' + f[2] + ' fib', tagKeywords: ['m15', f[2].toLowerCase(), 'fib'],
+      timeframe: '15m', type: 'state', longsOnly: true, params: FIB_PARAMS(f[1]), definition: fibDefinition,
+      minCandles: function (p) { return p.W; },
+      run: function (ctx, p) { return fibRunOne(ctx, p, [p.level]); }
+    });
+  });
+
+  registerDetector({
+    id: 'fib-any', label: 'M15 fib (any of three)', tagKeywords: ['m15', 'fib'], tagFrom: ['fib-30', 'fib-382', 'fib-50'],
+    timeframe: '15m', type: 'state', longsOnly: true,
+    params: [
+      { key: 'W', label: 'W (M15 candles for the leg)', type: 'int', default: 16, min: 2, max: 96 },
+      { key: 'T', label: 'T (+/- points)', type: 'number', default: 3, min: 0, step: 0.5 },
+      { key: 'l1', label: 'Level 1 (%)', type: 'number', default: 30, min: 0, max: 100, step: 0.1 },
+      { key: 'l2', label: 'Level 2 (%)', type: 'number', default: 38.2, min: 0, max: 100, step: 0.1 },
+      { key: 'l3', label: 'Level 3 (%)', type: 'number', default: 50, min: 0, max: 100, step: 0.1 }
+    ],
+    definition: function (p) {
+      return 'Longs only. Fires when r = (H - entry) / (H - A) on the last W=' + p.W + ' completed M15 candles is within +/- ' + p.T + ' points of ' + p.l1 + '%, ' + p.l2 + '% or ' + p.l3 +
+        '%. The chart and entry finder use these settings. Tagged if the trade carries any of the three matching tags.';
+    },
+    minCandles: function (p) { return p.W; },
+    run: function (ctx, p) { return fibRunOne(ctx, { W: p.W, T: p.T }, [p.l1, p.l2, p.l3]); }
+  });
+
+  // Entry finder. Walks the completed M15 candles from the BOS candle's close to the entry and records,
+  // for each Fibonacci level, the FIRST candle whose low touched the level of the leg as it stood at
+  // that candle (leg from candles up to and including it, never later ones). A candle that itself
+  // set H is skipped: its low may have come before its high, so a retracement inside it is unknowable.
+  // A fixed A/H override (per-trade, in memory) is used unchanged for every candle.
+  function entryFinder(series, bosCloseMs, anchorMs, W, levels, override, entryPrice) {
+    var iLast = lastCompletedIndex(series, anchorMs);
+    var out = { levels: levels.map(function (lv) { return { level: lv, touched: false }; }), note: null, firstIdx: null, lastIdx: iLast };
+    if (iLast < 0) { out.note = 'no completed M15 candle before the entry'; return out; }
+    var j0 = 0;
+    while (j0 <= iLast && series.t[j0] < bosCloseMs) j0++;
+    if (j0 > iLast) { out.note = 'no completed M15 candle between the BOS close and the entry'; return out; }
+    if (series.t[0] > bosCloseMs) out.note = 'M15 history starts after the BOS close, so the search begins at the first fetched candle';
+    out.firstIdx = j0;
+    for (var j = j0; j <= iLast; j++) {
+      var leg = effectiveLeg(series, j, W, override);
+      if (!leg.ok) continue;
+      if (leg.hIdx === j) continue;
+      for (var x = 0; x < out.levels.length; x++) {
+        var L = out.levels[x];
+        if (L.touched) continue;
+        var price = leg.H - L.level / 100 * (leg.H - leg.A);
+        if (series.l[j] <= price) {
+          L.touched = true;
+          L.idx = j;
+          L.t = series.t[j];
+          L.price = price;
+          L.legH = leg.H;
+          L.legA = leg.A;
+          L.hoursBeforeEntry = (anchorMs - (series.t[j] + series.ms)) / 3600000;
+          L.pctBelowEntry = entryPrice > 0 ? (entryPrice - price) / entryPrice * 100 : null;
+        }
+      }
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------------
   // Evaluation
   // ---------------------------------------------------------------------
 
-  // pair = { h4: series, d1: series|null }. Returns { status:'ok'|'na', fired, value, reason }.
-  function evaluateDetector(def, params, pair, anchorMs) {
-    var series = def.timeframe === '1d' ? pair.d1 : pair.h4;
-    var tfLabel = def.timeframe === '1d' ? 'daily' : '4H';
-    if (!series) return { status: 'na', fired: null, reason: 'no ' + tfLabel + ' data for this pair' };
+  // Timeframes: which series of a pair a detector reads, and how to name it.
+  var TF = {
+    '4h': { key: 'h4', label: '4H' },
+    '1d': { key: 'd1', label: 'daily', note: 'dailyNote' },
+    '15m': { key: 'm15', label: 'M15', note: 'm15Note' }
+  };
+
+  function na(reason) { return { status: 'na', fired: null, reason: reason }; }
+
+  // pair = { h4: series, d1: series|null, m15: series|null }.
+  // entry (optional) describes a real trade: { price: number|null, direction, override: {A,H}|null }.
+  // Without it the anchor is a base-rate sample and the price is the last completed close.
+  // Returns { status:'ok'|'na', fired, value, reason }.
+  function evaluateDetector(def, params, pair, anchorMs, entry) {
+    var tf = TF[def.timeframe];
+    var series = pair[tf.key];
+    if (!series) return na('no ' + tf.label + ' data for this pair' + (tf.note && pair[tf.note] ? ' (' + pair[tf.note] + ')' : ''));
+    if (def.longsOnly && entry && entry.direction === 'short') return na('short trade: this detector is longs only');
     var i = lastCompletedIndex(series, anchorMs);
-    if (i < 0) return { status: 'na', fired: null, reason: 'anchor is before the first fetched ' + tfLabel + ' candle' };
-    if (i < WARMUP) return { status: 'na', fired: null, reason: 'only ' + i + ' ' + tfLabel + ' candles before the anchor (< ' + WARMUP + ' warm-up)' };
+    if (i < 0) return na('anchor is before the first fetched ' + tf.label + ' candle');
+    var need = def.minCandles ? def.minCandles(params) : WARMUP + 1;      // candles needed at or before i
+    if (i + 1 < need) {
+      return na(def.timeframe === '15m'
+        ? 'M15 history too short (' + (i + 1) + ' candle' + (i === 0 ? '' : 's') + ' before the anchor, ' + need + ' needed)'
+        : 'only ' + i + ' ' + tf.label + ' candles before the anchor (< ' + WARMUP + ' warm-up)');
+    }
     // The last completed candle must actually be the one that just closed; a
     // larger gap means missing data, and using it would be silent staleness.
     var closeT = series.t[i] + series.ms;
-    if (anchorMs - closeT >= series.ms) return { status: 'na', fired: null, reason: 'data gap: last ' + tfLabel + ' candle closed more than one interval before the anchor' };
+    if (anchorMs - closeT >= series.ms) return na('data gap: last ' + tf.label + ' candle closed more than one interval before the anchor');
     // The candle that contains the anchor is still forming: expose its OPEN only, and only when it really follows candle i.
     var current = i + 1 < series.n && series.t[i + 1] === series.t[i] + series.ms && series.t[i + 1] <= anchorMs
       ? { t: series.t[i + 1], open: series.o[i + 1] } : null;
-    var out = def.run({ series: series, i: i, anchorMs: anchorMs, current: current }, params);
-    if (out.na) return { status: 'na', fired: null, reason: out.na };
+    // Price at the anchor: the journal entry price; for a trade without one, the open of the candle
+    // holding the entry (labelled approx); for base-rate anchors, the last completed close.
+    var price = null;
+    if (entry) {
+      if (typeof entry.price === 'number' && isFinite(entry.price) && entry.price > 0) price = { value: entry.price, kind: 'entry' };
+      else if (current) price = { value: current.open, kind: 'approx' };
+    } else {
+      price = { value: series.c[i], kind: 'last-close' };
+    }
+    var out = def.run({ series: series, i: i, anchorMs: anchorMs, current: current, price: price, override: entry && entry.override || null }, params);
+    if (out.na) return na(out.na);
     return { status: 'ok', fired: !!out.fired, value: out.value, reason: null, barIndex: i };
+  }
+
+  // Anchors for base rates: the close of each completed candle of a series, from startIdx on.
+  function baseAnchorsFor(series, nowMs, startIdx) {
+    var out = [];
+    for (var k = startIdx || 0; k < series.n; k++) {
+      var t = series.t[k] + series.ms;
+      if (t <= nowMs) out.push(t);
+    }
+    return out;
   }
 
   // Every 4H anchor with a full warm-up: the close of each completed 4H candle.
   function baseAnchors(pair, nowMs) {
-    var out = [];
-    var s = pair.h4;
-    for (var k = WARMUP; k < s.n; k++) {
-      var t = s.t[k] + s.ms;
-      if (t <= nowMs) out.push(t);
-    }
-    return out;
+    return baseAnchorsFor(pair.h4, nowMs, WARMUP);
   }
 
   // results: { detectorId: evaluateDetector result }. The combination fires
@@ -512,12 +784,12 @@
   }
 
   return {
-    H4_MS: H4_MS, D1_MS: D1_MS, WARMUP: WARMUP, MIN_TAGGED: MIN_TAGGED,
+    M15_MS: M15_MS, H4_MS: H4_MS, D1_MS: D1_MS, WARMUP: WARMUP, MIN_TAGGED: MIN_TAGGED,
     buildSeries: buildSeries, lastCompletedIndex: lastCompletedIndex, containingIndex: containingIndex,
-    rsiWilder: rsiWilder, rsiSeries: rsiSeries, volumeRatioSeries: volumeRatioSeries,
+    rsiWilder: rsiWilder, rsiSeries: rsiSeries, atrSeries: atrSeries, legAt: legAt, effectiveLeg: effectiveLeg, entryFinder: entryFinder, volumeRatioSeries: volumeRatioSeries,
     swingHighIndices: swingHighIndices, bosScan: bosScan,
     registerDetector: registerDetector, getDetectors: getDetectors, defaultParams: defaultParams, definitionText: definitionText,
-    evaluateDetector: evaluateDetector, baseAnchors: baseAnchors, combine: combine,
+    evaluateDetector: evaluateDetector, baseAnchors: baseAnchors, baseAnchorsFor: baseAnchorsFor, combine: combine,
     resolveTag: resolveTag, hasTag: hasTag, tally: tally, summarize: summarize, verdictLine: verdictLine,
     pct: pct, num: num
   };

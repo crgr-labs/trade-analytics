@@ -89,6 +89,31 @@
       <div id="bl-chart-msg" class="bl-note"></div>
       <div id="bl-chart-price" class="bl-chart bl-chart-price"></div>
       <div id="bl-chart-rsi" class="bl-chart bl-chart-rsi"></div>
+
+      <div class="bl-row bl-between bl-m15-head">
+        <h3 class="bl-h3">M15 entry chart &amp; entry finder (longs only)</h3>
+        <label class="bl-inline">BOS to search from
+          <select id="bl-finder-scale" class="bl-input">
+            <option value="minor">minor</option>
+            <option value="recent" selected>recent</option>
+            <option value="major">major</option>
+            <option value="any">newest of any scale</option>
+          </select></label>
+      </div>
+      <p class="bl-note" id="bl-m15-legend"></p>
+      <div id="bl-m15-msg" class="bl-note"></div>
+      <div id="bl-chart-m15" class="bl-chart bl-chart-m15"></div>
+      <div class="bl-row bl-override">
+        <span class="bl-inline">Leg override for this trade (in memory only):</span>
+        <label class="bl-inline">A (low) <input id="bl-ov-a" class="bl-input" type="number" step="any" min="0" placeholder="computed" /></label>
+        <label class="bl-inline">H (high) <input id="bl-ov-h" class="bl-input" type="number" step="any" min="0" placeholder="computed" /></label>
+        <button type="button" id="bl-ov-apply" class="bl-btn bl-btn-sm">Apply</button>
+        <button type="button" id="bl-ov-reset" class="bl-btn bl-btn-sm">Reset</button>
+        <span id="bl-ov-note" class="bl-note"></span>
+      </div>
+      <h3 class="bl-h3">Entry finder: first touch of each fib level between the BOS close and the entry</h3>
+      <p class="bl-note" id="bl-finder-note"></p>
+      <div class="bl-scroll"><table class="bl-table" id="bl-finder"></table></div>
     </section>
 
     <section class="bl-panel" id="bl-untested">

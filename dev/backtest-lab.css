@@ -101,10 +101,16 @@ input.bl-input[type="number"] { width: 84px; }
 .bl-chart { width: 100%; }
 .bl-chart-price { height: 380px; }
 .bl-chart-rsi { height: 150px; margin-top: 2px; }
+.bl-chart-m15 { height: 380px; margin-top: 4px; }
 .bl-untested-item { padding: 6px 0; border-bottom: 1px solid rgb(var(--c-outline-variant) / .5); font-size: 13px; }
 .bl-untested-item:last-child { border-bottom: 0; }
 
 @media (max-width: 640px) {
   .bl-header, .bl-main { padding-left: 12px; padding-right: 12px; }
-  .bl-chart-price { height: 300px; }
+  .bl-chart-price, .bl-chart-m15 { height: 300px; }
 }
+
+.bl-m15-head { margin-top: 18px; }
+.bl-override { margin-top: 8px; }
+.bl-override .bl-note { margin: 0; }
+input.bl-input[type="number"]::placeholder { color: rgb(var(--c-outline)); }
