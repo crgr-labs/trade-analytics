@@ -324,7 +324,7 @@ test('BOS cells carry extension in % and ATR multiples and hours since the BOS c
   var f = bosFixture();
   var r = Core.evaluateDetector(det['bos-recent'], Core.defaultParams(det['bos-recent']), f.pair, f.at(125), { price: 88, direction: 'long' });
   assert.strictEqual(r.fired, true);
-  assert.strictEqual(r.value.priceKind, 'entry');
+  assert.strictEqual(r.value.priceKind, 'logged');
   near(r.value.extPct, 10, 1e-9);                                  // (88 - 80) / 80
   var atr = Core.atrSeries(f.pair.h4, 14)[125];
   near(r.value.atr, atr, 1e-12);
@@ -332,12 +332,17 @@ test('BOS cells carry extension in % and ATR multiples and hours since the BOS c
   assert.strictEqual(r.value.hoursSinceClose, 20);                 // BOS candle 120 closes at 121; anchor is the close of 125
   assert.strictEqual(r.value.barsAgo, 5);
 });
-test('a trade without an entry price uses the open of the 4H candle holding it (approx); base-rate anchors use the last close', function () {
+test('a resolved price is passed through with its source; none resolved means no metrics; base-rate anchors use the last close', function () {
   var f = bosFixture();
   var p = Core.defaultParams(det['bos-recent']);
-  var approx = Core.evaluateDetector(det['bos-recent'], p, f.pair, f.at(125) + 3600000, { price: null, direction: 'long' });
-  assert.strictEqual(approx.value.priceKind, 'approx');
-  assert.strictEqual(approx.value.priceValue, f.pair.h4.o[126]);
+  var viaM15 = Core.evaluateDetector(det['bos-recent'], p, f.pair, f.at(125), { price: 84, priceKind: 'approx-m15', direction: 'long' });
+  assert.strictEqual(viaM15.value.priceKind, 'approx-m15');
+  assert.strictEqual(viaM15.value.priceValue, 84);
+  near(viaM15.value.extPct, 5, 1e-9);
+  var none = Core.evaluateDetector(det['bos-recent'], p, f.pair, f.at(125), { price: null, direction: 'long' });
+  assert.strictEqual(none.fired, true);                            // the BOS itself never depended on the price
+  assert.strictEqual(none.value.extPct, null);
+  assert.strictEqual(none.value.priceKind, null);
   var base = Core.evaluateDetector(det['bos-recent'], p, f.pair, f.at(125));
   assert.strictEqual(base.value.priceKind, 'last-close');
   assert.strictEqual(base.value.priceValue, f.pair.h4.c[125]);
@@ -368,7 +373,11 @@ test('Fresh 4H BOS needs a price: base-rate anchors use the last completed 4H cl
   assert.strictEqual(r.value.priceKind, 'last-close');
   assert.strictEqual(r.value.priceValue, f.pair.h4.c[121]);
   var noPrice = Core.evaluateDetector(det['bos-fresh'], Core.defaultParams(det['bos-fresh']), f.pair, f.at(121) + 60000, { price: null, direction: 'long' });
-  assert.strictEqual(noPrice.value.priceKind, 'approx');           // candle 122 holds the entry
+  assert.strictEqual(noPrice.status, 'na');                        // no per-detector fallback: the caller's resolver is the only source
+  assert.ok(/no entry price could be resolved/.test(noPrice.reason));
+  var approx = Core.evaluateDetector(det['bos-fresh'], Core.defaultParams(det['bos-fresh']), f.pair, f.at(121) + 60000, { price: 87.9, priceKind: 'approx-4h', direction: 'long' });
+  assert.strictEqual(approx.fired, true);
+  assert.strictEqual(approx.value.priceKind, 'approx-4h');
 });
 
 console.log('M15 Fibonacci');
@@ -413,7 +422,7 @@ test('r = (H - entry) / (H - A); fires within +/- T points of the level (inclusi
   near(r0.value.r, 30, 1e-9);
   assert.strictEqual(r0.value.H, 110);
   assert.strictEqual(r0.value.A, 100);
-  assert.strictEqual(r0.value.priceKind, 'entry');
+  assert.strictEqual(r0.value.priceKind, 'logged');
   assert.strictEqual(at(106.7).fired, true);                    // r = 33.0: exactly T away
   assert.strictEqual(at(106.69).fired, false);                  // r = 33.1
   assert.strictEqual(at(106.69, { T: 3.2 }).fired, true);       // T is editable
@@ -431,16 +440,73 @@ test('fib-any fires on the closest of its three levels and reports it', function
   assert.strictEqual(fibEval('fib-any', fx, { price: 102, direction: 'long' }).fired, false);
   assert.strictEqual(fibEval('fib-any', fx, { price: 102, direction: 'long' }, { l3: 80 }).fired, true);   // level 3 editable: r = 80
 });
-test('no entry price -> open of the M15 candle holding the entry (approx); base-rate anchors -> last completed M15 close', function () {
+test('fib takes the price from the resolved entry (source passed through); none resolved -> n/a; base-rate anchors -> last completed M15 close', function () {
   var fx = m15Fixture({ 55: { h: 110, l: 101, c: 109 }, 56: { h: 109, l: 105, c: 106 }, 57: { h: 108, l: 105, c: 107 }, 58: { h: 108, l: 106, c: 107 }, 59: { o: 107, h: 120, l: 50, c: 90 } });
-  var approx = fibEval('fib-30', fx, { price: null, direction: 'long' }, {}, 58, 5 * 60000);   // 5 minutes into candle 59
-  assert.strictEqual(approx.value.priceKind, 'approx');
-  assert.strictEqual(approx.value.P, 107);                      // candle 59's OPEN; its wild high/low/close are never seen
-  assert.strictEqual(approx.fired, true);
+  var viaOpen = fibEval('fib-30', fx, { price: 107, priceKind: 'approx-m15', direction: 'long' }, {}, 58, 5 * 60000);   // 5 minutes into candle 59
+  assert.strictEqual(viaOpen.value.priceKind, 'approx-m15');
+  assert.strictEqual(viaOpen.value.P, 107);
+  assert.strictEqual(viaOpen.fired, true);
+  var none = fibEval('fib-30', fx, { price: null, direction: 'long' }, {}, 58, 5 * 60000);
+  assert.strictEqual(none.status, 'na');
+  assert.ok(/no entry price could be resolved/.test(none.reason));
   var base = fibEval('fib-30', fx, undefined, {}, 58);
   assert.strictEqual(base.value.priceKind, 'last-close');
   assert.strictEqual(base.value.P, 107);                        // candle 58's close
 });
+
+console.log('Entry price resolver');
+// 80 M15 candles with distinct opens (100 + i / 100) and 10 4H candles with distinct opens (200 + i).
+function resolverFixture(opts) {
+  opts = opts || {};
+  var start = Date.UTC(2026, 0, 1), m = [], h = [];
+  for (var i = 0; i < 80; i++) m.push([start + i * M15, 100 + i / 100, 101, 99, 100.5, 10]);
+  if (opts.dropM15 !== undefined) m.splice(opts.dropM15, 1);
+  for (var k = 0; k < 10; k++) h.push([start + k * H4, 200 + k, 210, 190, 205, 10]);
+  return { start: start, m15: m, h4: h, pair: { m15: opts.noM15 ? null : Core.buildSeries(m, M15), h4: Core.buildSeries(h, H4) } };
+}
+test('the journal price wins when it is a positive number; anything else falls through', function () {
+  var fx = resolverFixture();
+  var anchor = fx.start + 59 * M15 + 5 * 60000;
+  var logged = Core.resolveEntryPrice(123.4, fx.pair, anchor);
+  assert.deepStrictEqual([logged.value, logged.source], [123.4, 'logged']);
+  [0, -5, NaN, null, undefined, '', '99'].forEach(function (bad) {
+    var r = Core.resolveEntryPrice(bad, fx.pair, anchor);
+    assert.strictEqual(r.source, 'approx-m15', 'logged=' + String(bad));
+  });
+});
+test('no logged price -> open of the M15 candle that contains the entry (also exactly on its open)', function () {
+  var fx = resolverFixture();
+  var inside = Core.resolveEntryPrice(null, fx.pair, fx.start + 59 * M15 + 5 * 60000);
+  assert.deepStrictEqual([inside.value, inside.source], [fx.pair.m15.o[59], 'approx-m15']);
+  var onOpen = Core.resolveEntryPrice(null, fx.pair, fx.start + 59 * M15);
+  assert.strictEqual(onOpen.value, fx.pair.m15.o[59]);
+  var justBefore = Core.resolveEntryPrice(null, fx.pair, fx.start + 59 * M15 - 1);
+  assert.strictEqual(justBefore.value, fx.pair.m15.o[58]);
+});
+test('the 4H open is used ONLY when no M15 data exists for the pair', function () {
+  var noM15 = resolverFixture({ noM15: true });
+  var r = Core.resolveEntryPrice(null, noM15.pair, noM15.start + 59 * M15 + 5 * 60000);   // 14.75 h in: 4H candle 3
+  assert.deepStrictEqual([r.value, r.source], [203, 'approx-4h']);
+  // M15 exists but does not contain this entry's candle: stay unresolved, do not drop to the 4H open
+  var gap = resolverFixture({ dropM15: 59 });
+  var g = Core.resolveEntryPrice(null, gap.pair, gap.start + 59 * M15 + 5 * 60000);
+  assert.strictEqual(g.value, null);
+  assert.strictEqual(g.source, null);
+  assert.ok(/M15 candle holding the entry is missing/.test(g.reason));
+  var past = Core.resolveEntryPrice(null, resolverFixture().pair, Date.UTC(2026, 0, 1) + 3 * 86400000);
+  assert.strictEqual(past.value, null);
+  var nothing = Core.resolveEntryPrice(null, { m15: null, h4: null }, Date.UTC(2026, 0, 1));
+  assert.strictEqual(nothing.value, null);
+});
+test('the resolved price only ever uses the forming candle\'s open (scrambling its other fields changes nothing)', function () {
+  var fx = resolverFixture();
+  var anchor = fx.start + 59 * M15 + 5 * 60000;
+  var scrambled = resolverFixture();
+  scrambled.m15[59] = [scrambled.m15[59][0], scrambled.m15[59][1], 1e9, 1e-9, 777, 1e12];
+  var pair2 = { m15: Core.buildSeries(scrambled.m15, M15), h4: fx.pair.h4 };
+  assert.deepStrictEqual(Core.resolveEntryPrice(null, pair2, anchor), Core.resolveEntryPrice(null, fx.pair, anchor));
+});
+
 test('longs only, missing M15 data and short history are reported, not guessed', function () {
   var fx = legFixture();
   var short = fibEval('fib-30', fx, { price: 107, direction: 'short' });
@@ -526,7 +592,8 @@ console.log('No lookahead (truncation invariance)');
 //     forming candle's open: the momentum detector and the approx-price path);
 //  2. scramble: keep the candle still forming at A but overwrite its high, low, close and volume
 //     with junk (only its open is knowable at A) and drop everything after it.
-// Entry variants: none (base-rate), journal price, and no price (approx, from the forming candle's open).
+// Entry variants: none (base-rate), a logged journal price, and no logged price (the resolver picks the open of
+// the forming M15 candle, on the full data and on the scrambled data alike).
 function scrambleForming(fullRows, ms, anchor) {
   var kept = fullRows.filter(function (row) { return row[0] <= anchor; });
   var last = kept.length - 1;
@@ -539,7 +606,7 @@ test('every detector gives the same answer with future candle data removed or sc
   var full1 = walk(150, 11, D1, start);
   var full15 = walk(900 * 16, 13, M15, start);
   var fullPair = { h4: Core.buildSeries(full4, H4), d1: Core.buildSeries(full1, D1), m15: Core.buildSeries(full15, M15) };
-  var entries = [undefined, { price: 100, direction: 'long' }, { price: null, direction: 'long' }];
+  var entries = [undefined, { price: 100, priceKind: 'logged', direction: 'long' }, 'resolved'];
   var checked = 0, cutChecked = 0;
   var r = rng(99);
   var list = Core.getDetectors().map(function (d) {
@@ -561,8 +628,13 @@ test('every detector gives the same answer with future candle data removed or sc
     var cut = { h4: cutOf(full4, H4), d1: cutOf(full1, D1), m15: cutOf(full15, M15) };
     list.forEach(function (x) {
       entries.forEach(function (entry, ei) {
-        var a = Core.evaluateDetector(x.d, x.params, fullPair, anchor, entry);
-        assert.deepStrictEqual(Core.evaluateDetector(x.d, x.params, scrambled, anchor, entry), a, x.d.id + ' changes when the forming candles are scrambled, anchor ' + anchor + ', entry variant ' + ei);
+        var entryOn = function (pairX) {
+          if (entry !== 'resolved') return entry;
+          var rp = Core.resolveEntryPrice(null, pairX, anchor);
+          return { price: rp.value, priceKind: rp.source, direction: 'long' };
+        };
+        var a = Core.evaluateDetector(x.d, x.params, fullPair, anchor, entryOn(fullPair));
+        assert.deepStrictEqual(Core.evaluateDetector(x.d, x.params, scrambled, anchor, entryOn(scrambled)), a, x.d.id + ' changes when the forming candles are scrambled, anchor ' + anchor + ', entry variant ' + ei);
         checked++;
         if (!x.d.needsCurrentOpen && ei !== 2) {
           assert.deepStrictEqual(Core.evaluateDetector(x.d, x.params, cut, anchor, entry), a, x.d.id + ' differs with future candles cut, anchor ' + anchor + ', entry variant ' + ei);

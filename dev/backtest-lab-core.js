@@ -252,6 +252,8 @@
   //                hardcoded here.
   //   timeframe    '4h' | '1d'
   //   type         'state' | 'event'
+  //   entryPrice   'fires' when the entry price decides whether it fires, 'shows' when it only feeds
+  //                displayed metrics (BOS extension); absent when the price is not used
   //   definition   one line for the UI (string, or function(params) -> string)
   //   params       [{key,label,type:'int'|'number'|'select',default,min,max,step,options}]
   //   run(ctx, p)  ctx = { series, i, anchorMs, current }; series/i are already the
@@ -333,14 +335,14 @@
   [['bos-minor', 'BOS minor', 2], ['bos-recent', 'BOS recent', 4], ['bos-major', 'BOS major', 8]].forEach(function (s) {
     registerDetector({
       id: s[0], label: '4H ' + s[1] + ' (N=' + s[2] + ')', tagKeywords: ['4h', 'bos'],
-      timeframe: '4h', type: 'event', params: BOS_PARAMS(s[2]), definition: bosDefinition,
+      timeframe: '4h', type: 'event', entryPrice: 'shows', params: BOS_PARAMS(s[2]), definition: bosDefinition,
       run: function (ctx, p) { return bosRun(ctx, p, p.N); }
     });
   });
 
   registerDetector({
     id: 'bos-any', label: '4H BOS (any of minor/recent/major)', tagKeywords: ['4h', 'bos'],
-    timeframe: '4h', type: 'event',
+    timeframe: '4h', type: 'event', entryPrice: 'shows',
     params: [
       { key: 'Nminor', label: 'N minor', type: 'int', default: 2, min: 1, max: 50 },
       { key: 'Nrecent', label: 'N recent', type: 'int', default: 4, min: 1, max: 50 },
@@ -368,11 +370,11 @@
 
   // "Fresh 4H BOS": a BOS within the last F completed 4H candles AND price has not run more than X
   // past the broken level (X in % or in 4H ATR multiples). For 'any', each scale is checked and the
-  // detector fires if any scale qualifies. Price = the entry (journal price, else the open of the
-  // 4H candle holding it, labelled approx); for base-rate anchors it is the last completed 4H close.
+  // detector fires if any scale qualifies. Price = the resolved entry price (see resolveEntryPrice);
+  // for base-rate anchors it is the last completed 4H close.
   registerDetector({
     id: 'bos-fresh', label: 'Fresh 4H BOS', tagKeywords: ['fresh', 'bos'],
-    timeframe: '4h', type: 'event',
+    timeframe: '4h', type: 'event', entryPrice: 'fires',
     params: [
       { key: 'scale', label: 'BOS scale', type: 'select', default: 'recent', options: [['minor', 'minor'], ['recent', 'recent'], ['major', 'major'], ['any', 'any of the three']] },
       { key: 'Nminor', label: 'N minor', type: 'int', default: 2, min: 1, max: 50 },
@@ -390,7 +392,7 @@
     },
     run: function (ctx, p) {
       var scales = p.scale === 'any' ? [['minor', p.Nminor], ['recent', p.Nrecent], ['major', p.Nmajor]] : [[p.scale, p['N' + p.scale]]];
-      if (!ctx.price) return { na: 'no entry price, and the 4H candle holding the entry is missing from the data' };
+      if (!ctx.price) return { na: 'no entry price could be resolved (none logged, and no candle open to estimate it from)' };
       var hits = [], lastAny = null;
       scales.forEach(function (sc) {
         var r = bosRun(ctx, { L: p.F, mode: p.mode }, sc[1]);
@@ -535,7 +537,7 @@
   // base-rate anchors), r = (H - P) / (H - A) in percent. A level fires when |r - level| <= T points.
 
   function fibMeasure(ctx, p) {
-    if (!ctx.price) return { na: 'no entry price, and the M15 candle holding the entry is missing from the data' };
+    if (!ctx.price) return { na: 'no entry price could be resolved (none logged, and no candle open to estimate it from)' };
     var leg = effectiveLeg(ctx.series, ctx.i, p.W, ctx.override);
     if (!leg.ok) {
       if (leg.kind === 'noleg') return { noLeg: leg.reason };
@@ -575,7 +577,7 @@
   [['fib-30', 30, '30%'], ['fib-382', 38.2, '38.2%'], ['fib-50', 50, '50%']].forEach(function (f) {
     registerDetector({
       id: f[0], label: 'M15 ' + f[2] + ' fib', tagKeywords: ['m15', f[2].toLowerCase(), 'fib'],
-      timeframe: '15m', type: 'state', longsOnly: true, params: FIB_PARAMS(f[1]), definition: fibDefinition,
+      timeframe: '15m', type: 'state', longsOnly: true, entryPrice: 'fires', params: FIB_PARAMS(f[1]), definition: fibDefinition,
       minCandles: function (p) { return p.W; },
       run: function (ctx, p) { return fibRunOne(ctx, p, [p.level]); }
     });
@@ -583,7 +585,7 @@
 
   registerDetector({
     id: 'fib-any', label: 'M15 fib (any of three)', tagKeywords: ['m15', 'fib'], tagFrom: ['fib-30', 'fib-382', 'fib-50'],
-    timeframe: '15m', type: 'state', longsOnly: true,
+    timeframe: '15m', type: 'state', longsOnly: true, entryPrice: 'fires',
     params: [
       { key: 'W', label: 'W (M15 candles for the leg)', type: 'int', default: 16, min: 2, max: 96 },
       { key: 'T', label: 'T (+/- points)', type: 'number', default: 3, min: 0, step: 0.5 },
@@ -673,12 +675,13 @@
     // The candle that contains the anchor is still forming: expose its OPEN only, and only when it really follows candle i.
     var current = i + 1 < series.n && series.t[i + 1] === series.t[i] + series.ms && series.t[i + 1] <= anchorMs
       ? { t: series.t[i + 1], open: series.o[i + 1] } : null;
-    // Price at the anchor: the journal entry price; for a trade without one, the open of the candle
-    // holding the entry (labelled approx); for base-rate anchors, the last completed close.
+    // Price at the anchor. For a real trade it is whatever resolveEntryPrice gave the caller (one rule for
+    // every detector, chart and export; entry.priceKind says where it came from). For base-rate anchors
+    // (no entry) it is the last completed close of the detector's own candles. A trade with no resolvable
+    // price gets null, and the detectors that need one report n/a: there is no per-detector fallback.
     var price = null;
     if (entry) {
-      if (typeof entry.price === 'number' && isFinite(entry.price) && entry.price > 0) price = { value: entry.price, kind: 'entry' };
-      else if (current) price = { value: current.open, kind: 'approx' };
+      if (typeof entry.price === 'number' && isFinite(entry.price) && entry.price > 0) price = { value: entry.price, kind: entry.priceKind || 'logged' };
     } else {
       price = { value: series.c[i], kind: 'last-close' };
     }
@@ -686,6 +689,30 @@
     if (out.na) return na(out.na);
     return { status: 'ok', fired: !!out.fired, value: out.value, reason: null, barIndex: i };
   }
+
+  // The ONE entry-price rule (used by every detector, chart, verdict and export):
+  //   a. the journal's entry price when present and > 0                     -> source 'logged'
+  //   b. else the open of the M15 candle that contains the entry time       -> 'approx-m15'
+  //   c. else, ONLY when no M15 data could be fetched for the pair, the open of
+  //      the 4H candle holding the entry                                    -> 'approx-4h'
+  // A candle's open is knowable at the anchor, so this never looks ahead. If M15 data exists for the
+  // pair but does not contain this entry's candle, the price stays unresolved (value null) rather than
+  // silently switching to the coarser 4H open.
+  function resolveEntryPrice(loggedPrice, pair, anchorMs) {
+    if (typeof loggedPrice === 'number' && isFinite(loggedPrice) && loggedPrice > 0) return { value: loggedPrice, source: 'logged' };
+    if (pair && pair.m15) {
+      var ci = containingIndex(pair.m15, anchorMs);
+      if (ci >= 0) return { value: pair.m15.o[ci], source: 'approx-m15' };
+      return { value: null, source: null, reason: 'no logged entry price, and the M15 candle holding the entry is missing from the fetched M15 data' };
+    }
+    if (pair && pair.h4) {
+      var c4 = containingIndex(pair.h4, anchorMs);
+      if (c4 >= 0) return { value: pair.h4.o[c4], source: 'approx-4h' };
+    }
+    return { value: null, source: null, reason: 'no logged entry price, and no candle holding the entry is available' };
+  }
+
+  var PRICE_SOURCE_LABEL = { 'logged': 'logged', 'approx-m15': 'approx: M15 open', 'approx-4h': 'approx: 4H open', 'last-close': 'last close' };
 
   // Anchors for base rates: the close of each completed candle of a series, from startIdx on.
   function baseAnchorsFor(series, nowMs, startIdx) {
@@ -789,7 +816,7 @@
     rsiWilder: rsiWilder, rsiSeries: rsiSeries, atrSeries: atrSeries, legAt: legAt, effectiveLeg: effectiveLeg, entryFinder: entryFinder, volumeRatioSeries: volumeRatioSeries,
     swingHighIndices: swingHighIndices, bosScan: bosScan,
     registerDetector: registerDetector, getDetectors: getDetectors, defaultParams: defaultParams, definitionText: definitionText,
-    evaluateDetector: evaluateDetector, baseAnchors: baseAnchors, baseAnchorsFor: baseAnchorsFor, combine: combine,
+    evaluateDetector: evaluateDetector, resolveEntryPrice: resolveEntryPrice, PRICE_SOURCE_LABEL: PRICE_SOURCE_LABEL, baseAnchors: baseAnchors, baseAnchorsFor: baseAnchorsFor, combine: combine,
     resolveTag: resolveTag, hasTag: hasTag, tally: tally, summarize: summarize, verdictLine: verdictLine,
     pct: pct, num: num
   };

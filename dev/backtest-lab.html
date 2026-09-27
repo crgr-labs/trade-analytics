@@ -59,6 +59,11 @@
         <h2 class="bl-h2">Verdicts</h2>
         <button type="button" id="bl-copy-btn" class="bl-btn">Copy results as JSON</button>
       </div>
+      <div class="bl-row bl-opts">
+        <label class="bl-check"><input type="checkbox" id="bl-opt-logged" />
+          Only trades with a logged entry price <span class="bl-muted">(Fresh 4H BOS, M15 fib and combinations containing them; base rates unchanged)</span></label>
+        <span id="bl-onlylogged-note" class="bl-note"></span>
+      </div>
       <ul id="bl-verdicts" class="bl-verdicts"></ul>
       <div class="bl-scroll"><table class="bl-table" id="bl-stats"></table></div>
       <p class="bl-note" id="bl-stats-note"></p>
@@ -66,6 +71,7 @@
 
     <section class="bl-panel" id="bl-trades">
       <h2 class="bl-h2">Per-trade results</h2>
+      <div id="bl-price-banner"></div>
       <p class="bl-note">Cell colour: <span class="bl-key bl-key-match">detector agrees with the journal tag</span>
         <span class="bl-key bl-key-miss">detector disagrees</span>. Anchor time is UTC.</p>
       <div class="bl-scroll"><table class="bl-table bl-trade-table" id="bl-trade-table"></table></div>

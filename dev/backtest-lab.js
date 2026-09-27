@@ -310,6 +310,7 @@
     chartScale: 'recent',
     finderScale: 'recent',
     fetchedM15: false,
+    onlyLogged: false,   // freshness / fib stats use only trades with a logged entry price
     overrides: {},       // trade id -> { A, H } leg override (in memory only, never stored)
     charts: []
   };
@@ -353,11 +354,14 @@
     return { sets: sets, flat: flat };
   }
 
-  // What the detectors know about a real trade: the journal's entry price (null = approx from the
-  // candle open), its direction, and any in-memory A/H override of the M15 leg.
-  function tradeEntry(tr) {
+  function priceLabel(kind) { return Core.PRICE_SOURCE_LABEL[kind] || String(kind); }
+
+  // What the detectors know about a real trade: the ONE resolved entry price (Core.resolveEntryPrice:
+  // logged, else the M15 open, else the 4H open only when the pair has no M15 data) with its source,
+  // the trade's direction, and any in-memory A/H override of the M15 leg.
+  function tradeEntry(tr, resolved) {
     var ov = S.overrides[tr.id];
-    return { price: tr.entryPrice, direction: tr.direction, override: ov ? { A: ov.A, H: ov.H } : null };
+    return { price: resolved.value, priceKind: resolved.source, direction: tr.direction, override: ov ? { A: ov.A, H: ov.H } : null };
   }
 
   function evaluateAll(pair, anchorMs, entry) {
@@ -366,15 +370,30 @@
     return res;
   }
 
+  // A trade has an approximate price when the journal has none (or none could be resolved at all).
+  function isApprox(row) { return !row.entry || row.entry.source !== 'logged'; }
+
+  // With "Only trades with a logged entry price" on, detectors whose firing depends on the price
+  // (Fresh 4H BOS, the M15 fib checks, and any combination containing them) count only such trades.
+  function countsUnderToggle(row, needsPrice) { return !needsPrice || !S.onlyLogged || !isApprox(row); }
+
+  // Sample note appended to the verdict of a price-dependent detector.
+  function priceNote(st) {
+    if (!st.priceDependent) return '';
+    if (S.onlyLogged) return ' [logged entry prices only: ' + st.usable + ' of ' + st.evaluable + ' evaluable trades included]';
+    return st.approxUsed > 0 ? ' [' + st.approxUsed + ' of ' + st.usable + ' trades use an approximate entry price]' : '';
+  }
+
   function compute() {
     var ids = comboIds();
     var cTags = comboTags(ids);
     var now = Date.now();
     var rows = S.journal.trades.map(function (tr) {
       var pd = S.pairs[tr.symbol];
-      var row = { trade: tr, pair: pd, results: null, combo: null, tagged: {}, comboTagged: null };
+      var row = { trade: tr, pair: pd, entry: null, results: null, combo: null, tagged: {}, comboTagged: null };
       if (!pd || !pd.ok) return row;
-      row.results = evaluateAll(pd, tr.anchorMs, tradeEntry(tr));
+      row.entry = Core.resolveEntryPrice(tr.entryPrice, pd, tr.anchorMs);
+      row.results = evaluateAll(pd, tr.anchorMs, tradeEntry(tr, row.entry));
       S.detectors.forEach(function (d) {
         var tags = tagsFor(d.id);
         row.tagged[d.id] = tags.length ? tradeHasAny(tr, tags) : null;
@@ -416,31 +435,37 @@
     var detStats = {};
     S.detectors.forEach(function (d) {
       var tags = tagsFor(d.id);
-      var usable = rows.filter(function (r) { return r.results && r.results[d.id].status === 'ok'; });
+      var needsPrice = d.entryPrice === 'fires';
+      var evaluable = rows.filter(function (r) { return r.results && r.results[d.id].status === 'ok'; });
+      var usable = evaluable.filter(function (r) { return countsUnderToggle(r, needsPrice); });
       var t = Core.tally(usable.map(function (r) { return { tagged: !!r.tagged[d.id], fired: r.results[d.id].fired }; }));
       detStats[d.id] = {
         tags: tags, tag: tags.length ? tags.join(' / ') : null, summary: Core.summarize(t, base[d.id].fires, base[d.id].n),
-        usable: usable.length, na: rows.filter(function (r) { return r.results && r.results[d.id].status !== 'ok'; }).length
+        usable: usable.length, na: rows.filter(function (r) { return r.results && r.results[d.id].status !== 'ok'; }).length,
+        priceDependent: needsPrice, evaluable: evaluable.length, approxUsed: usable.filter(isApprox).length
       };
     });
 
     var comboStats = null;
     if (ids.length) {
-      var usableC = rows.filter(function (r) { return r.combo && r.combo.status === 'ok'; });
+      var comboNeedsPrice = ids.some(function (id) { return detById(id).entryPrice === 'fires'; });
+      var evaluableC = rows.filter(function (r) { return r.combo && r.combo.status === 'ok'; });
+      var usableC = evaluableC.filter(function (r) { return countsUnderToggle(r, comboNeedsPrice); });
       var tc = Core.tally(usableC.map(function (r) { return { tagged: !!r.comboTagged, fired: r.combo.fired }; }));
       comboStats = {
         ids: ids, tags: cTags ? cTags.flat : null, summary: Core.summarize(tc, baseCombo.fires, baseCombo.n), usable: usableC.length,
-        na: rows.filter(function (r) { return r.combo && r.combo.status !== 'ok'; }).length
+        na: rows.filter(function (r) { return r.combo && r.combo.status !== 'ok'; }).length,
+        priceDependent: comboNeedsPrice, evaluable: evaluableC.length, approxUsed: usableC.filter(isApprox).length
       };
     }
 
     var verdicts = S.detectors.map(function (d) {
       var st = detStats[d.id];
-      return { id: d.id, text: Core.verdictLine(d.label, st.summary, { noTag: !st.tag }), combo: false };
+      return { id: d.id, text: Core.verdictLine(d.label, st.summary, { noTag: !st.tag }) + priceNote(st), combo: false };
     });
     if (comboStats) {
       var label = 'COMBINATION (' + ids.map(function (i) { return detById(i).label; }).join(' + ') + ')';
-      verdicts.push({ id: 'combination', text: Core.verdictLine(label, comboStats.summary, { noTag: !cTags }), combo: true });
+      verdicts.push({ id: 'combination', text: Core.verdictLine(label, comboStats.summary, { noTag: !cTags }) + priceNote(comboStats), combo: true });
     }
 
     S.results = { rows: rows, detStats: detStats, comboStats: comboStats, verdicts: verdicts, base: base, baseCombo: baseCombo };
@@ -567,7 +592,7 @@
       if (v.noLeg) return v.noLeg;
       var leg = 'H ' + fmtPrice(v.H) + (v.hT ? ' @ ' + fmtUtc(v.hT) : '') + ' · A ' + fmtPrice(v.A) + (v.aT ? ' @ ' + fmtUtc(v.aT) : '') + (v.overridden ? ' (override)' : '');
       return 'r ' + v.r.toFixed(1) + '% (' + signed(v.dist, 1) + ' vs ' + v.level + '%, tol ±' + v.tol + ') · ' + leg + ' · price ' + fmtPrice(v.P) +
-        (v.priceKind === 'approx' ? ' (approx: M15 candle open)' : v.priceKind === 'last-close' ? ' (last M15 close)' : '');
+        ' (' + priceLabel(v.priceKind) + ')';
     }
     if (def.id === 'bos-fresh') {
       var lastTxt = function (l) { return 'last BOS (' + l.scale + ') ' + fmtPrice(l.level) + ' @ ' + fmtUtc(l.bosT) + ' (' + l.barsAgo + ' bars ago) · ' + bosMetrics(l); };
@@ -591,14 +616,17 @@
       parts.push('extension ' + signed(v.extPct, 2) + '%' + (v.extAtr !== null ? ' / ' + signed(v.extAtr, 2) + ' ATR' : ''));
     }
     parts.push(v.hoursSinceClose.toFixed(1) + ' h after the BOS close');
-    if (v.priceKind === 'approx') parts.push('entry approx (4H candle open ' + fmtPrice(v.priceValue) + ')');
-    else if (v.priceKind === 'last-close') parts.push('price = last 4H close');
+    if (v.priceKind) parts.push('entry ' + fmtPrice(v.priceValue) + ' (' + priceLabel(v.priceKind) + ')');
+    else parts.push('entry price unresolved');
     return parts.join(' · ');
   }
 
-  function detectorCell(def, res, tagged, tagName) {
+  function detectorCell(def, res, tagged, tagName, approx) {
     var badges = [];
     var cls = 'bl-cell';
+    // Values derived from an estimated entry price stand out: muted, with an "approx" label.
+    var approxCell = approx && !!def.entryPrice && res.status === 'ok';
+    if (approxCell) cls += ' bl-approx-cell';
     if (res.status !== 'ok') {
       badges.push(el('span', { class: 'bl-badge bl-badge-na', text: 'n/a' }));
     } else {
@@ -610,6 +638,8 @@
         badges.push(el('span', { class: 'bl-badge bl-badge-na', text: 'no tag mapped' }));
       }
     }
+    if (approxCell) badges.push(el('span', { class: 'bl-badge bl-badge-approx', text: 'approx' }));
+    if (approxCell && S.onlyLogged && def.entryPrice === 'fires') badges.push(el('span', { class: 'bl-badge bl-badge-not', text: 'excluded from stats' }));
     return el('td', { class: cls }, el('div', { class: 'bl-cell-lines' }, [el('div', { class: 'bl-cell-badges' }, badges), el('div', { class: 'bl-val', text: valueText(def, res) })]));
   }
 
@@ -646,17 +676,18 @@
       var first = [
         el('div', {}, [el('strong', { text: tr.pair }), ' ', el('span', { class: 'bl-muted', text: tr.direction })]),
         el('div', { class: 'bl-val', text: fmtUtc(tr.anchorMs, true) + ' UTC' }),
-        el('div', { class: 'bl-val', text: tr.entryPrice ? 'entry ' + fmtPrice(tr.entryPrice) : 'entry price not logged: approx from the candle open' })
+        el('div', { class: 'bl-val', text: row.entry && row.entry.value !== null ? 'entry ' + fmtPrice(row.entry.value) + ' (' + priceLabel(row.entry.source) + ')' : 'entry price: none logged and none resolvable' })
       ];
+      if (row.results && isApprox(row)) first.push(el('div', {}, el('span', { class: 'bl-flag', text: 'approx entry price' })));
       if (S.overrides[tr.id]) first.push(el('div', {}, el('span', { class: 'bl-flag', text: 'M15 leg override' })));
       if (tr.noEntryTime) first.push(el('div', {}, el('span', { class: 'bl-flag', text: 'no entry time (end of date used)' })));
-      var tr_el = el('tr', {}, [el('td', { class: 'bl-first' }, first)]);
+      var tr_el = el('tr', { class: row.results && isApprox(row) ? 'bl-approx-row' : '' }, [el('td', { class: 'bl-first' }, first)]);
       if (!row.results) {
         tr_el.appendChild(el('td', { class: 'bl-cell bl-muted', colspan: S.detectors.length + 1 }, 'Not tested: ' + (row.pair ? row.pair.reason : 'no data fetched yet')));
         tr_el.appendChild(el('td'));
       } else {
         S.detectors.forEach(function (d) {
-          tr_el.appendChild(detectorCell(d, row.results[d.id], row.tagged[d.id], tagsFor(d.id).length > 0));
+          tr_el.appendChild(detectorCell(d, row.results[d.id], row.tagged[d.id], tagsFor(d.id).length > 0, isApprox(row)));
         });
         tr_el.appendChild(comboCell(row));
         tr_el.appendChild(el('td', {}, el('button', { type: 'button', class: 'bl-btn bl-btn-sm', text: 'Chart', onclick: function () { showChart(tr.id, true); } })));
@@ -664,6 +695,34 @@
       body.appendChild(tr_el);
     });
     table.appendChild(body);
+  }
+
+  // Banner above the per-trade table: which tested trades lack a logged entry price, with links to their
+  // Case Study (Edit Entry lives there). The lab never writes to the journal; the link only navigates.
+  function renderPriceBanner() {
+    var host = $('bl-price-banner');
+    clear(host);
+    var tested = S.results.rows.filter(function (r) { return r.results; });
+    var missing = tested.filter(isApprox);
+    var counts = $('bl-onlylogged-note');
+    if (counts) {
+      counts.textContent = S.onlyLogged
+        ? 'Freshness and fib stats use ' + (tested.length - missing.length) + ' of ' + tested.length + ' tested trades (those with a logged entry price).'
+        : '';
+    }
+    if (!missing.length) return;
+    var list = el('ul', { class: 'bl-price-list' }, missing.map(function (r) {
+      var tr = r.trade;
+      return el('li', {}, [
+        el('a', { href: '../#case-studies/' + encodeURIComponent(tr.id), target: '_blank', rel: 'noopener', text: tr.pair + ' · ' + tr.date + (tr.entryTime ? ' ' + tr.entryTime : '') }),
+        el('span', { class: 'bl-muted', text: ' ' + (r.entry && r.entry.value !== null ? '(using ' + priceLabel(r.entry.source) + ' ' + fmtPrice(r.entry.value) + ')' : '(no price could be estimated)') })
+      ]);
+    }));
+    host.appendChild(el('details', { class: 'bl-banner' }, [
+      el('summary', { text: missing.length + ' of ' + tested.length + ' trades have no logged entry price; their freshness and fib numbers are approximate' }),
+      el('p', { class: 'bl-note', text: 'Open a trade\'s Case Study and use Edit Entry to add the price, then reload this page. The lab only reads the journal.' }),
+      list
+    ]));
   }
 
   function renderStats() {
@@ -681,6 +740,8 @@
       var s = st.summary;
       var sample = [];
       sample.push(el('span', { class: 'bl-muted', text: s.tagged + ' tagged / ' + s.n + ' tested' + (na ? ' (' + na + ' n/a)' : '') }));
+      if (st.priceDependent && S.onlyLogged) sample.push(' ', el('span', { class: 'bl-badge bl-badge-tag', text: 'logged prices only' }));
+      else if (st.priceDependent && st.approxUsed > 0) sample.push(' ', el('span', { class: 'bl-badge bl-badge-approx', text: st.approxUsed + ' approx price' + (st.approxUsed === 1 ? '' : 's') }));
       if (s.indicativeOnly) sample.push(' ', el('span', { class: 'bl-badge bl-badge-ind', text: 'indicative only' }));
       var noTag = !tag;
       var dash = function (x) { return noTag ? '–' : x; };
@@ -877,7 +938,9 @@
       markers.push({ time: t(ev.i), position: 'belowBar', shape: 'arrowUp', color: inWindow ? green : grey, text: inWindow ? 'BOS ' + fmtPrice(ev.level) : '' });
     });
 
-    markers.push({ time: t(entryIdx), position: 'aboveBar', shape: 'arrowDown', color: primary, text: row.trade.noEntryTime ? 'Entry (date end)' : 'Entry', size: 1.4 });
+    var srcOf = row.entry && row.entry.value !== null ? row.entry.source : null;
+    if (srcOf) candles.createPriceLine({ price: row.entry.value, color: primary, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'entry (' + priceLabel(srcOf) + ')' });
+    markers.push({ time: t(entryIdx), position: 'aboveBar', shape: 'arrowDown', color: primary, text: (row.trade.noEntryTime ? 'Entry (date end)' : 'Entry') + (srcOf !== 'logged' ? ' · approx' : ''), size: 1.4 });
     markers.sort(function (a, b) { return a.time - b.time; });
     candles.setMarkers(markers);
 
@@ -940,9 +1003,8 @@
     if (!pd.m15) return { unavailable: pd.m15Note || 'no M15 data for this pair' };
     if (tr.direction === 'short') return { unavailable: 'short trade: the Fibonacci analysis is longs only' };
     var fp = S.params['fib-any'];
-    var ci = Core.containingIndex(pd.m15, tr.anchorMs);
-    var price = tr.entryPrice || (ci >= 0 ? pd.m15.o[ci] : null);
-    var out = { bos: latestBos(row, S.finderScale), finder: null, price: price, priceKind: tr.entryPrice ? 'entry' : 'approx', W: fp.W, levels: [fp.l1, fp.l2, fp.l3], override: S.overrides[tr.id] || null };
+    var price = row.entry ? row.entry.value : null;
+    var out = { bos: latestBos(row, S.finderScale), finder: null, price: price, priceKind: row.entry ? row.entry.source : null, W: fp.W, levels: [fp.l1, fp.l2, fp.l3], override: S.overrides[tr.id] || null };
     if (out.bos) out.finder = Core.entryFinder(pd.m15, out.bos.closeT, tr.anchorMs, fp.W, out.levels, out.override, price);
     return out;
   }
@@ -956,7 +1018,7 @@
     if (!f.bos) { note.textContent = 'No 4H BOS (' + S.finderScale + ' scale) before the entry, so there is no BOS close to search from.'; return; }
     var b = f.bos;
     note.textContent = 'Searching M15 candles from the ' + b.scale + ' (N=' + b.N + ') 4H BOS close at ' + fmtUtc(b.closeT, true) + ' UTC (' + b.barsAgo + ' completed 4H candles before the entry, level ' +
-      fmtPrice(b.level) + ') to the entry at ' + fmtUtc(row.trade.anchorMs, true) + ' UTC. Entry price ' + fmtPrice(f.price) + (f.priceKind === 'approx' ? ' (approx: open of the M15 candle holding the entry)' : '') +
+      fmtPrice(b.level) + ') to the entry at ' + fmtUtc(row.trade.anchorMs, true) + ' UTC. Entry price ' + (f.price === null ? 'unresolved' : fmtPrice(f.price) + ' (' + priceLabel(f.priceKind) + ')') +
       '. Each level uses the leg (W=' + f.W + ') as it stood at that candle, from candles up to it only.' + (f.finder.note ? ' ' + f.finder.note + '.' : '');
     table.appendChild(el('thead', {}, el('tr', {}, ['Fib level', 'First M15 candle whose low touched it (UTC)', 'Fib price', '% below my entry', 'Hours before my entry', 'Leg then (H / A)'].map(function (c, i) {
       return el('th', { class: i >= 2 && i <= 4 ? 'bl-num' : '', text: c });
@@ -1078,8 +1140,8 @@
         if (L.touched && L.idx >= from) markers.push({ time: t(L.idx), position: 'belowBar', shape: 'circle', color: amber, text: L.level + '%' });
       });
     }
-    if (f.price) candles.createPriceLine({ price: f.price, color: primary, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: f.priceKind === 'approx' ? 'entry (approx)' : 'entry' });
-    markers.push({ time: t(last), position: 'aboveBar', shape: 'arrowDown', color: primary, text: tr.noEntryTime ? 'Entry (date end)' : 'Entry', size: 1.4 });
+    if (f.price) candles.createPriceLine({ price: f.price, color: primary, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'entry (' + priceLabel(f.priceKind) + ')' });
+    markers.push({ time: t(last), position: 'aboveBar', shape: 'arrowDown', color: primary, text: (tr.noEntryTime ? 'Entry (date end)' : 'Entry') + (f.priceKind !== 'logged' ? ' · approx' : ''), size: 1.4 });
     markers.sort(function (a, b) { return a.time - b.time; });
     candles.setMarkers(markers);
     chart.timeScale().setVisibleLogicalRange({ from: -1, to: data.length + 7 });
@@ -1087,7 +1149,7 @@
     $('bl-m15-legend').textContent =
       'M15 candles (UTC) ending at the candle that holds the entry. Green line = the broken 4H level; grey diagonal = leg A to H (W=' + f.W + ' completed M15 candles' +
       (f.override ? ', with your override' : '') + '); amber lines = fib levels of that leg; amber circles = first candle whose low touched each level (candidate entries); blue = your entry' +
-      (f.priceKind === 'approx' ? ' (approx: no entry price logged)' : '') + '. The leg and the fib lines are drawn as of the last completed candle before the entry. Touches older than the visible window are listed in the table below.';
+      (f.price === null ? ' (entry price unresolved)' : ' (price ' + fmtPrice(f.price) + ', ' + priceLabel(f.priceKind) + ')') + '. The leg and the fib lines are drawn as of the last completed candle before the entry. Touches older than the visible window are listed in the table below.';
   }
 
   // ---------------------------------------------------------------------
@@ -1131,7 +1193,7 @@
       note: 'Backtest Lab validation: coded detectors vs the confluence tags logged in the journal. No lookahead: each detector only sees candles closed by the anchor.',
       settings: {
         journalUtcOffset: tzLabel(J.tzOffset), warmupCandles: Core.WARMUP, minTaggedForConfidence: Core.MIN_TAGGED,
-        countPendingFailedAsUntagged: S.ignoreNonPassed, combination: ids,
+        countPendingFailedAsUntagged: S.ignoreNonPassed, onlyTradesWithLoggedEntryPrice: S.onlyLogged, combination: ids,
         detectors: S.detectors.map(function (d) {
           return { id: d.id, label: d.label, tags: tagsFor(d.id), type: d.type, timeframe: d.timeframe, params: S.params[d.id], definition: Core.definitionText(d, S.params[d.id]) };
         })
@@ -1150,14 +1212,21 @@
         }),
         tradesLogged: J.totalLogged, tradesExcludedNoPairOrDate: J.skipped
       },
+      entryPriceSummary: (function () {
+        var tested = R.rows.filter(function (r) { return r.results; });
+        return { testedTrades: tested.length, logged: tested.filter(function (r) { return !isApprox(r); }).length, approximate: tested.filter(isApprox).length };
+      })(),
       verdicts: R.verdicts.map(function (v) { return v.text; }),
       stats: S.detectors.map(function (d) {
         var st = R.detStats[d.id];
-        return Object.assign({ id: d.id, tags: st.tags, testedTrades: st.usable, naTrades: st.na }, st.summary);
-      }).concat(R.comboStats ? [Object.assign({ id: 'combination', detectors: R.comboStats.ids, tags: R.comboStats.tags, testedTrades: R.comboStats.usable, naTrades: R.comboStats.na }, R.comboStats.summary)] : []),
+        return Object.assign({ id: d.id, tags: st.tags, testedTrades: st.usable, naTrades: st.na, usesEntryPrice: st.priceDependent, evaluableTrades: st.evaluable, tradesWithApproxPrice: st.approxUsed }, st.summary);
+      }).concat(R.comboStats ? [Object.assign({ id: 'combination', detectors: R.comboStats.ids, tags: R.comboStats.tags, testedTrades: R.comboStats.usable, naTrades: R.comboStats.na, usesEntryPrice: R.comboStats.priceDependent, evaluableTrades: R.comboStats.evaluable, tradesWithApproxPrice: R.comboStats.approxUsed }, R.comboStats.summary)] : []),
       trades: R.rows.map(function (r) {
         var out = { id: r.trade.id, pair: r.trade.pair, date: r.trade.date, entryTime: r.trade.entryTime, anchorUtc: new Date(r.trade.anchorMs).toISOString(), noEntryTime: r.trade.noEntryTime, direction: r.trade.direction, outcome: r.trade.outcome, tags: r.trade.tags };
         out.entryPrice = { value: r.trade.entryPrice, logged: r.trade.entryPrice !== null };
+        // The single price every detector, chart and finder used for this trade, and where it came from.
+        out.entryPriceUsed = r.entry ? r.entry.value : null;
+        out.entryPriceSource = r.entry ? r.entry.source : null;
         if (!r.results) { out.tested = false; out.reason = r.pair ? r.pair.reason : 'no data'; return out; }
         out.tested = true;
         out.legOverride = S.overrides[r.trade.id] || null;
@@ -1203,6 +1272,7 @@
     compute();
     renderCoverage();
     renderStats();
+    renderPriceBanner();
     renderTradeTable();
     renderData();
     renderUntested();
@@ -1275,6 +1345,7 @@
     $('bl-run-btn').addEventListener('click', function () { run(false); });
     $('bl-refetch-btn').addEventListener('click', function () { run(true); });
     $('bl-opt-status').addEventListener('change', function (e) { S.ignoreNonPassed = e.target.checked; recompute(); });
+    $('bl-opt-logged').addEventListener('change', function (e) { S.onlyLogged = e.target.checked; recompute(); });
     $('bl-chart-trade').addEventListener('change', function (e) { S.chartTradeId = e.target.value; renderChart(); });
     $('bl-chart-scale').addEventListener('change', function (e) { S.chartScale = e.target.value; renderChart(); });
     $('bl-finder-scale').addEventListener('change', function (e) { S.finderScale = e.target.value; renderChart(); });
