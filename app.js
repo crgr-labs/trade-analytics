@@ -6473,7 +6473,7 @@
       if (image) {
         slot =
           '<div class="chart-slot relative aspect-[16/10] rounded-xl overflow-hidden bg-surface-container-low cursor-pointer transition-all" data-tf="' + tf.key + '" role="button" tabindex="0" title="Click to replace">' +
-            '<img src="' + image.value + '" alt="' + tf.label + ' chart" class="absolute inset-0 w-full h-full object-cover" />' +
+            '<img src="' + safeImageUrl(image.value) + '" alt="' + tf.label + ' chart" class="absolute inset-0 w-full h-full object-cover" />' +
             '<span class="absolute top-2 left-2 bg-surface-container-lowest/90 text-primary font-metric-sm text-[10px] font-semibold px-2 py-0.5 rounded-full shadow-sm">' + tf.label + '</span>' +
             '<button type="button" class="chart-slot-remove absolute top-2 right-2 w-6 h-6 rounded-full bg-surface-container-lowest/90 text-secondary hover:text-error shadow-sm flex items-center justify-center transition-colors" data-tf="' + tf.key + '" aria-label="Remove ' + tf.label + ' chart">' +
               '<span class="material-symbols-outlined text-[14px]">close</span>' +
