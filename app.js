@@ -109,13 +109,14 @@
     return '#';
   }
 
-  function safeImageUrl(value) {
-    if (!value) return '';
+  function isSafeImageValue(value) {
+    if (!value) return false;
     var str = String(value).trim();
-    if (/^data:image\/[a-zA-Z0-9+.-]+;base64,/i.test(str) || /^https?:\/\//i.test(str)) {
-      return escapeHtml(str);
-    }
-    return '';
+    return /^data:image\/[a-zA-Z0-9+.-]+;base64,/i.test(str) || /^https?:\/\//i.test(str);
+  }
+
+  function safeImageUrl(value) {
+    return isSafeImageValue(value) ? escapeHtml(String(value).trim()) : '';
   }
 
   function parseDate(dateStr) {
@@ -210,13 +211,19 @@
     // Chart evidence is now one screenshot per timeframe (`charts`). `chart`
     // only keeps a TradingView link; a legacy single upload has no known
     // timeframe, so it's folded into Daily rather than dropped.
+    // A chart value that isn't a data: image or an http(s) URL can't have
+    // come from compressChartImage() (the only legitimate source) - it's
+    // either corrupted or a crafted payload from an imported/synced file,
+    // so it's dropped here rather than trusted through to rendering.
     var charts = trade.charts && typeof trade.charts === 'object' ? trade.charts : {};
     CHART_TIMEFRAMES.forEach(function (tf) {
       var entry = charts[tf.key];
-      charts[tf.key] = entry && entry.value ? entry : null;
+      charts[tf.key] = entry && isSafeImageValue(entry.value) ? entry : null;
     });
-    if (trade.chart && trade.chart.type === 'upload' && trade.chart.value) {
-      if (!charts.daily) charts.daily = { value: trade.chart.value, name: trade.chart.name || '' };
+    if (trade.chart && trade.chart.type === 'upload') {
+      if (!charts.daily && isSafeImageValue(trade.chart.value)) {
+        charts.daily = { value: trade.chart.value, name: trade.chart.name || '' };
+      }
       trade.chart = null;
     }
     trade.charts = charts;
@@ -2722,12 +2729,27 @@
             importInput.value = '';
             return;
           }
-          var count = parsed.length;
+          // Each entry must at least be a plain object - anything else (a
+          // string, number, array, or null slipped into the file) can't be
+          // a trade record and would otherwise reach migrateTrade() as-is.
+          var validTrades = parsed.filter(function (item) {
+            return item !== null && typeof item === 'object' && !Array.isArray(item);
+          });
+          var skipped = parsed.length - validTrades.length;
+          if (skipped > 0) {
+            window.alert('Skipped ' + skipped + ' malformed entr' + (skipped === 1 ? 'y' : 'ies') + ' in that file.');
+          }
+          if (!validTrades.length) {
+            window.alert('No valid trades found in that file.');
+            importInput.value = '';
+            return;
+          }
+          var count = validTrades.length;
           var confirmed = window.confirm(
             'Import ' + count + ' trade' + (count === 1 ? '' : 's') + '? This replaces everything currently in your journal.'
           );
           if (confirmed) {
-            if (TradeStore.setAll(parsed)) {
+            if (TradeStore.setAll(validTrades)) {
               renderTradeJournal();
               window.alert('Imported ' + count + ' trade' + (count === 1 ? '' : 's') + '.');
             } else {
