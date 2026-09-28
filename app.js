@@ -7273,9 +7273,15 @@
   // regional domain, so an unexpected host is flagged but never blocks a save.
   function chartLinkLooksOff(value) {
     if (!value) return false;
-    var isHttp = /^https?:\/\//i.test(value);
-    var isTV = value.toLowerCase().indexOf('tradingview.com') !== -1;
-    return !(isHttp && isTV);
+    try {
+      var url = new URL(value);
+      var isHttp = url.protocol === 'http:' || url.protocol === 'https:';
+      var host = url.hostname.toLowerCase();
+      var isTV = host === 'tradingview.com' || host.endsWith('.tradingview.com');
+      return !(isHttp && isTV);
+    } catch (e) {
+      return true;
+    }
   }
 
   // Rebuilt every time the form is entered, so a setup saved (or deleted) on
